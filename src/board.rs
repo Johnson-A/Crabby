@@ -39,11 +39,18 @@ pub struct Move { // single u32 ?
 
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: u8) {
 	while targets != 0 {
-		let to = bit_pop(&mut targets) as u8;
+		let to = bit_pop_pos(&mut targets);
 		let from = to - diff;
 		// let capture = board
 		let mv = Move {from: from, to: to, flags: 0 };
 		moves.push(mv);
+	}
+}
+
+pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u8) {
+	while targets != 0 {
+		let to = bit_pop_pos(&mut targets);
+		moves.push(Move {from: from, to: to, flags: 0});
 	}
 }
 
@@ -81,94 +88,72 @@ impl Board {
 		}
 	}
 
-	pub fn get_moves(&self, color: Color) -> Vec<Move> { // TODO:
+	pub fn get_moves(&self, color: Color) -> Vec<Move> {
 		let mut moves: Vec<Move> = Vec::with_capacity(32);
+
+		let white_side = color == Color::White;
+		let (us, opp) = if white_side { (&self.w, &self.b) } else { (&self.b, &self.w) };
+		let rank_3	  = if white_side { ROW_3 } else { ROW_6 };
+		let prom_rank = if white_side { ROW_8 } else { ROW_1 };
+
+		let occ = us.pieces | opp.pieces;
 		
-		let possible_squares = !self.w.pieces;
+		// Pawn
+		let mut pushes = (us.pawn << 8) & !occ;
 
-		let occupied = self.w.pieces | self.b.pieces;
-		
-		if color == Color::White {
-			// Pawn
-			let mut pushes = (self.w.pawn << 8) & !occupied;
+		let double_pushes = ((pushes & rank_3) << 8) & !occ;
 
-			let double_pushes = ((pushes & ROW_3) << 8) & !occupied;
+		let left_attacks = (us.pawn << 7) & opp.pieces & !FILE_H;
 
-			let left_attacks = (self.w.pawn << 7) & self.b.pieces & !FILE_H;
+		let right_attacks = (us.pawn << 9) & opp.pieces & !FILE_A;
 
-			let right_attacks = (self.w.pawn << 9) & self.b.pieces & !FILE_A;
+		let promotions = pushes & prom_rank; // Get all moves
+		// let promotion_captures = (left_attacks | right_attacks) & ROW_8;
+		pushes &= !prom_rank; // Remove ROW_8 pushes
 
-			let promotions = pushes & ROW_8; // Get all moves
-			// let promotion_captures = (left_attacks | right_attacks) & ROW_8;
-			pushes &= !ROW_8; // Remove ROW_8 pushes
+		// En Pessant goes here
 
-			// En Pessant goes here
-			add_moves(&mut moves, pushes, 8);
-			add_moves(&mut moves, double_pushes, 16);
-			add_moves(&mut moves, left_attacks, 7);
-			add_moves(&mut moves, right_attacks, 9);
-			add_moves(&mut moves, promotions, 8);
+		add_moves(&mut moves, pushes, 8);
+		add_moves(&mut moves, double_pushes, 16);
+		add_moves(&mut moves, left_attacks, 7);
+		add_moves(&mut moves, right_attacks, 9);
+		add_moves(&mut moves, promotions, 8);
 
-			let mut queen_bb = self.w.queen;
-			while queen_bb != 0 {
-				let from = bit_pop(&mut queen_bb);
-				let piece = 1 << from;
+		let mut queen_bb = us.queen;
+		while queen_bb != 0 {
+			let piece = bit_pop(&mut queen_bb);
+			let from = piece.trailing_zeros() as u8;
 
-				let attacks = 	get_line_attacks(occupied, file(from), piece) |
-								get_line_attacks(occupied, row(from), piece)  |
-								get_line_attacks(occupied, diag(from), piece);
+			let attacks = 	get_line_attacks(occ, file(from), piece) |
+							get_line_attacks(occ, row(from),  piece) |
+							get_line_attacks(occ, diag(from), piece);
 
-				let mut qmoves = attacks & !self.w.pieces;
-
-				while qmoves != 0 {
-					let to = bit_pop(&mut qmoves);
-					moves.push(Move {from: from as u8, to: to as u8, flags: 0});
-				}
-			}
-
-			let mut rook_bb = self.w.rook;
-			while rook_bb != 0 {
-				let from = bit_pop(&mut rook_bb);
-				let piece = 1 << from;
-
-				let attacks = 	get_line_attacks(occupied, file(from), piece) |
-								get_line_attacks(occupied, row(from), piece);
-
-				let mut rmoves = attacks & !self.w.pieces;
-
-				while rmoves != 0 {
-					let to = bit_pop(&mut rmoves);
-					moves.push(Move {from: from as u8, to: to as u8, flags: 0});
-				}
-			}
-
-			let mut bishop_bb = self.w.bishop;
-			while bishop_bb != 0 {
-				let from = bit_pop(&mut bishop_bb);
-				let piece = 1 << from;
-
-				let attacks = 	get_line_attacks(occupied, diag(from), piece);
-
-				let mut bmoves = attacks & !self.w.pieces;
-
-				while bmoves != 0 {
-					let to = bit_pop(&mut bmoves);
-					moves.push(Move {from: from as u8, to: to as u8, flags: 0});
-				}
-			}
-
-		} else {
-
+			let mut qmoves = attacks & !us.pieces;
+			add_moves_from(&mut moves, qmoves, from);
 		}
 
-					// Knight
-			// let mut rem_knights = self.w.knight;
+		let mut rook_bb = us.rook;
+		while rook_bb != 0 {
+			let piece = bit_pop(&mut rook_bb);
+			let from = piece.trailing_zeros() as u8;
 
-			// while rem_knights != 0 {
-			// 	let pos = rem_knights & (-rem_knights); // v & -v
-			// 	// moves.push()
-			// 	rem_knights ^= pos;
-			// }
+			let attacks = 	get_line_attacks(occ, file(from), piece) |
+							get_line_attacks(occ, row(from), piece);
+
+			let mut rmoves = attacks & !us.pieces;
+			add_moves_from(&mut moves, rmoves, from);
+		}
+
+		let mut bishop_bb = us.bishop;
+		while bishop_bb != 0 {
+			let piece = bit_pop(&mut bishop_bb);
+			let from = piece.trailing_zeros() as u8;
+
+			let attacks = 	get_line_attacks(occ, diag(from), piece);
+
+			let mut bmoves = attacks & !us.pieces;
+			add_moves_from(&mut moves, bmoves, from);
+		}
 
 		moves
 	}

@@ -46,27 +46,33 @@ pub fn reverse(bits: u64) -> u64 {
 	BIT_REV[((bits >> 56) & 0xff) as usize]
 }
 
-pub fn bit_pop(x: &mut u64) -> u32 {
-	let lsb = x.trailing_zeros();
-	*x ^= 1 << lsb;
+pub fn bit_pop(x: &mut u64) -> u64 {
+	let lsb = *x & -(*x);
+	*x ^= lsb;
 	lsb
 }
 
-pub fn file(from: u32) -> u64 {
+pub fn bit_pop_pos(x: &mut u64) -> u8 {
+	let lsb_pos = x.trailing_zeros() as u8;
+	*x ^= 1 << lsb_pos;
+	lsb_pos
+}
+
+pub fn file(from: u8) -> u64 {
 	FILE_A << (from % 8)
 }
 
-pub fn row(from: u32) -> u64 {
+pub fn row(from: u8) -> u64 {
 	ROW_1 << (8 * (from / 8))
 }
 
 const main_diag: u64 = 0x8040201008040201;
-pub fn diag(from: u32) -> u64 {
+pub fn diag(from: u8) -> u64 {
 	let diag_index = ((from / 8) - (from % 8)) & 15;
 	if diag_index <= 7 {main_diag << 8*diag_index} else {main_diag >> 8*(16 - diag_index)}
 }
 
 const main_anti_diag: u64 = 0x0102040810204080;
-pub fn anti_diag(from: u32) -> u64 {
+pub fn anti_diag(from: u8) -> u64 {
 	0
 }
