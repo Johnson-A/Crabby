@@ -142,7 +142,8 @@ impl Board {
 
 			let attacks = get_line_attacks(occ, file(from), piece) |
 						  get_line_attacks(occ, row(from),  piece) |
-						  get_line_attacks(occ, diag(from), piece);
+						  get_line_attacks(occ, diag(from), piece) |
+						  get_line_attacks(occ, a_diag(from), piece);
 
 			let qmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, qmoves, from);
@@ -165,7 +166,8 @@ impl Board {
 			let piece = bit_pop(&mut bishop_bb);
 			let from = piece.trailing_zeros();
 
-			let attacks = get_line_attacks(occ, diag(from), piece);
+			let attacks = get_line_attacks(occ, diag(from), piece)|
+						  get_line_attacks(occ, a_diag(from), piece);
 
 			let bmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, bmoves, from);
