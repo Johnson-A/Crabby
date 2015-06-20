@@ -1,0 +1,11 @@
+[package]
+name = "chess"
+version = "0.1.0"
+authors = ["alex"]
+
+[dependencies]
+rand = "*" # Or a specific version
+
+[profile.bench]
+opt-level = 3
+debug = false
