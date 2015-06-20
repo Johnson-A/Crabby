@@ -21,6 +21,7 @@ static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 fn bench(b: &mut test::Bencher) {
 	// let mut t: u64 = 0;
 	let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+	
 	b.iter(|| test::black_box({
 		// for i in 0u64..100000000u64 {
 		// 	t |= reverse(i);
