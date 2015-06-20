@@ -2,11 +2,11 @@ use std::fmt;
 use piece::*;
 use util::*;
 
-pub type Squares = [[Square; 8]; 8];
+pub type Squares = [[Square; 64];
 
 pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
 	let mut w: BitBoard = Default::default();
-	let mut b: BitBoard= Default::default();
+	let mut b: BitBoard = Default::default();
 
 	for i in 0..64 {
 		match sqs[i/8][i%8] {
@@ -93,7 +93,7 @@ impl Board {
 
 		let white_side = color == Color::White;
 		let (us, opp) = if white_side { (&self.w, &self.b) } else { (&self.b, &self.w) };
-		let rank_3	  = if white_side { ROW_3 } else { ROW_6 };
+		let rank_3    = if white_side { ROW_3 } else { ROW_6 };
 		let prom_rank = if white_side { ROW_8 } else { ROW_1 };
 
 		let occ = us.pieces | opp.pieces;
@@ -124,9 +124,9 @@ impl Board {
 			let piece = bit_pop(&mut queen_bb);
 			let from = piece.trailing_zeros() as u8;
 
-			let attacks = 	get_line_attacks(occ, file(from), piece) |
-							get_line_attacks(occ, row(from),  piece) |
-							get_line_attacks(occ, diag(from), piece);
+			let attacks = get_line_attacks(occ, file(from), piece) |
+						  get_line_attacks(occ, row(from),  piece) |
+						  get_line_attacks(occ, diag(from), piece);
 
 			let mut qmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, qmoves, from);
@@ -137,8 +137,8 @@ impl Board {
 			let piece = bit_pop(&mut rook_bb);
 			let from = piece.trailing_zeros() as u8;
 
-			let attacks = 	get_line_attacks(occ, file(from), piece) |
-							get_line_attacks(occ, row(from), piece);
+			let attacks = get_line_attacks(occ, file(from), piece) |
+						  get_line_attacks(occ, row(from), piece);
 
 			let mut rmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, rmoves, from);
@@ -149,7 +149,7 @@ impl Board {
 			let piece = bit_pop(&mut bishop_bb);
 			let from = piece.trailing_zeros() as u8;
 
-			let attacks = 	get_line_attacks(occ, diag(from), piece);
+			let attacks = get_line_attacks(occ, diag(from), piece);
 
 			let mut bmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, bmoves, from);
