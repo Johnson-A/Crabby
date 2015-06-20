@@ -11,6 +11,8 @@ use game::*;
 mod game;
 use board::*;
 mod board;
+use util::*;
+mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
 static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
