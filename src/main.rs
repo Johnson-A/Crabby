@@ -11,7 +11,6 @@ use game::*;
 mod game;
 use board::*;
 mod board;
-use util::*;
 mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
@@ -20,13 +19,15 @@ static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 #[bench]
 fn bench(b: &mut test::Bencher) {
 	// let mut t: u64 = 0;
-	let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+	// let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+	let board = Board::new(START_POS);
+	// println!("{}", board);
 	b.iter(|| test::black_box({
 		// for i in 0u64..100000000u64 {
 		// 	t |= reverse(i);
 		// 	// t |= bit_scan_forward(i);
 		// }
-		for _ in 0..100 {
+		for _ in 0..1000 {
 			board.get_moves(Color::White);
 		}
 	}
@@ -102,7 +103,7 @@ fn position(params: &mut Vec<&str>) -> Board {
 		"startpos" => Board::new(START_POS),
 		fen => Board::new(fen)
 	};
-	if params.len() > 0 {params.remove(0);} // Remove "moves" string
+	if params.len() > 0 { params.remove(0); } // Remove "moves" string
 
 	for mv_str in params {
 		pos.make_str_move(mv_str);

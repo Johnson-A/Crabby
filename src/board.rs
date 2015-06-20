@@ -56,7 +56,7 @@ pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u8) {
 
 pub fn get_line_attacks(occ: u64, mask: u64, piece: u64) -> u64 {
 	let pot_blockers = occ & mask;
-	let forward = (pot_blockers - 2*piece);
+	let forward = pot_blockers - 2*piece;
 	let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
 	(forward ^ rev) & mask
 }
@@ -128,7 +128,7 @@ impl Board {
 						  get_line_attacks(occ, row(from),  piece) |
 						  get_line_attacks(occ, diag(from), piece);
 
-			let mut qmoves = attacks & !us.pieces;
+			let qmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, qmoves, from);
 		}
 
@@ -140,7 +140,7 @@ impl Board {
 			let attacks = get_line_attacks(occ, file(from), piece) |
 						  get_line_attacks(occ, row(from), piece);
 
-			let mut rmoves = attacks & !us.pieces;
+			let rmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, rmoves, from);
 		}
 
@@ -151,7 +151,7 @@ impl Board {
 
 			let attacks = get_line_attacks(occ, diag(from), piece);
 
-			let mut bmoves = attacks & !us.pieces;
+			let bmoves = attacks & !us.pieces;
 			add_moves_from(&mut moves, bmoves, from);
 		}
 
@@ -187,7 +187,7 @@ impl fmt::Display for Board {
 			if (i+1) % 8 == 0 { characters.push('\n') }
 		}
 		let output = characters.iter().cloned().collect::<String>();
-		write!(f, "{}", output)
+		write!(f, "--------\n{}--------", output)
 	}
 }
 
