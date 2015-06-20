@@ -19,8 +19,8 @@ static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 #[bench]
 fn bench(b: &mut test::Bencher) {
 	// let mut t: u64 = 0;
-	// let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
-	let board = Board::new(START_POS);
+	let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+	// let board = Board::new(START_POS);
 	// println!("{}", board);
 	b.iter(|| test::black_box({
 		// for i in 0u64..100000000u64 {
@@ -44,7 +44,7 @@ fn tests() {
 	let mut board = Board::new(START_POS);
 	println!("{}", board);
 	let moves = board.get_moves(Color::White);
-	println!("moves = {:?}", moves);
+	println!("moves = {:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
 
 	board.make_str_move("e2e4");
 	board.make_str_move("e7e5");
@@ -59,7 +59,7 @@ fn tests() {
 }
 
 fn main() {
-	// tests();
+	tests();
 
 	let stdin = io::stdin();
 	let mut pos = Board::new(START_POS);
@@ -88,9 +88,9 @@ fn go(board: &Board) {
 	let mut rng = rand::thread_rng();
 
 	let mv = &moves[between.ind_sample(&mut rng)];
-	println!("{:?}", moves.iter().map(|x| move_to_str(x.from, x.to)).collect::<Vec<String>>());
+	println!("{:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
 	println!("{:?}", mv);
-	println!("bestmove {}", move_to_str(mv.from, mv.to));
+	println!("bestmove {}", move_to_str(mv));
 }
 
 fn print() {

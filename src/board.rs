@@ -13,12 +13,12 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
 			Square::Piece(pt, col) => {
 				let bb = if col == Color::White { &mut w } else { &mut b };
 				match pt {
-					PieceType::Pawn   => bb.pawn |= 1 << i,
+					PieceType::Pawn   => bb.pawn   |= 1 << i,
 					PieceType::Knight => bb.knight |= 1 << i,
 					PieceType::Bishop => bb.bishop |= 1 << i,
-					PieceType::Rook   => bb.rook |= 1 << i,
-					PieceType::Queen  => bb.queen |= 1 << i,
-					PieceType::King   => bb.king |= 1 << i
+					PieceType::Rook   => bb.rook   |= 1 << i,
+					PieceType::Queen  => bb.queen  |= 1 << i,
+					PieceType::King   => bb.king   |= 1 << i
 				};
 			},
 			Square::Empty => continue
@@ -31,26 +31,42 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
 }
 
 #[derive(Debug)]
-pub struct Move { // single u32 ?
-	pub flags: u16,
-	pub from: u8,
-	pub to: u8
+pub struct Move { data: u32 }
+
+impl Move {
+	pub fn new(from: u32, to: u32, flags: u32) -> Move {
+		let d = from | to << 6 | flags << 12;
+		Move { data: d }
+	}
+
+	pub fn from(&self)  -> u32 { self.data & 0x3F }
+	pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
+	pub fn flags(&self) -> u32 { (self.data >> 12) & 0x3F }
 }
 
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: u8) {
+pub fn move_to_str(mv: &Move) -> String {
+	let (from, to) = (mv.from() as u8, mv.to() as u8);
+	let (sr, sc) = (from / 8, from % 8);
+	let (dr, dc) = (to / 8, to % 8);
+	let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
+	let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
+	let chars = vec![sc_char, sr_char, dc_char, dr_char];
+	chars.into_iter().collect::<String>()
+}
+
+pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: u32) {
 	while targets != 0 {
 		let to = bit_pop_pos(&mut targets);
 		let from = to - diff;
 		// let capture = board
-		let mv = Move {from: from, to: to, flags: 0 };
-		moves.push(mv);
+		moves.push(Move::new(from, to, 0));
 	}
 }
 
-pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u8) {
+pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u32) {
 	while targets != 0 {
 		let to = bit_pop_pos(&mut targets);
-		moves.push(Move {from: from, to: to, flags: 0});
+		moves.push(Move::new(from, to, 0));
 	}
 }
 
@@ -68,7 +84,7 @@ pub struct Board {
 }
 
 impl Board {
-	pub fn make_move(&mut self, src: usize, dest: usize) { // TODO:
+	pub fn make_move(&mut self, src: usize, dest: usize) {
 		self.sqs[dest] = self.sqs[src];
 		self.sqs[src] = Square::Empty;
 		let (w, b) = gen_bitboards(&self.sqs);
@@ -84,12 +100,12 @@ impl Board {
 				let dest_pos = to_pos(dc, dr);
 				self.make_move(src_pos, dest_pos);
 			},
-			_ => return // malformed move
+			_ => () // malformed move
 		}
 	}
 
 	pub fn get_moves(&self, color: Color) -> Vec<Move> {
-		let mut moves: Vec<Move> = Vec::with_capacity(32);
+		let mut moves: Vec<Move> = Vec::with_capacity(64);
 
 		let white_side = color == Color::White;
 		let (us, opp) = if white_side { (&self.w, &self.b) } else { (&self.b, &self.w) };
@@ -122,7 +138,7 @@ impl Board {
 		let mut queen_bb = us.queen;
 		while queen_bb != 0 {
 			let piece = bit_pop(&mut queen_bb);
-			let from = piece.trailing_zeros() as u8;
+			let from = piece.trailing_zeros();
 
 			let attacks = get_line_attacks(occ, file(from), piece) |
 						  get_line_attacks(occ, row(from),  piece) |
@@ -135,7 +151,7 @@ impl Board {
 		let mut rook_bb = us.rook;
 		while rook_bb != 0 {
 			let piece = bit_pop(&mut rook_bb);
-			let from = piece.trailing_zeros() as u8;
+			let from = piece.trailing_zeros();
 
 			let attacks = get_line_attacks(occ, file(from), piece) |
 						  get_line_attacks(occ, row(from), piece);
@@ -147,7 +163,7 @@ impl Board {
 		let mut bishop_bb = us.bishop;
 		while bishop_bb != 0 {
 			let piece = bit_pop(&mut bishop_bb);
-			let from = piece.trailing_zeros() as u8;
+			let from = piece.trailing_zeros();
 
 			let attacks = get_line_attacks(occ, diag(from), piece);
 

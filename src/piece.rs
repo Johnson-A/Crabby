@@ -49,12 +49,3 @@ pub fn to_pos(col: char, row: char) -> usize {
 	let row_num = row as u8 - b'1';
 	(row_num * 8 + col_num) as usize
 }
-
-pub fn move_to_str(from: u8, to: u8) -> String {
-	let (sr, sc) = (from / 8, from % 8);
-	let (dr, dc) = (to / 8, to % 8);
-	let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
-	let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
-	let chars = vec![sc_char, sr_char, dc_char, dr_char];
-	chars.into_iter().collect::<String>()
-}
