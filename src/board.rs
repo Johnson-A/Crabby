@@ -2,14 +2,14 @@ use std::fmt;
 use piece::*;
 use util::*;
 
-pub type Squares = [[Square; 64];
+pub type Squares = [Square; 64];
 
 pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
 	let mut w: BitBoard = Default::default();
 	let mut b: BitBoard = Default::default();
 
 	for i in 0..64 {
-		match sqs[i/8][i%8] {
+		match sqs[i] {
 			Square::Piece(pt, col) => {
 				let bb = if col == Color::White { &mut w } else { &mut b };
 				match pt {
@@ -68,9 +68,9 @@ pub struct Board {
 }
 
 impl Board {
-	pub fn make_move(&mut self, (sr, sc): Position, (dr, dc): Position) { // TODO:
-		self.sqs[dr][dc] = self.sqs[sr][sc];
-		self.sqs[sr][sc] = Square::Empty;
+	pub fn make_move(&mut self, src: usize, dest: usize) { // TODO:
+		self.sqs[dest] = self.sqs[src];
+		self.sqs[src] = Square::Empty;
 		let (w, b) = gen_bitboards(&self.sqs);
 		self.w = w;
 		self.b = b;
@@ -160,12 +160,15 @@ impl Board {
 
 	pub fn new(fen_board: &str) -> Board {
 		let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
-		let mut sqs = [[Square::Empty; 8]; 8];
+		let mut sqs = [Square::Empty; 64];
 
 		for (r, row) in reversed_rows.enumerate() {
+			let mut offset = 0;
 			for (c, ch) in row.chars().enumerate() {
 				if !ch.is_numeric() {
-					sqs[r][c] = to_piece(ch);
+					sqs[r*8 + c+offset] = to_piece(ch);
+				} else {
+					offset += (ch as u8 - b'0') as usize;
 				}
 			}
 		}
@@ -177,13 +180,11 @@ impl Board {
 
 impl fmt::Display for Board {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let mut characters = Vec::new();
+		let mut characters = Vec::with_capacity(64);
 
-		for row in self.sqs.iter().rev() {
-			for sq in row.iter() {
-				characters.push(to_char(sq));
-			}
-			characters.push('\n');
+		for (i, sq) in self.sqs.iter().enumerate() {
+			characters.push(to_char(sq));
+			if (i+1) % 8 == 0 { characters.push('\n') }
 		}
 		let output = characters.iter().cloned().collect::<String>();
 		write!(f, "{}", output)

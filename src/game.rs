@@ -10,7 +10,7 @@ pub struct Game {
 	pub w_time: u32,
 	pub b_time: u32,
 	pub move_num: u32,
-	pub en_pessant: Position,
+	pub en_pessant: usize,
 }
 
 impl fmt::Display for Game {

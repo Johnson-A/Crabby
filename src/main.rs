@@ -52,7 +52,7 @@ fn tests() {
 	let game = Game {
 		board: board, to_move: Color::White, 
 		w_castle: true, b_castle: true, w_time: 1, b_time: 1,
-		move_num: 1, en_pessant:(3,3)};
+		move_num: 1, en_pessant: 9};
 
 	println!("{}", game);
 }

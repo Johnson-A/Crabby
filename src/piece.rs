@@ -44,12 +44,10 @@ pub fn to_char(sq: &Square) -> char {
 	}
 }
 
-pub type Position = (usize, usize);
-
-pub fn to_pos(col: char, row: char) -> Position {
+pub fn to_pos(col: char, row: char) -> usize {
 	let col_num = col as u8 - b'a';
 	let row_num = row as u8 - b'1';
-	(row_num as usize, col_num as usize)
+	(row_num * 8 + col_num) as usize
 }
 
 pub fn move_to_str(from: u8, to: u8) -> String {
