@@ -40,7 +40,7 @@ impl Move {
 
     pub fn from(&self)  -> u32 { self.data & 0x3F }
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
-    pub fn flags(&self) -> u32 { (self.data >> 12) & 0x3F }
+    pub fn flags(&self) -> u32 { self.data >> 12 }
 }
 
 pub fn move_to_str(mv: &Move) -> String {
@@ -112,7 +112,7 @@ impl Board {
         let prom_rank = if white_side { ROW_8 } else { ROW_1 };
 
         let occ = us.pieces | opp.pieces;
-        
+
         // Pawn
         let mut pushes = (us.pawn << 8) & !occ;
 

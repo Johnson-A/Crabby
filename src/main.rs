@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, test, negate_unsigned, phase)]
+#![feature(slice_patterns, convert, test, negate_unsigned)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -22,21 +22,21 @@ static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    // let mut t: u64 = 0;
-    let board = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
-    // let board = Board::new(START_POS);
-    // println!("{}", board);
+    let board0 = Board::new(START_POS);
+    let board1 = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+    let board2 = Board::new("6k1/8/K1b3n1/1P1PR2p/PP2Br2/3Q4/8/R3r1N1");
+    let board3 = Board::new("8/1Pp1N1R1/1k2p3/1bnp2b1/nP2P1K1/4P3/Q1R2p1P/5N2");
+    let board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
+
     b.iter(|| test::black_box({
-        // for i in 0u64..100000000u64 {
-        //  t |= reverse(i);
-        //  // t |= bit_scan_forward(i);
-        // }
-        for _ in 0..1000 {
-            board.get_moves(Color::White);
+        for _ in 0..200 {
+            board0.get_moves(Color::White);
+            board1.get_moves(Color::White);
+            board2.get_moves(Color::White);
+            board3.get_moves(Color::White);
+            board4.get_moves(Color::White);
         }
-    }
-    ));
-    // println!("{}", t);
+    }));
 }
 
 fn tests() {
@@ -55,7 +55,7 @@ fn tests() {
     println!("{}", board);
 
     let game = Game {
-        board: board, to_move: Color::White, 
+        board: board, to_move: Color::White,
         w_castle: true, b_castle: true, w_time: 1, b_time: 1,
         move_num: 1, en_pessant: 9};
 
@@ -67,7 +67,7 @@ fn main() {
 
     let mut pos = Board::new(START_POS);
     let stdin = io::stdin();
-    
+
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
         let mut words: Vec<&str> = line.trim().split(' ').collect();
@@ -123,5 +123,5 @@ fn set_option(params: &Vec<&str>) {
 fn uci() {
     println!("id name {}", ENGINE_NAME);
     println!("id author Alex Johnson");
-    println!("uciok") 
+    println!("uciok")
 }
