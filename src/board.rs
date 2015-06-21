@@ -80,7 +80,6 @@ pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
-    pub maps: MoveMap
 }
 
 impl Board {
@@ -178,16 +177,16 @@ impl Board {
             let piece = bit_pop(&mut knight_bb);
             let from = piece.trailing_zeros();
 
-            let attacks = self.maps.knight_map[from as usize];
+            let attacks = KNIGHT_MAP[from as usize];
             let nmoves = attacks & !us.pieces;
             add_moves_from(&mut moves, nmoves, from);
         }
 
-        let mut king_BB = us.king;
-        let piece = bit_pop(&mut king_BB);
+        let mut king_bb = us.king;
+        let piece = bit_pop(&mut king_bb);
         let from = piece.trailing_zeros();
 
-        let attacks = self.maps.king_map[from as usize];
+        let attacks = KING_MAP[from as usize];
         let kmoves = attacks & !us.pieces;
         add_moves_from(&mut moves, kmoves, from);
 
@@ -210,7 +209,7 @@ impl Board {
         }
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs, maps: MoveMap::init() }
+        Board { w: w, b: b, sqs: sqs }
     }
 }
 

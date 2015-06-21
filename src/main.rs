@@ -1,4 +1,7 @@
-#![feature(slice_patterns, convert, test, negate_unsigned, const_fn)]
+#![feature(slice_patterns, convert, test, negate_unsigned, phase)]
+#[macro_use]
+extern crate lazy_static;
+
 use std::io;
 use std::io::prelude::*;
 extern crate rand;

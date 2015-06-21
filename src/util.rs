@@ -79,18 +79,8 @@ pub fn a_diag(from: u32) -> u64 {
     if diag_index <= 7 {MAIN_ANTI_DIAG >> 8*diag_index} else {MAIN_ANTI_DIAG << 8*(16-diag_index)}
 }
 
-pub struct MoveMap {
-    pub knight_map: [u64; 64],
-    pub king_map:   [u64; 64]
-}
-
-impl MoveMap {
-    pub fn init() -> MoveMap {
-        MoveMap { knight_map: MoveMap::n(),
-                  king_map:  MoveMap::k()}
-    }
-
-    pub fn n() -> [u64; 64] {
+lazy_static! {
+    pub static ref KNIGHT_MAP: [u64; 64] = {
         let mut map = [0; 64];
         let offsets = vec![
         (-1, -2), (-2, -1), (-2, 1), (-1, 2),
@@ -108,9 +98,9 @@ impl MoveMap {
             *att = targets;
         }
         map
-    }
+    };
 
-    pub fn k() -> [u64; 64] {
+    pub static ref KING_MAP: [u64; 64] = {
         let mut map = [0; 64];
         let offsets = vec![
         (1, -1), (1, 0),  (1, 1),
@@ -129,5 +119,5 @@ impl MoveMap {
             *att = targets;
         }
         map
-    }
+    };
 }

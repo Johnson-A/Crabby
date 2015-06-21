@@ -5,7 +5,7 @@ authors = ["alex"]
 
 [dependencies]
 rand = "*" # Or a specific version
-lazy_static = "0.1.11"
+lazy_static = "*"
 
 [profile.bench]
 opt-level = 3
