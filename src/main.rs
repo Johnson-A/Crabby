@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, test, negate_unsigned)]
+#![feature(slice_patterns, convert, test, negate_unsigned, const_fn)]
 use std::io;
 use std::io::prelude::*;
 extern crate rand;
@@ -11,6 +11,7 @@ use game::*;
 mod game;
 use board::*;
 mod board;
+use util::*;
 mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
@@ -61,8 +62,8 @@ fn tests() {
 fn main() {
     tests();
 
-    let stdin = io::stdin();
     let mut pos = Board::new(START_POS);
+    let stdin = io::stdin();
     
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
@@ -89,7 +90,6 @@ fn go(board: &Board) {
 
     let mv = &moves[between.ind_sample(&mut rng)];
     println!("{:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
-    println!("{:?}", mv);
     println!("bestmove {}", move_to_str(mv));
 }
 

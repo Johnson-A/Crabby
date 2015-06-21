@@ -30,7 +30,6 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
-#[derive(Debug)]
 pub struct Move { data: u32 }
 
 impl Move {
@@ -80,7 +79,8 @@ pub fn get_line_attacks(occ: u64, mask: u64, piece: u64) -> u64 {
 pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
-    pub sqs: Squares
+    pub sqs: Squares,
+    pub maps: MoveMap
 }
 
 impl Board {
@@ -173,6 +173,24 @@ impl Board {
             add_moves_from(&mut moves, bmoves, from);
         }
 
+        let mut knight_bb = us.knight;
+        while knight_bb != 0 {
+            let piece = bit_pop(&mut knight_bb);
+            let from = piece.trailing_zeros();
+
+            let attacks = self.maps.knight_map[from as usize];
+            let nmoves = attacks & !us.pieces;
+            add_moves_from(&mut moves, nmoves, from);
+        }
+
+        let mut king_BB = us.king;
+        let piece = bit_pop(&mut king_BB);
+        let from = piece.trailing_zeros();
+
+        let attacks = self.maps.king_map[from as usize];
+        let kmoves = attacks & !us.pieces;
+        add_moves_from(&mut moves, kmoves, from);
+
         moves
     }
 
@@ -192,7 +210,7 @@ impl Board {
         }
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs }
+        Board { w: w, b: b, sqs: sqs, maps: MoveMap::init() }
     }
 }
 

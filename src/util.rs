@@ -78,3 +78,56 @@ pub fn a_diag(from: u32) -> u64 {
     let diag_index = ((from / 8) + (from % 8)) ^ 7;
     if diag_index <= 7 {MAIN_ANTI_DIAG >> 8*diag_index} else {MAIN_ANTI_DIAG << 8*(16-diag_index)}
 }
+
+pub struct MoveMap {
+    pub knight_map: [u64; 64],
+    pub king_map:   [u64; 64]
+}
+
+impl MoveMap {
+    pub fn init() -> MoveMap {
+        MoveMap { knight_map: MoveMap::n(),
+                  king_map:  MoveMap::k()}
+    }
+
+    pub fn n() -> [u64; 64] {
+        let mut map = [0; 64];
+        let offsets = vec![
+        (-1, -2), (-2, -1), (-2, 1), (-1, 2),
+        (1, -2),  (2, -1),  (2, 1),  (1, 2)];
+
+        for (i, att) in map.iter_mut().enumerate() {
+            let mut targets = 0;
+            let (r, c) = ((i / 8) as isize, (i % 8) as isize);
+
+            for &(dr, dc) in &offsets {
+                if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
+                    targets |= 1 << ((r+dr)*8 + (c+dc));
+                }
+            }
+            *att = targets;
+        }
+        map
+    }
+
+    pub fn k() -> [u64; 64] {
+        let mut map = [0; 64];
+        let offsets = vec![
+        (1, -1), (1, 0),  (1, 1),
+        (0, -1),          (0, 1),
+        (-1,-1), (-1, 0), (-1, 1)];
+
+        for (i, att) in map.iter_mut().enumerate() {
+            let mut targets = 0;
+            let (r, c) = ((i / 8) as isize, (i % 8) as isize);
+
+            for &(dr, dc) in &offsets {
+                if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
+                    targets |= 1 << ((r+dr)*8 + (c+dc));
+                }
+            }
+            *att = targets;
+        }
+        map
+    }
+}
