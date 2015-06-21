@@ -69,6 +69,19 @@ pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u32) {
     }
 }
 
+pub fn for_all_pieces(mut pieces: u64, us: &BitBoard, moves: &mut Vec<Move>,
+                    attacks: &Fn(u32, u64) -> u64) {
+    while pieces != 0 {
+        let piece = bit_pop(&mut pieces);
+        let from = piece.trailing_zeros();
+
+        let attacks = attacks(from, piece);
+
+        let qmoves = attacks & !us.pieces;
+        add_moves_from(moves, qmoves, from);
+    }
+}
+
 pub fn get_line_attacks(occ: u64, mask: u64, piece: u64) -> u64 {
     let pot_blockers = occ & mask;
     let forward = pot_blockers - 2*piece;
@@ -112,7 +125,7 @@ impl Board {
         let prom_rank = if white_side { ROW_8 } else { ROW_1 };
 
         let occ = us.pieces | opp.pieces;
-        
+
         // Pawn
         let mut pushes = (us.pawn << 8) & !occ;
 
@@ -134,61 +147,30 @@ impl Board {
         add_moves(&mut moves, right_attacks, 9);
         add_moves(&mut moves, promotions, 8);
 
-        let mut queen_bb = us.queen;
-        while queen_bb != 0 {
-            let piece = bit_pop(&mut queen_bb);
-            let from = piece.trailing_zeros();
+        for_all_pieces(us.queen, us, &mut moves, &|from, piece| -> u64 {
+                get_line_attacks(occ, file(from), piece) |
+                get_line_attacks(occ, row(from),  piece) |
+                get_line_attacks(occ, diag(from), piece) |
+                get_line_attacks(occ, a_diag(from), piece)
+            });
 
-            let attacks = get_line_attacks(occ, file(from), piece) |
-                          get_line_attacks(occ, row(from),  piece) |
-                          get_line_attacks(occ, diag(from), piece) |
-                          get_line_attacks(occ, a_diag(from), piece);
+        for_all_pieces(us.rook, us, &mut moves, &|from, piece| -> u64 {
+                get_line_attacks(occ, file(from), piece) |
+                get_line_attacks(occ, row(from), piece)
+            });
 
-            let qmoves = attacks & !us.pieces;
-            add_moves_from(&mut moves, qmoves, from);
-        }
+        for_all_pieces(us.bishop, us, &mut moves, &|from, piece| -> u64 {
+                get_line_attacks(occ, diag(from), piece) |
+                get_line_attacks(occ, a_diag(from), piece)
+            });
 
-        let mut rook_bb = us.rook;
-        while rook_bb != 0 {
-            let piece = bit_pop(&mut rook_bb);
-            let from = piece.trailing_zeros();
+        for_all_pieces(us.knight, us, &mut moves, &|from, piece| -> u64 {
+                KNIGHT_MAP[from as usize]
+            });
 
-            let attacks = get_line_attacks(occ, file(from), piece) |
-                          get_line_attacks(occ, row(from), piece);
-
-            let rmoves = attacks & !us.pieces;
-            add_moves_from(&mut moves, rmoves, from);
-        }
-
-        let mut bishop_bb = us.bishop;
-        while bishop_bb != 0 {
-            let piece = bit_pop(&mut bishop_bb);
-            let from = piece.trailing_zeros();
-
-            let attacks = get_line_attacks(occ, diag(from), piece) |
-                          get_line_attacks(occ, a_diag(from), piece);
-
-            let bmoves = attacks & !us.pieces;
-            add_moves_from(&mut moves, bmoves, from);
-        }
-
-        let mut knight_bb = us.knight;
-        while knight_bb != 0 {
-            let piece = bit_pop(&mut knight_bb);
-            let from = piece.trailing_zeros();
-
-            let attacks = KNIGHT_MAP[from as usize];
-            let nmoves = attacks & !us.pieces;
-            add_moves_from(&mut moves, nmoves, from);
-        }
-
-        let mut king_bb = us.king;
-        let piece = bit_pop(&mut king_bb);
-        let from = piece.trailing_zeros();
-
-        let attacks = KING_MAP[from as usize];
-        let kmoves = attacks & !us.pieces;
-        add_moves_from(&mut moves, kmoves, from);
+        for_all_pieces(us.king, us, &mut moves, &|from, piece| -> u64 {
+                KING_MAP[from as usize]
+            });
 
         moves
     }
