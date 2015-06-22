@@ -30,6 +30,7 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Move { data: u32 }
 
 impl Move {
@@ -69,16 +70,14 @@ pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u32) {
     }
 }
 
-pub fn for_all_pieces(mut pieces: u64, us: &BitBoard, moves: &mut Vec<Move>,
+pub fn for_all_pieces(mut pieces: u64, moves: &mut Vec<Move>,
                     attacks: &Fn(u32, u64) -> u64) {
     while pieces != 0 {
         let piece = bit_pop(&mut pieces);
         let from = piece.trailing_zeros();
 
         let attacks = attacks(from, piece);
-
-        let qmoves = attacks & !us.pieces;
-        add_moves_from(moves, qmoves, from);
+        add_moves_from(moves, attacks, from);
     }
 }
 
@@ -93,15 +92,35 @@ pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
+    pub last_move: Move,
+    pub last_cap: Square,
+    pub to_move: Color,
+    pub w_castle: bool,
+    pub b_castle: bool,
+    pub en_passant: u64
 }
 
 impl Board {
-    pub fn make_move(&mut self, src: usize, dest: usize) {
+    pub fn make_move(&mut self, mv: Move) {
+        let (src, dest) = (mv.from() as usize, mv.to() as usize);
+        self.last_cap = self.sqs[dest];
         self.sqs[dest] = self.sqs[src];
         self.sqs[src] = Square::Empty;
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
+        self.to_move.flip();
+        self.last_move = mv;
+    }
+
+    pub fn unmake(&mut self) {
+        let (src, dest) = (self.last_move.from() as usize, self.last_move.to() as usize);
+        self.sqs[src] = self.sqs[dest];
+        self.sqs[dest] = self.last_cap;
+        let (w, b) = gen_bitboards(&self.sqs);
+        self.w = w;
+        self.b = b;
+        self.to_move.flip();
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
@@ -110,16 +129,16 @@ impl Board {
             [sc, sr, dc, dr] => {
                 let src_pos = to_pos(sc, sr);
                 let dest_pos = to_pos(dc, dr);
-                self.make_move(src_pos, dest_pos);
+                self.make_move(Move::new(src_pos, dest_pos, 0));
             },
             _ => () // malformed move
         }
     }
 
-    pub fn get_moves(&self, color: Color) -> Vec<Move> {
+    pub fn get_pseudo_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let white_side = color == Color::White;
+        let white_side = self.to_move == Color::White;
         let (us, opp) = if white_side { (&self.w, &self.b) } else { (&self.b, &self.w) };
         let rank_3    = if white_side { ROW_3 } else { ROW_6 };
         let prom_rank = if white_side { ROW_8 } else { ROW_1 };
@@ -131,15 +150,13 @@ impl Board {
 
         let double_pushes = ((pushes & rank_3) << 8) & !occ;
 
-        let left_attacks = (us.pawn << 7) & opp.pieces & !FILE_H;
+        let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
 
-        let right_attacks = (us.pawn << 9) & opp.pieces & !FILE_A;
+        let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
 
         let promotions = pushes & prom_rank; // Get all moves
         // let promotion_captures = (left_attacks | right_attacks) & ROW_8;
         pushes &= !prom_rank; // Remove ROW_8 pushes
-
-        // En Pessant goes here
 
         add_moves(&mut moves, pushes, 8);
         add_moves(&mut moves, double_pushes, 16);
@@ -147,32 +164,57 @@ impl Board {
         add_moves(&mut moves, right_attacks, 9);
         add_moves(&mut moves, promotions, 8);
 
-        for_all_pieces(us.queen, us, &mut moves, &|from, piece| -> u64 {
-                get_line_attacks(occ, file(from), piece) |
-                get_line_attacks(occ, row(from),  piece) |
-                get_line_attacks(occ, diag(from), piece) |
-                get_line_attacks(occ, a_diag(from), piece)
+        for_all_pieces(us.queen, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(occ, file(from), piece) |
+                 get_line_attacks(occ, row(from),  piece) |
+                 get_line_attacks(occ, diag(from), piece) |
+                 get_line_attacks(occ, a_diag(from), piece)) & !us.pieces
             });
 
-        for_all_pieces(us.rook, us, &mut moves, &|from, piece| -> u64 {
-                get_line_attacks(occ, file(from), piece) |
-                get_line_attacks(occ, row(from), piece)
+        for_all_pieces(us.rook, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(occ, file(from), piece) |
+                 get_line_attacks(occ, row(from), piece)) & !us.pieces
             });
 
-        for_all_pieces(us.bishop, us, &mut moves, &|from, piece| -> u64 {
-                get_line_attacks(occ, diag(from), piece) |
-                get_line_attacks(occ, a_diag(from), piece)
+        for_all_pieces(us.bishop, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(occ, diag(from), piece) |
+                 get_line_attacks(occ, a_diag(from), piece)) & !us.pieces
             });
 
-        for_all_pieces(us.knight, us, &mut moves, &|from, piece| -> u64 {
-                KNIGHT_MAP[from as usize]
+        for_all_pieces(us.knight, &mut moves, &|from, piece| -> u64 {
+                KNIGHT_MAP[from as usize] & !us.pieces
             });
 
-        for_all_pieces(us.king, us, &mut moves, &|from, piece| -> u64 {
-                KING_MAP[from as usize]
+        for_all_pieces(us.king, &mut moves, &|from, piece| -> u64 {
+                KING_MAP[from as usize] & !us.pieces
             });
 
         moves
+    }
+
+    pub fn get_moves(&mut self) -> Vec<Move> {
+        let pseudo_legal_moves = self.get_pseudo_moves();
+        let mut legal_moves = Vec::with_capacity(pseudo_legal_moves.len());
+
+        for mv in pseudo_legal_moves.into_iter() {
+            println!("\nChecking from {} to {}", mv.from(), mv.to());
+            self.make_move(mv);
+            println!("{}", self);
+            let potent_moves = self.get_pseudo_moves();
+            let mut king_is_attacked = false;
+            for opp_mv in potent_moves {
+                println!("Opponent move from {} to {}", opp_mv.from(), opp_mv.to());
+                if opp_mv.to() == self.w.king.trailing_zeros() {
+                    println!("Move attacks king");
+                    king_is_attacked = true;
+                    break;
+                }
+            }
+            if !king_is_attacked {legal_moves.push(mv)};
+            self.unmake();
+            println!("After unmake\n{}", self);
+        }
+        legal_moves
     }
 
     pub fn new(fen_board: &str) -> Board {
@@ -191,7 +233,8 @@ impl Board {
         }
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs }
+        Board { w: w, b: b, sqs: sqs, to_move: Color::White, last_cap: Square::Empty,
+            last_move: Move::new(0,0,0), w_castle: true, b_castle: true, en_passant: 0 }
     }
 }
 
@@ -204,7 +247,11 @@ impl fmt::Display for Board {
             if (i+1) % 8 == 0 { characters.push('\n') }
         }
         let output = characters.iter().cloned().collect::<String>();
-        write!(f, "--------\n{}--------", output)
+        write!(f, "--------\n{}--------\n\
+                  last_cap {:?}\nto_move {:?}\n\
+                  wcas {} bcas {}\nen passant {}",
+                  output, self.last_cap, self.to_move,
+                  self.w_castle, self.b_castle, self.en_passant)
     }
 }
 

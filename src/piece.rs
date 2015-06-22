@@ -12,6 +12,12 @@ pub enum Square {
     Piece(PieceType, Color)
 }
 
+impl Color {
+    pub fn flip(&mut self) {
+        *self = if *self == Color::White {Color::Black} else {Color::White};
+    }
+}
+
 pub fn to_piece(c: char) -> Square {
     let pt = match c.to_ascii_lowercase() {
         'p' => PieceType::Pawn,
@@ -44,8 +50,8 @@ pub fn to_char(sq: &Square) -> char {
     }
 }
 
-pub fn to_pos(col: char, row: char) -> usize {
+pub fn to_pos(col: char, row: char) -> u32 {
     let col_num = col as u8 - b'a';
     let row_num = row as u8 - b'1';
-    (row_num * 8 + col_num) as usize
+    (row_num * 8 + col_num) as u32
 }

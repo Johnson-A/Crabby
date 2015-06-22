@@ -10,8 +10,6 @@ use rand::distributions::{IndependentSample, Range};
 
 use piece::*;
 mod piece;
-use game::*;
-mod game;
 use board::*;
 mod board;
 use util::*;
@@ -22,19 +20,19 @@ static START_POS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    let board0 = Board::new(START_POS);
-    let board1 = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
-    let board2 = Board::new("6k1/8/K1b3n1/1P1PR2p/PP2Br2/3Q4/8/R3r1N1");
-    let board3 = Board::new("8/1Pp1N1R1/1k2p3/1bnp2b1/nP2P1K1/4P3/Q1R2p1P/5N2");
-    let board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
+    let mut board0 = Board::new(START_POS);
+    let mut board1 = Board::new("nN6/5BP1/1PR1PPKp/n2bpPbp/3Q1p1P/p1RpP1pN/qBP1rpk1/3r4");
+    let mut board2 = Board::new("6k1/8/K1b3n1/1P1PR2p/PP2Br2/3Q4/8/R3r1N1");
+    let mut board3 = Board::new("8/1Pp1N1R1/1k2p3/1bnp2b1/nP2P1K1/4P3/Q1R2p1P/5N2");
+    let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
 
     b.iter(|| test::black_box({
         for _ in 0..200 {
-            board0.get_moves(Color::White);
-            board1.get_moves(Color::White);
-            board2.get_moves(Color::White);
-            board3.get_moves(Color::White);
-            board4.get_moves(Color::White);
+            board0.get_moves();
+            board1.get_moves();
+            board2.get_moves();
+            board3.get_moves();
+            board4.get_moves();
         }
     }));
 }
@@ -47,19 +45,12 @@ fn tests() {
 
     let mut board = Board::new(START_POS);
     println!("{}", board);
-    let moves = board.get_moves(Color::White);
+    let moves = board.get_moves();
     println!("moves = {:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
 
     board.make_str_move("e2e4");
     board.make_str_move("e7e5");
     println!("{}", board);
-
-    let game = Game {
-        board: board, to_move: Color::White,
-        w_castle: true, b_castle: true, w_time: 1, b_time: 1,
-        move_num: 1, en_pessant: 9};
-
-    println!("{}", game);
 }
 
 fn main() {
@@ -79,15 +70,15 @@ fn main() {
             "isready"    => println!("readyok"),
             "ucinewgame" => continue, // new game
             "position"   => pos = position(&mut words),
-            "go"         => go(&pos),
+            "go"         => go(&mut pos),
             "print"      => print(),
             _            => continue, // Ignore any other command
         }
     }
 }
 
-fn go(board: &Board) {
-    let moves = board.get_moves(Color::White);
+fn go(board: &mut Board) {
+    let moves = board.get_moves();
     let between = Range::new(0, moves.len());
     let mut rng = rand::thread_rng();
 
