@@ -12,12 +12,6 @@ pub enum Square {
     Piece(PieceType, Color)
 }
 
-impl Color {
-    pub fn flip(&mut self) {
-        *self = if *self == Color::White {Color::Black} else {Color::White};
-    }
-}
-
 pub fn to_piece(c: char) -> Square {
     let pt = match c.to_ascii_lowercase() {
         'p' => PieceType::Pawn,

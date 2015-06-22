@@ -78,13 +78,16 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let moves = board.get_moves();
-    let between = Range::new(0, moves.len());
-    let mut rng = rand::thread_rng();
+    // let moves = board.get_moves();
+    // let between = Range::new(0, moves.len());
+    // let mut rng = rand::thread_rng();
 
-    let mv = &moves[between.ind_sample(&mut rng)];
-    println!("{:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
-    println!("bestmove {}", move_to_str(mv));
+    // let mv = &moves[between.ind_sample(&mut rng)];
+    // println!("{:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
+
+    let mv = board.best_move();
+    // println!("negamax = {}", board.negamax(4));
+    println!("bestmove {}", move_to_str(&mv));
 }
 
 fn print() {

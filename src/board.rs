@@ -1,4 +1,6 @@
 use std::fmt;
+use std::cmp;
+use std::ascii::AsciiExt;
 use piece::*;
 use util::*;
 
@@ -54,83 +56,85 @@ pub fn move_to_str(mv: &Move) -> String {
     chars.into_iter().collect::<String>()
 }
 
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
-    while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
-        let from = ((to as i32) - diff) as u32;
-        // let capture = board
-        moves.push(Move::new(from, to, 0));
-    }
-}
-
-pub fn add_moves_from(moves: &mut Vec<Move>, mut targets: u64, from: u32) {
-    while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
-        moves.push(Move::new(from, to, 0));
-    }
-}
-
-pub fn for_all_pieces(mut pieces: u64, moves: &mut Vec<Move>,
-                    attacks: &Fn(u32, u64) -> u64) {
-    while pieces != 0 {
-        let piece = bit_pop(&mut pieces);
-        let from = piece.trailing_zeros();
-
-        let attacks = attacks(from, piece);
-        add_moves_from(moves, attacks, from);
-    }
-}
-
-pub fn get_line_attacks(occ: u64, mask: u64, piece: u64) -> u64 {
+pub fn get_line_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
     let forward = pot_blockers - 2*piece;
     let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
     (forward ^ rev) & mask
 }
 
+#[derive(Copy)]
 pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
-    pub last_move: Move,
-    pub last_cap: Square,
-    pub to_move: Color,
+    pub move_num: u32,
     pub w_castle: bool,
     pub b_castle: bool,
     pub en_passant: u64
 }
 
+impl Clone for Board { fn clone(&self) -> Self { *self } }
+
 impl Board {
+    pub fn add_moves(&self, moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
+        while targets != 0 {
+            let to = bit_pop_pos(&mut targets);
+            let from = ((to as i32) - diff) as u32;
+            // let capture = board
+            moves.push(Move::new(from, to, 0));
+        }
+    }
+
+    pub fn for_all_pieces(&self, mut pieces: u64, moves: &mut Vec<Move>,
+                        attacks: &Fn(u32, u64) -> u64) {
+        while pieces != 0 {
+            let piece = bit_pop(&mut pieces);
+            let from = piece.trailing_zeros();
+
+            let attacks = attacks(from, piece);
+            self.add_moves_from(moves, attacks, from);
+        }
+    }
+
+    pub fn add_moves_from(&self, moves: &mut Vec<Move>, mut targets: u64, from: u32) {
+        while targets != 0 {
+            let to = bit_pop_pos(&mut targets);
+            moves.push(Move::new(from, to, 0));
+        }
+    }
+
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        self.last_cap = self.sqs[dest];
         self.sqs[dest] = self.sqs[src];
         self.sqs[src] = Square::Empty;
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
-        self.to_move.flip();
-        self.last_move = mv;
+        self.move_num += 1;
     }
 
-    pub fn unmake(&mut self) {
-        let (src, dest) = (self.last_move.from() as usize, self.last_move.to() as usize);
-        self.sqs[src] = self.sqs[dest];
-        self.sqs[dest] = self.last_cap;
+    pub fn make_promotion(&mut self, mv: Move, prom: Square) {
+        let (src, dest) = (mv.from() as usize, mv.to() as usize);
+        self.sqs[dest] = prom;
+        self.sqs[src] = Square::Empty;
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
-        self.to_move.flip();
+        self.move_num += 1;
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
         let moves: Vec<char> = mv.chars().collect();
         match moves.as_slice() {
+            // [sc, sr, dc, dr, promotion..] => {
             [sc, sr, dc, dr] => {
-                let src_pos = to_pos(sc, sr);
-                let dest_pos = to_pos(dc, dr);
-                self.make_move(Move::new(src_pos, dest_pos, 0));
+                self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
             },
+            [sc, sr, dc, dr, promotion] => {
+                let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
+                self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
+            }
             _ => () // malformed move
         }
     }
@@ -138,12 +142,15 @@ impl Board {
     pub fn get_pseudo_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let is_white = self.to_move == Color::White;
+        let is_white = self.move_num % 2 == 1;
         let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
 
         let occ = us.pieces | opp.pieces;
 
         // Consider out of bounds pawn promotion
+        // Implement pawn promotion!!!! king won't know it's checked
+        // And the move number won't change when accepting a promotion capture move
+        // Make move not copyable
         if is_white {
             let mut pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
@@ -152,11 +159,11 @@ impl Board {
             let promotions = pushes & ROW_8;
             pushes &= !ROW_8;
 
-            add_moves(&mut moves, pushes, 8);
-            add_moves(&mut moves, double_pushes, 16);
-            add_moves(&mut moves, left_attacks, 7);
-            add_moves(&mut moves, right_attacks, 9);
-            add_moves(&mut moves, promotions, 8);
+            self.add_moves(&mut moves, pushes, 8);
+            self.add_moves(&mut moves, double_pushes, 16);
+            self.add_moves(&mut moves, left_attacks, 7);
+            self.add_moves(&mut moves, right_attacks, 9);
+            self.add_moves(&mut moves, promotions, 8);
         } else {
             let mut pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -165,39 +172,47 @@ impl Board {
             let promotions = pushes & ROW_1;
             pushes &= !ROW_1;
 
-            add_moves(&mut moves, pushes, -8);
-            add_moves(&mut moves, double_pushes, -16);
-            add_moves(&mut moves, left_attacks, -7);
-            add_moves(&mut moves, right_attacks, -9);
-            add_moves(&mut moves, promotions, -8);
+            self.add_moves(&mut moves, pushes, -8);
+            self.add_moves(&mut moves, double_pushes, -16);
+            self.add_moves(&mut moves, left_attacks, -7);
+            self.add_moves(&mut moves, right_attacks, -9);
+            self.add_moves(&mut moves, promotions, -8);
         }
 
-        for_all_pieces(us.queen, &mut moves, &|from, piece| -> u64 {
-                (get_line_attacks(occ, file(from), piece) |
-                 get_line_attacks(occ, row(from),  piece) |
-                 get_line_attacks(occ, diag(from), piece) |
-                 get_line_attacks(occ, a_diag(from), piece)) & !us.pieces
+        self.for_all_pieces(us.queen, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(piece, occ, file(from)) |
+                 get_line_attacks(piece, occ, row(from))  |
+                 get_line_attacks(piece, occ, diag(from)) |
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces
             });
 
-        for_all_pieces(us.rook, &mut moves, &|from, piece| -> u64 {
-                (get_line_attacks(occ, file(from), piece) |
-                 get_line_attacks(occ, row(from), piece)) & !us.pieces
+        self.for_all_pieces(us.rook, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(piece, occ, file(from)) |
+                 get_line_attacks(piece, occ, row(from))) & !us.pieces
             });
 
-        for_all_pieces(us.bishop, &mut moves, &|from, piece| -> u64 {
-                (get_line_attacks(occ, diag(from), piece) |
-                 get_line_attacks(occ, a_diag(from), piece)) & !us.pieces
+        self.for_all_pieces(us.bishop, &mut moves, &|from, piece| -> u64 {
+                (get_line_attacks(piece, occ, diag(from)) |
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces
             });
 
-        for_all_pieces(us.knight, &mut moves, &|from, piece| -> u64 {
+        self.for_all_pieces(us.knight, &mut moves, &|from, piece| -> u64 {
                 KNIGHT_MAP[from as usize] & !us.pieces
             });
 
-        for_all_pieces(us.king, &mut moves, &|from, piece| -> u64 {
+        self.for_all_pieces(us.king, &mut moves, &|from, piece| -> u64 {
                 KING_MAP[from as usize] & !us.pieces
             });
 
         moves
+    }
+
+    pub fn to_move(&self) -> &BitBoard {
+        if self.move_num % 2 == 1 { &self.w } else { &self.b }
+    }
+
+    pub fn prev_move(&self) -> &BitBoard {
+        if self.move_num % 2 == 1 { &self.b } else { &self.w }
     }
 
     pub fn get_moves(&mut self) -> Vec<Move> {
@@ -205,24 +220,78 @@ impl Board {
         let mut legal_moves = Vec::with_capacity(pseudo_legal_moves.len());
 
         for mv in pseudo_legal_moves.into_iter() {
-            // println!("\nChecking from {} to {}", mv.from(), mv.to());
-            self.make_move(mv);
-            // println!("{}", self);
-            let potent_moves = self.get_pseudo_moves();
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+            let king = new_board.prev_move().king; // This will be the original player's king
+            let potent_moves = new_board.get_pseudo_moves();
             let mut king_is_attacked = false;
+
             for opp_mv in potent_moves {
-                // println!("Opponent move from {} to {}", opp_mv.from(), opp_mv.to());
-                if opp_mv.to() == self.w.king.trailing_zeros() {
-                    // println!("Move attacks king");
+                if opp_mv.to() == king.trailing_zeros() {
                     king_is_attacked = true;
                     break;
                 }
             }
             if !king_is_attacked {legal_moves.push(mv)};
-            self.unmake();
-            // println!("After unmake\n{}", self);
         }
         legal_moves
+    }
+
+    pub fn evaluate(&self) -> f32 {
+        let opp = self.prev_move();
+        let us = self.to_move(); // Node player
+
+        let score = (us.pawn.count_ones() as f32  * 1.0)   +
+        (us.knight.count_ones() as f32 * 3.0)  +
+        (us.bishop.count_ones() as f32 * 3.0)  +
+        (us.rook.count_ones() as f32 * 5.0)    +
+        (us.queen.count_ones() as f32 * 9.0)   -
+        (opp.pawn.count_ones() as f32 * 1.0)   -
+        (opp.knight.count_ones() as f32 * 3.0) -
+        (opp.bishop.count_ones() as f32 * 3.0) -
+        (opp.rook.count_ones() as f32 * 5.0)   -
+        (opp.queen.count_ones() as f32 * 9.0);
+
+        // if score.abs() > 1.5 {println!("evaluating for \n{}Score = {}\n", self, score); }
+        score
+    }
+
+    pub fn best_move(&mut self) -> Move {
+        let mut best_score = 1000.0;
+        let mut best_move = Move::new(0,0,0);
+
+        for mv in self.get_moves() {
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+            println!("Searching \n{}", new_board);
+            let score = new_board.negamax(3);
+            println!("Found value {}", score);
+
+            if score < best_score {
+                best_move = mv;
+                best_score = score;
+            }
+        }
+        println!("\nbest score {}", best_score);
+        best_move
+    }
+
+    pub fn negamax(&mut self, depth: u32) -> f32 {
+        if depth == 0 { return self.evaluate() }
+        let mut best = -1000.0;
+        let moves = self.get_moves();
+        if moves.len() == 0 { return -best }
+        println!("\n{}\n {}", self, depth);
+        for mv in moves.into_iter() {
+            println!("Counter {}", move_to_str(&mv));
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+            let score = -new_board.negamax(depth - 1);
+            println!("With value {}", score);
+
+            if score > best { best = score; }
+        }
+        best
     }
 
     pub fn new(fen_board: &str) -> Board {
@@ -241,8 +310,7 @@ impl Board {
         }
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs, to_move: Color::White, last_cap: Square::Empty,
-            last_move: Move::new(0,0,0), w_castle: true, b_castle: true, en_passant: 0 }
+        Board { w: w, b: b, sqs: sqs, move_num: 1, w_castle: true, b_castle: true, en_passant: 0 }
     }
 }
 
@@ -255,15 +323,16 @@ impl fmt::Display for Board {
             if (i+1) % 8 == 0 { characters.push('\n') }
         }
         let output = characters.iter().cloned().collect::<String>();
-        write!(f, "--------\n{}--------\n\
-                  last_cap {:?}\nto_move {:?}\n\
-                  wcas {} bcas {}\nen passant {}",
-                  output, self.last_cap, self.to_move,
-                  self.w_castle, self.b_castle, self.en_passant)
+        // write!(f, "--------\n{}--------\n\
+        //           Move # {:?}\n\
+        //           wcas {} bcas {}\nen passant {}",
+        //           output, self.move_num,
+        //           self.w_castle, self.b_castle, self.en_passant)
+        write!(f, "--------\n{}--------\nmove # {}\n", output, self.move_num)
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct BitBoard {
     pub pawn: u64,
     pub knight: u64,
