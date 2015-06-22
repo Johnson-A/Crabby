@@ -54,10 +54,10 @@ pub fn move_to_str(mv: &Move) -> String {
     chars.into_iter().collect::<String>()
 }
 
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: u32) {
+pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
-        let from = to - diff;
+        let from = ((to as i32) - diff) as u32;
         // let capture = board
         moves.push(Move::new(from, to, 0));
     }
@@ -138,31 +138,39 @@ impl Board {
     pub fn get_pseudo_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let white_side = self.to_move == Color::White;
-        let (us, opp) = if white_side { (&self.w, &self.b) } else { (&self.b, &self.w) };
-        let rank_3    = if white_side { ROW_3 } else { ROW_6 };
-        let prom_rank = if white_side { ROW_8 } else { ROW_1 };
+        let is_white = self.to_move == Color::White;
+        let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
 
         let occ = us.pieces | opp.pieces;
 
-        // Pawn
-        let mut pushes = (us.pawn << 8) & !occ;
+        // Consider out of bounds pawn promotion
+        if is_white {
+            let mut pushes = (us.pawn << 8) & !occ;
+            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
+            let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
+            let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
+            let promotions = pushes & ROW_8;
+            pushes &= !ROW_8;
 
-        let double_pushes = ((pushes & rank_3) << 8) & !occ;
+            add_moves(&mut moves, pushes, 8);
+            add_moves(&mut moves, double_pushes, 16);
+            add_moves(&mut moves, left_attacks, 7);
+            add_moves(&mut moves, right_attacks, 9);
+            add_moves(&mut moves, promotions, 8);
+        } else {
+            let mut pushes = (us.pawn >> 8) & !occ;
+            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
+            let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
+            let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
+            let promotions = pushes & ROW_1;
+            pushes &= !ROW_1;
 
-        let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
-
-        let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
-
-        let promotions = pushes & prom_rank; // Get all moves
-        // let promotion_captures = (left_attacks | right_attacks) & ROW_8;
-        pushes &= !prom_rank; // Remove ROW_8 pushes
-
-        add_moves(&mut moves, pushes, 8);
-        add_moves(&mut moves, double_pushes, 16);
-        add_moves(&mut moves, left_attacks, 7);
-        add_moves(&mut moves, right_attacks, 9);
-        add_moves(&mut moves, promotions, 8);
+            add_moves(&mut moves, pushes, -8);
+            add_moves(&mut moves, double_pushes, -16);
+            add_moves(&mut moves, left_attacks, -7);
+            add_moves(&mut moves, right_attacks, -9);
+            add_moves(&mut moves, promotions, -8);
+        }
 
         for_all_pieces(us.queen, &mut moves, &|from, piece| -> u64 {
                 (get_line_attacks(occ, file(from), piece) |
@@ -197,22 +205,22 @@ impl Board {
         let mut legal_moves = Vec::with_capacity(pseudo_legal_moves.len());
 
         for mv in pseudo_legal_moves.into_iter() {
-            println!("\nChecking from {} to {}", mv.from(), mv.to());
+            // println!("\nChecking from {} to {}", mv.from(), mv.to());
             self.make_move(mv);
-            println!("{}", self);
+            // println!("{}", self);
             let potent_moves = self.get_pseudo_moves();
             let mut king_is_attacked = false;
             for opp_mv in potent_moves {
-                println!("Opponent move from {} to {}", opp_mv.from(), opp_mv.to());
+                // println!("Opponent move from {} to {}", opp_mv.from(), opp_mv.to());
                 if opp_mv.to() == self.w.king.trailing_zeros() {
-                    println!("Move attacks king");
+                    // println!("Move attacks king");
                     king_is_attacked = true;
                     break;
                 }
             }
             if !king_is_attacked {legal_moves.push(mv)};
             self.unmake();
-            println!("After unmake\n{}", self);
+            // println!("After unmake\n{}", self);
         }
         legal_moves
     }

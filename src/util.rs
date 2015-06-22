@@ -58,6 +58,10 @@ pub fn bit_pop_pos(x: &mut u64) -> u32 {
     lsb_pos
 }
 
+pub fn shift(val: u64, delta: i32) -> u64 {
+    if delta >= 0 { val << delta } else { val >> delta.abs() }
+}
+
 pub fn file(from: u32) -> u64 {
     FILE_A << (from % 8)
 }
