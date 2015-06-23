@@ -1,6 +1,7 @@
 #![feature(slice_patterns, convert, test, negate_unsigned)]
 #[macro_use]
 extern crate lazy_static;
+extern crate threadpool;
 
 use std::io;
 use std::io::prelude::*;
@@ -10,7 +11,6 @@ use piece::*;
 mod piece;
 use board::*;
 mod board;
-use util::*;
 mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
@@ -26,11 +26,11 @@ fn bench(b: &mut test::Bencher) {
 
     b.iter(|| test::black_box({
         for _ in 0..2 {
-            board0.negamax(3);
-            board1.negamax(3);
-            board2.negamax(3);
-            board3.negamax(3);
-            board4.negamax(3);
+            board0.best_move();
+            board1.best_move();
+            board2.best_move();
+            board3.best_move();
+            board4.best_move();
         }
     }));
 }

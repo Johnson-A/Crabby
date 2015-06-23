@@ -1,5 +1,7 @@
+extern crate num_cpus;
 use std::fmt;
-use std::cmp;
+use threadpool::ThreadPool;
+use std::sync::mpsc::channel;
 use std::ascii::AsciiExt;
 use piece::*;
 use util::*;
@@ -76,34 +78,33 @@ pub struct Board {
 
 impl Clone for Board { fn clone(&self) -> Self { *self } }
 
+
+pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
+    while targets != 0 {
+        let to = bit_pop_pos(&mut targets);
+        let from = ((to as i32) - diff) as u32;
+        // let capture = board
+        moves.push(Move::new(from, to, 0));
+    }
+}
+
+pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64) {
+    while targets != 0 {
+        let to = bit_pop_pos(&mut targets);
+        moves.push(Move::new(from, to, 0));
+    }
+}
+
+pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
+    while pieces != 0 {
+        let piece = bit_pop(&mut pieces);
+        let from = piece.trailing_zeros();
+
+        do_work(from, piece);
+    }
+}
+
 impl Board {
-    pub fn add_moves(&self, moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
-        while targets != 0 {
-            let to = bit_pop_pos(&mut targets);
-            let from = ((to as i32) - diff) as u32;
-            // let capture = board
-            moves.push(Move::new(from, to, 0));
-        }
-    }
-
-    pub fn for_all_pieces(&self, mut pieces: u64, moves: &mut Vec<Move>,
-                        attacks: &Fn(u32, u64) -> u64) {
-        while pieces != 0 {
-            let piece = bit_pop(&mut pieces);
-            let from = piece.trailing_zeros();
-
-            let attacks = attacks(from, piece);
-            self.add_moves_from(moves, attacks, from);
-        }
-    }
-
-    pub fn add_moves_from(&self, moves: &mut Vec<Move>, mut targets: u64, from: u32) {
-        while targets != 0 {
-            let to = bit_pop_pos(&mut targets);
-            moves.push(Move::new(from, to, 0));
-        }
-    }
-
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
         self.sqs[dest] = self.sqs[src];
@@ -115,9 +116,9 @@ impl Board {
         self.move_num += 1;
     }
 
-    pub fn update(us: &mut BitBoard, opp: &mut BitBoard, mv: Move) {
-        // TODO:
-    }
+    // pub fn update(us: &mut BitBoard, opp: &mut BitBoard, mv: Move) {
+    // TODO:
+    // }
 
     pub fn make_promotion(&mut self, mv: Move, prom: Square) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
@@ -164,11 +165,11 @@ impl Board {
             let promotions = pushes & ROW_8;
             pushes &= !ROW_8;
 
-            self.add_moves(&mut moves, pushes, 8);
-            self.add_moves(&mut moves, double_pushes, 16);
-            self.add_moves(&mut moves, left_attacks, 7);
-            self.add_moves(&mut moves, right_attacks, 9);
-            self.add_moves(&mut moves, promotions, 8);
+            add_moves(&mut moves, pushes, 8);
+            add_moves(&mut moves, double_pushes, 16);
+            add_moves(&mut moves, left_attacks, 7);
+            add_moves(&mut moves, right_attacks, 9);
+            add_moves(&mut moves, promotions, 8);
         } else {
             let mut pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -177,37 +178,42 @@ impl Board {
             let promotions = pushes & ROW_1;
             pushes &= !ROW_1;
 
-            self.add_moves(&mut moves, pushes, -8);
-            self.add_moves(&mut moves, double_pushes, -16);
-            self.add_moves(&mut moves, left_attacks, -7);
-            self.add_moves(&mut moves, right_attacks, -9);
-            self.add_moves(&mut moves, promotions, -8);
+            add_moves(&mut moves, pushes, -8);
+            add_moves(&mut moves, double_pushes, -16);
+            add_moves(&mut moves, left_attacks, -7);
+            add_moves(&mut moves, right_attacks, -9);
+            add_moves(&mut moves, promotions, -8);
         }
 
-        self.for_all_pieces(us.queen, &mut moves, &|from, piece| -> u64 {
+        for_all_pieces(us.queen, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
                 (get_line_attacks(piece, occ, file(from)) |
                  get_line_attacks(piece, occ, row(from))  |
                  get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces
-            });
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        });
 
-        self.for_all_pieces(us.rook, &mut moves, &|from, piece| -> u64 {
+        for_all_pieces(us.rook, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
                 (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))) & !us.pieces
-            });
+                 get_line_attacks(piece, occ, row(from))) & !us.pieces);
+        });
 
-        self.for_all_pieces(us.bishop, &mut moves, &|from, piece| -> u64 {
+        for_all_pieces(us.bishop, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
                 (get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces
-            });
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        });
 
-        self.for_all_pieces(us.knight, &mut moves, &|from, piece| -> u64 {
-                KNIGHT_MAP[from as usize] & !us.pieces
-            });
+        for_all_pieces(us.knight, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                KNIGHT_MAP[from as usize] & !us.pieces);
+        });
 
-        self.for_all_pieces(us.king, &mut moves, &|from, piece| -> u64 {
-                KING_MAP[from as usize] & !us.pieces
-            });
+        for_all_pieces(us.king, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                KING_MAP[from as usize] & !us.pieces);
+        });
 
         moves
     }
@@ -244,35 +250,98 @@ impl Board {
     pub fn evaluate(&self) -> f32 {
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
+        let mut mobility = 0.0;
+
+        let is_white = self.move_num % 2 == 1;
+        let occ = us.pieces | opp.pieces;
+        if is_white {
+            let pushes = (us.pawn << 8) & !occ;
+            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
+            let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
+            let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
+
+            mobility += pushes.count_ones() as f32 * 0.01 +
+                        double_pushes.count_ones() as f32 * 0.01 +
+                        left_attacks.count_ones() as f32   * 0.04 +
+                        right_attacks.count_ones() as f32  * 0.04;
+        } else {
+            let pushes = (us.pawn >> 8) & !occ;
+            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
+            let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
+            let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
+
+            mobility += pushes.count_ones() as f32  * 0.01 +
+                        double_pushes.count_ones() as f32  * 0.01 +
+                        left_attacks.count_ones() as f32   * 0.04 +
+                        right_attacks.count_ones() as f32  * 0.04;
+        }
+
+        for_all_pieces(us.queen, &mut |from, piece| {
+            mobility += (get_line_attacks(piece, occ, file(from)) |
+                         get_line_attacks(piece, occ, row(from))  |
+                         get_line_attacks(piece, occ, diag(from)) |
+                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.005;
+        });
+
+        for_all_pieces(us.rook, &mut |from, piece| {
+            mobility += (get_line_attacks(piece, occ, file(from)) |
+                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(us.bishop, &mut |from, piece| {
+            mobility += (get_line_attacks(piece, occ, diag(from)) |
+                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(us.knight, &mut |from, piece| {
+            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(us.king, &mut |from, piece| {
+            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
+        });
 
         (us.pawn.count_ones() as f32  * 1.0)   +
         (us.knight.count_ones() as f32 * 3.0)  +
         (us.bishop.count_ones() as f32 * 3.0)  +
         (us.rook.count_ones() as f32 * 5.0)    +
-        (us.queen.count_ones() as f32 * 9.0)   -
+        (us.queen.count_ones() as f32 * 9.0)   +
+        (us.king.count_ones() as f32 * 300.0)  -
         (opp.pawn.count_ones() as f32 * 1.0)   -
         (opp.knight.count_ones() as f32 * 3.0) -
         (opp.bishop.count_ones() as f32 * 3.0) -
         (opp.rook.count_ones() as f32 * 5.0)   -
-        (opp.queen.count_ones() as f32 * 9.0)
+        (opp.queen.count_ones() as f32 * 9.0)  -
+        (opp.king.count_ones() as f32 * 300.0) + mobility*0.5
     }
 
     pub fn best_move(&mut self) -> Move {
         let mut best_score = 1000.0;
         let mut best_move = Move::new(0,0,0);
+        let moves = self.get_moves();
 
-        for mv in self.get_moves() {
+        let (tx, rx) = channel();
+        let pool = ThreadPool::new(num_cpus::get());
+
+        for &mv in moves.iter() {
+            let tx = tx.clone();
+
             let mut new_board = self.clone();
             new_board.make_move(mv);
             // println!("Searching \n{}", new_board);
-            let score = new_board.negamax(3);
-            // println!("Found value {}", score);
+            pool.execute( move || {
+                let score = new_board.negamax(4);
+                tx.send((score, mv));
+                });
+        }
 
+        for (score, mv) in rx.iter().take(moves.len()) {
             if score < best_score {
                 best_move = mv;
                 best_score = score;
             }
         }
+
         println!("\nbest score {}", best_score);
         best_move
     }
@@ -280,7 +349,7 @@ impl Board {
     pub fn negamax(&mut self, depth: u32) -> f32 {
         if depth == 0 { return self.evaluate() }
         let mut best = -1000.0;
-        let moves = self.get_moves();
+        let moves = self.get_pseudo_moves(); // TODO: if not able to capture king!!
         if moves.len() == 0 { return best }
         // println!("\n{}\n {}", self, depth);
         for mv in moves.into_iter() {

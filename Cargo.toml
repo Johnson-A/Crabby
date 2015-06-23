@@ -5,6 +5,8 @@ authors = ["alex"]
 
 [dependencies]
 lazy_static = "*"
+threadpool = "*"
+num_cpus = "*"
 
 [profile.release]
 opt-level = 3
