@@ -330,7 +330,7 @@ impl Board {
             new_board.make_move(mv);
             // println!("Searching \n{}", new_board);
             pool.execute( move || {
-                let score = new_board.negamax(4);
+                let score = new_board.negamax(2);
                 tx.send((score, mv));
                 });
         }
