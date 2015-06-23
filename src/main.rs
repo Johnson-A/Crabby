@@ -25,12 +25,12 @@ fn bench(b: &mut test::Bencher) {
     let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
 
     b.iter(|| test::black_box({
-        for _ in 0..200 {
-            board0.get_moves();
-            board1.get_moves();
-            board2.get_moves();
-            board3.get_moves();
-            board4.get_moves();
+        for _ in 0..2 {
+            board0.negamax(3);
+            board1.negamax(3);
+            board2.negamax(3);
+            board3.negamax(3);
+            board4.negamax(3);
         }
     }));
 }
@@ -55,11 +55,11 @@ fn main() {
     tests();
 
     let mut pos = Board::new(START_POS);
-    loop {
-        let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
-        board4.negamax(4);
-        println!("Starting negamax");
-    }
+    // loop {
+    //     let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
+    //     board4.negamax(4);
+    //     println!("Starting negamax");
+    // }
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {

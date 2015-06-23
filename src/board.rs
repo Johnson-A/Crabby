@@ -111,7 +111,12 @@ impl Board {
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
+        // Board::update(&mut self.w, &mut self.b, mv);
         self.move_num += 1;
+    }
+
+    pub fn update(us: &mut BitBoard, opp: &mut BitBoard, mv: Move) {
+        // TODO:
     }
 
     pub fn make_promotion(&mut self, mv: Move, prom: Square) {
@@ -259,9 +264,9 @@ impl Board {
         for mv in self.get_moves() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            println!("Searching \n{}", new_board);
-            let score = new_board.negamax(4);
-            println!("Found value {}", score);
+            // println!("Searching \n{}", new_board);
+            let score = new_board.negamax(3);
+            // println!("Found value {}", score);
 
             if score < best_score {
                 best_move = mv;
@@ -276,7 +281,7 @@ impl Board {
         if depth == 0 { return self.evaluate() }
         let mut best = -1000.0;
         let moves = self.get_moves();
-        if moves.len() == 0 { return -best }
+        if moves.len() == 0 { return best }
         // println!("\n{}\n {}", self, depth);
         for mv in moves.into_iter() {
             // println!("Counter {}", move_to_str(&mv));
