@@ -42,12 +42,16 @@ fn tests() {
     println!("");
 
     let mut board = Board::new(START_POS);
+    println!("Start eval {}", board.evaluate());
     println!("{}", board);
     let moves = board.get_moves();
     println!("moves = {:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
 
     board.make_str_move("e2e4");
+    println!("e2e4 eval {}", board.evaluate());
     board.make_str_move("e7e5");
+    println!("e7e5 eval {}", board.evaluate());
+
     println!("{}", board);
 }
 
@@ -55,11 +59,6 @@ fn main() {
     tests();
 
     let mut pos = Board::new(START_POS);
-    // loop {
-    //     let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
-    //     board4.negamax(4);
-    //     println!("Starting negamax");
-    // }
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {

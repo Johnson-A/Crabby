@@ -153,6 +153,38 @@ impl Board {
 
         let occ = us.pieces | opp.pieces;
 
+        // Add pawn moves last
+
+        for_all_pieces(us.queen, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                (get_line_attacks(piece, occ, file(from)) |
+                 get_line_attacks(piece, occ, row(from))  |
+                 get_line_attacks(piece, occ, diag(from)) |
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        });
+
+        for_all_pieces(us.rook, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                (get_line_attacks(piece, occ, file(from)) |
+                 get_line_attacks(piece, occ, row(from))) & !us.pieces);
+        });
+
+        for_all_pieces(us.bishop, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                (get_line_attacks(piece, occ, diag(from)) |
+                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        });
+
+        for_all_pieces(us.knight, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                KNIGHT_MAP[from as usize] & !us.pieces);
+        });
+
+        for_all_pieces(us.king, &mut |from, piece| {
+            add_moves_from(&mut moves, from,
+                KING_MAP[from as usize] & !us.pieces);
+        });
+
         // Consider out of bounds pawn promotion
         // Implement pawn promotion!!!! king won't know it's checked
         // And the move number won't change when accepting a promotion capture move
@@ -184,36 +216,6 @@ impl Board {
             add_moves(&mut moves, right_attacks, -9);
             add_moves(&mut moves, promotions, -8);
         }
-
-        for_all_pieces(us.queen, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))  |
-                 get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
-        });
-
-        for_all_pieces(us.rook, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))) & !us.pieces);
-        });
-
-        for_all_pieces(us.bishop, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
-        });
-
-        for_all_pieces(us.knight, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KNIGHT_MAP[from as usize] & !us.pieces);
-        });
-
-        for_all_pieces(us.king, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KING_MAP[from as usize] & !us.pieces);
-        });
 
         moves
     }
@@ -250,11 +252,17 @@ impl Board {
     pub fn evaluate(&self) -> f32 {
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
+
         let mut mobility = 0.0;
+        let mut back_rank = 0.0;
 
         let is_white = self.move_num % 2 == 1;
         let occ = us.pieces | opp.pieces;
+
         if is_white {
+            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() as f32 * 0.05;
+            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() as f32 * 0.05;
+
             let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
@@ -264,7 +272,20 @@ impl Board {
                         double_pushes.count_ones() as f32 * 0.01 +
                         left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
+
+            let pushes = (opp.pawn >> 8) & !occ;
+            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
+            let left_attacks = (opp.pawn >> 7) & (us.pieces | self.en_passant) & !FILE_A;
+            let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
+
+            mobility -= pushes.count_ones() as f32  * 0.01 +
+                        double_pushes.count_ones() as f32  * 0.01 +
+                        left_attacks.count_ones() as f32   * 0.04 +
+                        right_attacks.count_ones() as f32  * 0.04;
         } else {
+            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() as f32 * 0.05;
+            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() as f32 * 0.05;
+
             let pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
@@ -274,13 +295,23 @@ impl Board {
                         double_pushes.count_ones() as f32  * 0.01 +
                         left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
+
+            let pushes = (opp.pawn << 8) & !occ;
+            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
+            let left_attacks = (opp.pawn << 7) & (us.pieces | self.en_passant) & !FILE_H;
+            let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
+
+            mobility -= pushes.count_ones() as f32 * 0.01 +
+                        double_pushes.count_ones() as f32 * 0.01 +
+                        left_attacks.count_ones() as f32   * 0.04 +
+                        right_attacks.count_ones() as f32  * 0.04;
         }
 
         for_all_pieces(us.queen, &mut |from, piece| {
             mobility += (get_line_attacks(piece, occ, file(from)) |
                          get_line_attacks(piece, occ, row(from))  |
                          get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.005;
+                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
         });
 
         for_all_pieces(us.rook, &mut |from, piece| {
@@ -301,6 +332,31 @@ impl Board {
             mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
         });
 
+        for_all_pieces(opp.queen, &mut |from, piece| {
+            mobility -= (get_line_attacks(piece, occ, file(from)) |
+                         get_line_attacks(piece, occ, row(from))  |
+                         get_line_attacks(piece, occ, diag(from)) |
+                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
+        });
+
+        for_all_pieces(opp.rook, &mut |from, piece| {
+            mobility -= (get_line_attacks(piece, occ, file(from)) |
+                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(opp.bishop, &mut |from, piece| {
+            mobility -= (get_line_attacks(piece, occ, diag(from)) |
+                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(opp.knight, &mut |from, piece| {
+            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
+        });
+
+        for_all_pieces(opp.king, &mut |from, piece| {
+            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
+        });
+
         (us.pawn.count_ones() as f32  * 1.0)   +
         (us.knight.count_ones() as f32 * 3.0)  +
         (us.bishop.count_ones() as f32 * 3.0)  +
@@ -312,7 +368,8 @@ impl Board {
         (opp.bishop.count_ones() as f32 * 3.0) -
         (opp.rook.count_ones() as f32 * 5.0)   -
         (opp.queen.count_ones() as f32 * 9.0)  -
-        (opp.king.count_ones() as f32 * 300.0) + mobility*0.5
+        (opp.king.count_ones() as f32 * 300.0) + 
+        mobility * 0.3 + back_rank
     }
 
     pub fn best_move(&mut self) -> Move {
@@ -327,10 +384,10 @@ impl Board {
             let tx = tx.clone();
 
             let mut new_board = self.clone();
-            new_board.make_move(mv);
-            // println!("Searching \n{}", new_board);
+
             pool.execute( move || {
-                let score = new_board.negamax(2);
+                new_board.make_move(mv);
+                let score = new_board.negamax_a_b(5, -10000.0, 10000.0); // Alpha beta outside?
                 tx.send((score, mv));
                 });
         }
@@ -346,20 +403,53 @@ impl Board {
         best_move
     }
 
-    pub fn negamax(&mut self, depth: u32) -> f32 {
-        if depth == 0 { return self.evaluate() }
+    pub fn quiescence_search(&mut self, depth: u32, alpha: f32, beta: f32, last_score: f32) -> f32 {
+        let mut alpha = alpha;
         let mut best = -1000.0;
-        let moves = self.get_pseudo_moves(); // TODO: if not able to capture king!!
+        let moves = self.get_pseudo_moves();
         if moves.len() == 0 { return best }
-        // println!("\n{}\n {}", self, depth);
+
         for mv in moves.into_iter() {
-            // println!("Counter {}", move_to_str(&mv));
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let score = -new_board.negamax(depth - 1);
-            // println!("With value {}", score);
+            let mut score = new_board.evaluate();
+            // println!("test score {} with last score {} with diff {}", score, last_score, (score - last_score).abs());
+
+            if (depth == 0) | ((score + last_score).abs() < 1.5) {
+                return -score;
+            } else {
+                // println!("{} {} diff {}", score, last_score, (score + last_score).abs());
+                score = -new_board.quiescence_search(depth - 1, -beta, -alpha, score);
+                // println!("new score {} new diff {}", score, (temp + score).abs());
+            }
 
             if score > best { best = score; }
+            if score > alpha { alpha = score; }
+            if score >= beta { return alpha }
+        }
+        best
+    }
+
+    pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> f32 {
+        if depth == 0 {
+            let score = self.evaluate();
+            return self.quiescence_search(5, alpha, beta, score);
+            // return score;
+        }
+
+        let mut alpha = alpha;
+        let mut best = -1000.0;
+        let moves = self.get_pseudo_moves();
+        if moves.len() == 0 { return best }
+
+        for mv in moves.into_iter() {
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+            let score = -new_board.negamax_a_b(depth - 1, -beta, -alpha);
+
+            if score > best { best = score; }
+            if score > alpha { alpha = score; }
+            if score >= beta { return alpha }
         }
         best
     }
