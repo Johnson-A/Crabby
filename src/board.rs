@@ -222,17 +222,16 @@ impl Board {
         for mv in pseudo_legal_moves.into_iter() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let king = new_board.prev_move().king; // This will be the original player's king
-            let potent_moves = new_board.get_pseudo_moves();
+            let king_pos = new_board.prev_move().king.trailing_zeros(); // This will be the original player's king
             let mut king_is_attacked = false;
 
-            for opp_mv in potent_moves {
-                if opp_mv.to() == king.trailing_zeros() {
+            for opp_mv in new_board.get_pseudo_moves() {
+                if opp_mv.to() == king_pos {
                     king_is_attacked = true;
                     break;
                 }
             }
-            if !king_is_attacked {legal_moves.push(mv)};
+            if !king_is_attacked { legal_moves.push(mv) };
         }
         legal_moves
     }
@@ -241,7 +240,7 @@ impl Board {
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
 
-        let score = (us.pawn.count_ones() as f32  * 1.0)   +
+        (us.pawn.count_ones() as f32  * 1.0)   +
         (us.knight.count_ones() as f32 * 3.0)  +
         (us.bishop.count_ones() as f32 * 3.0)  +
         (us.rook.count_ones() as f32 * 5.0)    +
@@ -250,10 +249,7 @@ impl Board {
         (opp.knight.count_ones() as f32 * 3.0) -
         (opp.bishop.count_ones() as f32 * 3.0) -
         (opp.rook.count_ones() as f32 * 5.0)   -
-        (opp.queen.count_ones() as f32 * 9.0);
-
-        // if score.abs() > 1.5 {println!("evaluating for \n{}Score = {}\n", self, score); }
-        score
+        (opp.queen.count_ones() as f32 * 9.0)
     }
 
     pub fn best_move(&mut self) -> Move {
@@ -264,7 +260,7 @@ impl Board {
             let mut new_board = self.clone();
             new_board.make_move(mv);
             println!("Searching \n{}", new_board);
-            let score = new_board.negamax(3);
+            let score = new_board.negamax(4);
             println!("Found value {}", score);
 
             if score < best_score {
@@ -281,13 +277,13 @@ impl Board {
         let mut best = -1000.0;
         let moves = self.get_moves();
         if moves.len() == 0 { return -best }
-        println!("\n{}\n {}", self, depth);
+        // println!("\n{}\n {}", self, depth);
         for mv in moves.into_iter() {
-            println!("Counter {}", move_to_str(&mv));
+            // println!("Counter {}", move_to_str(&mv));
             let mut new_board = self.clone();
             new_board.make_move(mv);
             let score = -new_board.negamax(depth - 1);
-            println!("With value {}", score);
+            // println!("With value {}", score);
 
             if score > best { best = score; }
         }

@@ -4,8 +4,11 @@ version = "0.1.0"
 authors = ["alex"]
 
 [dependencies]
-rand = "*" # Or a specific version
 lazy_static = "*"
+
+[profile.release]
+opt-level = 3
+debug = true
 
 [profile.bench]
 opt-level = 3

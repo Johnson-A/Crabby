@@ -4,9 +4,7 @@ extern crate lazy_static;
 
 use std::io;
 use std::io::prelude::*;
-extern crate rand;
 extern crate test;
-use rand::distributions::{IndependentSample, Range};
 
 use piece::*;
 mod piece;
@@ -57,6 +55,11 @@ fn main() {
     tests();
 
     let mut pos = Board::new(START_POS);
+    loop {
+        let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
+        board4.negamax(4);
+        println!("Starting negamax");
+    }
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -78,13 +81,6 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    // let moves = board.get_moves();
-    // let between = Range::new(0, moves.len());
-    // let mut rng = rand::thread_rng();
-
-    // let mv = &moves[between.ind_sample(&mut rng)];
-    // println!("{:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
-
     let mv = board.best_move();
     // println!("negamax = {}", board.negamax(4));
     println!("bestmove {}", move_to_str(&mv));
