@@ -52,6 +52,21 @@ pub fn to_pos(col: char, row: char) -> u32 {
     (row_num * 8 + col_num) as u32
 }
 
+pub const EMPTY: u8  = 0;
+pub const PAWN: u8   = 1;
+pub const KNIGHT: u8 = 2;
+pub const BISHOP: u8 = 3;
+pub const ROOK: u8   = 4;
+pub const QUEEN: u8  = 5;
+
+pub const KNIGHT_PROM: u8 = 1 << 12;
+pub const BISHOP_PROM: u8 = 2 << 12;
+pub const ROOK_PROM: u8   = 3 << 12;
+pub const QUEEN_PROM: u8  = 4 << 12;
+
+pub const CASTLE_KING: u8  = 1 << 15;
+pub const CASTLE_QUEEN: u8 = 1 << 16;
+
 #[derive(Copy, Clone)]
 pub struct Move { data: u32 }
 
@@ -66,6 +81,7 @@ impl Move {
     pub fn from(&self)  -> u32 { self.data & 0x3F }
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
     pub fn flags(&self) -> u32 { self.data >> 12 }
+    pub fn promotion(&self) -> u32 { (self.data >> 12) & 0x7 }
 
     pub fn to_str(&self) -> String {
         let (from, to) = (self.from() as u8, self.to() as u8);
@@ -77,20 +93,3 @@ impl Move {
         chars.into_iter().collect::<String>()
     }
 }
-
-// pub fn str_to_move(mv: &str) -> Move {
-//     let moves: Vec<char> = mv.chars().collect();
-//     match moves.as_slice() {
-//         [sc, sr, dc, dr, promotion..] => {
-//             let flags = if promotion.len() == 1 { }
-//         }
-//         // [sc, sr, dc, dr] => {
-//         //     self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
-//         // },
-//         // [sc, sr, dc, dr, promotion] => {
-//         //     let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
-//         //     self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
-//         // }
-//         _ => () // malformed move
-//     }
-// }

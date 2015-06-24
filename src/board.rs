@@ -29,19 +29,6 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
-#[derive(Copy)]
-pub struct Board {
-    pub w: BitBoard,
-    pub b: BitBoard,
-    pub sqs: Squares,
-    pub move_num: u32,
-    pub w_castle: bool,
-    pub b_castle: bool,
-    pub en_passant: u64
-}
-
-impl Clone for Board { fn clone(&self) -> Self { *self } }
-
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
@@ -67,6 +54,21 @@ pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
     }
 }
 
+#[derive(Copy)]
+pub struct Board {
+    pub w: BitBoard,
+    pub b: BitBoard,
+    pub sqs: Squares,
+    pub move_num: u32,
+    pub w_k_castle: bool,
+    pub w_q_castle: bool,
+    pub b_k_castle: bool,
+    pub b_q_castle: bool,
+    pub en_passant: u64
+}
+
+impl Clone for Board { fn clone(&self) -> Self { *self } }
+
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
@@ -79,31 +81,27 @@ impl Board {
         self.move_num += 1;
     }
 
-    // pub fn update(us: &mut BitBoard, opp: &mut BitBoard, mv: Move) {
-    // TODO:
-    // }
-
-    pub fn make_promotion(&mut self, mv: Move, prom: Square) {
-        let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        self.sqs[dest] = prom;
-        self.sqs[src] = Square::Empty;
-        let (w, b) = gen_bitboards(&self.sqs);
-        self.w = w;
-        self.b = b;
-        self.move_num += 1;
-    }
-
     pub fn make_str_move(&mut self, mv: &str) {
         let moves: Vec<char> = mv.chars().collect();
         match moves.as_slice() {
-            // [sc, sr, dc, dr, promotion..] => {
-            [sc, sr, dc, dr] => {
-                self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
+            [sc, sr, dc, dr, promotion..] => {
+                let mut flags = if promotion.len() == 1 {
+                    match promotion[0] {
+                        'q' => QUEEN_PROM,
+                        'r' => ROOK_PROM,
+                        'b' => BISHOP_PROM,
+                        'n' => KNIGHT_PROM
+                    } else { 0 };
+
+                    flags |= match mv {
+                        "e1g1" => if self.w_k_castle { CASTLE_KING } else {0}
+                        "e8g8" => if self.b_k_castle { CASTLE_KING } else {0}
+                        "e1c1" => if self.w_q_castle { CASTLE_QUEEN } else {0}
+                        "e8c8" => if self.b_q_castle { CASTLE_QUEEN } else {0}
+                    };
+                    Move {}
+                }
             },
-            [sc, sr, dc, dr, promotion] => {
-                let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
-                self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
-            }
             _ => () // malformed move
         }
     }
@@ -326,7 +324,7 @@ impl Board {
         for mv in self.get_pseudo_moves() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            
+
             let (score, submv) = if depth == 1 {
                 (-new_board.evaluate(), mv)
             } else {
@@ -360,7 +358,8 @@ impl Board {
         }
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs, move_num: 1, w_castle: true, b_castle: true, en_passant: 0 }
+        Board { w: w, b: b, sqs: sqs, move_num: 1, w_k_castle: true, w_q_castle: true,
+                b_k_castle: true, b_q_castle: true, en_passant: 0 }
     }
 }
 
