@@ -368,7 +368,7 @@ impl Board {
         (opp.bishop.count_ones() as f32 * 3.0) -
         (opp.rook.count_ones() as f32 * 5.0)   -
         (opp.queen.count_ones() as f32 * 9.0)  -
-        (opp.king.count_ones() as f32 * 300.0) + 
+        (opp.king.count_ones() as f32 * 300.0) +
         mobility * 0.3 + back_rank
     }
 
