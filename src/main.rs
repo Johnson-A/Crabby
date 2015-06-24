@@ -84,7 +84,7 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let (score, mv) = board.negamax_a_b(7, -10000.0, 10000.0);
+    let (score, mv) = board.negamax_a_b(6, -10000.0, 10000.0);
     println!("info score cp {}", score*100.0);
     println!("bestmove {}", mv.to_str());
 }
