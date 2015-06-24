@@ -48,6 +48,8 @@ impl Move {
     pub fn flags(&self) -> u32 { self.data >> 12 }
 }
 
+pub const NULL_MOVE: Move = Move { data: 0 };
+
 pub fn move_to_str(mv: &Move) -> String {
     let (from, to) = (mv.from() as u8, mv.to() as u8);
     let (sr, sc) = (from / 8, from % 8);
@@ -77,7 +79,6 @@ pub struct Board {
 }
 
 impl Clone for Board { fn clone(&self) -> Self { *self } }
-
 
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
     while targets != 0 {
@@ -316,7 +317,7 @@ impl Board {
 
         for_all_pieces(us.rook, &mut |from, piece| {
             mobility += (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
+                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(us.bishop, &mut |from, piece| {
@@ -329,7 +330,7 @@ impl Board {
         });
 
         for_all_pieces(us.king, &mut |from, piece| {
-            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
+            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.005;
         });
 
         for_all_pieces(opp.queen, &mut |from, piece| {
@@ -341,7 +342,7 @@ impl Board {
 
         for_all_pieces(opp.rook, &mut |from, piece| {
             mobility -= (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
+                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(opp.bishop, &mut |from, piece| {
@@ -354,7 +355,7 @@ impl Board {
         });
 
         for_all_pieces(opp.king, &mut |from, piece| {
-            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
+            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.005;
         });
 
         (us.pawn.count_ones() as f32  * 1.0)   +
@@ -368,39 +369,8 @@ impl Board {
         (opp.bishop.count_ones() as f32 * 3.0) -
         (opp.rook.count_ones() as f32 * 5.0)   -
         (opp.queen.count_ones() as f32 * 9.0)  -
-        (opp.king.count_ones() as f32 * 300.0) + 
-        mobility * 0.3 + back_rank
-    }
-
-    pub fn best_move(&mut self) -> Move {
-        let mut best_score = 1000.0;
-        let mut best_move = Move::new(0,0,0);
-        let moves = self.get_moves();
-
-        let (tx, rx) = channel();
-        let pool = ThreadPool::new(num_cpus::get());
-
-        for &mv in moves.iter() {
-            let tx = tx.clone();
-
-            let mut new_board = self.clone();
-
-            pool.execute( move || {
-                new_board.make_move(mv);
-                let score = new_board.negamax_a_b(5, -10000.0, 10000.0); // Alpha beta outside?
-                tx.send((score, mv));
-                });
-        }
-
-        for (score, mv) in rx.iter().take(moves.len()) {
-            if score < best_score {
-                best_move = mv;
-                best_score = score;
-            }
-        }
-
-        println!("\nbest score {}", best_score);
-        best_move
+        (opp.king.count_ones() as f32 * 300.0) +
+        mobility * 0.5 + back_rank
     }
 
     pub fn quiescence_search(&mut self, depth: u32, alpha: f32, beta: f32, last_score: f32) -> f32 {
@@ -430,28 +400,29 @@ impl Board {
         best
     }
 
-    pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> f32 {
-        if depth == 0 {
-            let score = self.evaluate();
-            return self.quiescence_search(5, alpha, beta, score);
-            // return score;
-        }
-
+    pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> (f32, Move) {
         let mut alpha = alpha;
         let mut best = -1000.0;
-        let moves = self.get_pseudo_moves();
-        if moves.len() == 0 { return best }
+        let mut best_mv = NULL_MOVE;
 
-        for mv in moves.into_iter() {
+        for mv in self.get_pseudo_moves() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let score = -new_board.negamax_a_b(depth - 1, -beta, -alpha);
+            let (score, sub_move) = if depth == 1 {
+                (self.evaluate(), mv)
+            } else {
+                let (sub_score, sub_move) = new_board.negamax_a_b(depth - 1, -beta, -alpha);
+                (-sub_score, sub_move)
+            };
 
-            if score > best { best = score; }
+            if score > best {
+                best = score;
+                best_mv = mv;
+            }
             if score > alpha { alpha = score; }
-            if score >= beta { return alpha }
+            if score >= beta { return (alpha, best_mv) }
         }
-        best
+        (best, best_mv)
     }
 
     pub fn new(fen_board: &str) -> Board {

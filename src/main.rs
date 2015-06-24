@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, test, negate_unsigned)]
+#![feature(slice_patterns, convert, test, negate_unsigned, associated_consts)]
 #[macro_use]
 extern crate lazy_static;
 extern crate threadpool;
@@ -26,11 +26,16 @@ fn bench(b: &mut test::Bencher) {
 
     b.iter(|| test::black_box({
         for _ in 0..2 {
-            board0.best_move();
-            board1.best_move();
-            board2.best_move();
-            board3.best_move();
-            board4.best_move();
+            // board0.best_move();
+            // board1.best_move();
+            // board2.best_move();
+            // board3.best_move();
+            // board4.best_move();
+            board0.negamax_a_b(3, -10000.0, 10000.0);
+            board1.negamax_a_b(3, -10000.0, 10000.0);
+            board2.negamax_a_b(3, -10000.0, 10000.0);
+            board3.negamax_a_b(3, -10000.0, 10000.0);
+            board4.negamax_a_b(3, -10000.0, 10000.0);
         }
     }));
 }
@@ -80,8 +85,8 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let mv = board.best_move();
-    // println!("negamax = {}", board.negamax(4));
+    let (score, mv) = board.negamax_a_b(7, -10000.0, 10000.0);
+    println!("Best score = {}", score);
     println!("bestmove {}", move_to_str(&mv));
 }
 
