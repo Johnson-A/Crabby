@@ -1,12 +1,7 @@
-extern crate num_cpus;
-use std::fmt;
-use threadpool::ThreadPool;
-use std::sync::mpsc::channel;
 use std::ascii::AsciiExt;
-use piece::*;
+use std::fmt;
+use types::*;
 use util::*;
-
-pub type Squares = [Square; 64];
 
 pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     let mut w: BitBoard = Default::default();
@@ -32,32 +27,6 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     w.pieces = w.pawn | w.knight | w.bishop | w.rook | w.queen | w.king;
     b.pieces = b.pawn | b.knight | b.bishop | b.rook | b.queen | b.king;
     (w, b)
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Move { data: u32 }
-
-impl Move {
-    pub fn new(from: u32, to: u32, flags: u32) -> Move {
-        let d = from | to << 6 | flags << 12;
-        Move { data: d }
-    }
-
-    pub fn from(&self)  -> u32 { self.data & 0x3F }
-    pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
-    pub fn flags(&self) -> u32 { self.data >> 12 }
-}
-
-pub const NULL_MOVE: Move = Move { data: 0 };
-
-pub fn move_to_str(mv: &Move) -> String {
-    let (from, to) = (mv.from() as u8, mv.to() as u8);
-    let (sr, sc) = (from / 8, from % 8);
-    let (dr, dc) = (to / 8, to % 8);
-    let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
-    let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
-    let chars = vec![sc_char, sr_char, dc_char, dr_char];
-    chars.into_iter().collect::<String>()
 }
 
 pub fn get_line_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
@@ -373,42 +342,15 @@ impl Board {
         mobility * 0.5 + back_rank
     }
 
-    pub fn quiescence_search(&mut self, depth: u32, alpha: f32, beta: f32, last_score: f32) -> f32 {
-        let mut alpha = alpha;
-        let mut best = -1000.0;
-        let moves = self.get_pseudo_moves();
-        if moves.len() == 0 { return best }
-
-        for mv in moves.into_iter() {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let mut score = new_board.evaluate();
-            // println!("test score {} with last score {} with diff {}", score, last_score, (score - last_score).abs());
-
-            if (depth == 0) | ((score + last_score).abs() < 1.5) {
-                return -score;
-            } else {
-                // println!("{} {} diff {}", score, last_score, (score + last_score).abs());
-                score = -new_board.quiescence_search(depth - 1, -beta, -alpha, score);
-                // println!("new score {} new diff {}", score, (temp + score).abs());
-            }
-
-            if score > best { best = score; }
-            if score > alpha { alpha = score; }
-            if score >= beta { return alpha }
-        }
-        best
-    }
-
     pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> (f32, Move) {
         let mut alpha = alpha;
         let mut best = -1000.0;
-        let mut best_mv = NULL_MOVE;
+        let mut best_mv = Move::NULL_MOVE;
 
         for mv in self.get_pseudo_moves() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let (score, sub_move) = if depth == 1 {
+            let (score, submv) = if depth == 1 {
                 (self.evaluate(), mv)
             } else {
                 let (sub_score, sub_move) = new_board.negamax_a_b(depth - 1, -beta, -alpha);
@@ -463,7 +405,7 @@ impl fmt::Display for Board {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Default, Copy, Clone)]
 pub struct BitBoard {
     pub pawn: u64,
     pub knight: u64,

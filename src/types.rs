@@ -61,36 +61,36 @@ impl Move {
         Move { data: d }
     }
 
+    pub const NULL_MOVE: Move = Move { data: 0 };
+
     pub fn from(&self)  -> u32 { self.data & 0x3F }
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
-    pub fn promotion(&self) -> u32 { self.data & 1 }
-    // pub fn capture(&self) -> u32
-    // pub fn piece(&self) -> u32
-}
+    pub fn flags(&self) -> u32 { self.data >> 12 }
 
-pub fn str_to_move(mv: &str) -> Move {
-    let moves: Vec<char> = mv.chars().collect();
-    match moves.as_slice() {
-        [sc, sr, dc, dr, promotion..] => {
-            let flags = if promotion.len() == 1 { }
-        }
-        // [sc, sr, dc, dr] => {
-        //     self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
-        // },
-        // [sc, sr, dc, dr, promotion] => {
-        //     let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
-        //     self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
-        // }
-        _ => () // malformed move
+    pub fn to_str(&self) -> String {
+        let (from, to) = (self.from() as u8, self.to() as u8);
+        let (sr, sc) = (from / 8, from % 8);
+        let (dr, dc) = (to / 8, to % 8);
+        let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
+        let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
+        let chars = vec![sc_char, sr_char, dc_char, dr_char];
+        chars.into_iter().collect::<String>()
     }
 }
 
-pub fn move_to_str(mv: &Move) -> String {
-    let (from, to) = (mv.from() as u8, mv.to() as u8);
-    let (sr, sc) = (from / 8, from % 8);
-    let (dr, dc) = (to / 8, to % 8);
-    let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
-    let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
-    let chars = vec![sc_char, sr_char, dc_char, dr_char];
-    chars.into_iter().collect::<String>()
-}
+// pub fn str_to_move(mv: &str) -> Move {
+//     let moves: Vec<char> = mv.chars().collect();
+//     match moves.as_slice() {
+//         [sc, sr, dc, dr, promotion..] => {
+//             let flags = if promotion.len() == 1 { }
+//         }
+//         // [sc, sr, dc, dr] => {
+//         //     self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
+//         // },
+//         // [sc, sr, dc, dr, promotion] => {
+//         //     let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
+//         //     self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
+//         // }
+//         _ => () // malformed move
+//     }
+// }

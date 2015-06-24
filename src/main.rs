@@ -1,14 +1,13 @@
 #![feature(slice_patterns, convert, test, negate_unsigned, associated_consts)]
 #[macro_use]
 extern crate lazy_static;
-extern crate threadpool;
+extern crate test;
 
 use std::io;
 use std::io::prelude::*;
-extern crate test;
 
-use piece::*;
-mod piece;
+use types::*;
+mod types;
 use board::*;
 mod board;
 mod util;
@@ -50,7 +49,7 @@ fn tests() {
     println!("Start eval {}", board.evaluate());
     println!("{}", board);
     let moves = board.get_moves();
-    println!("moves = {:?}", moves.iter().map(move_to_str).collect::<Vec<String>>());
+    println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
     board.make_str_move("e2e4");
     println!("e2e4 eval {}", board.evaluate());
@@ -73,25 +72,21 @@ fn main() {
 
         match first_word {
             "uci"        => uci(),
-            "setoption"  => set_option(&words),
+            "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => continue, // new game
+            "ucinewgame" => (), // new game
             "position"   => pos = position(&mut words),
             "go"         => go(&mut pos),
-            "print"      => print(),
-            _            => continue, // Ignore any other command
+            "print"      => (),
+            _            => (), // Ignore any other command
         }
     }
 }
 
 fn go(board: &mut Board) {
-    let (score, mv) = board.negamax_a_b(7, -10000.0, 10000.0);
+    let (score, mv) = board.negamax_a_b(6, -10000.0, 10000.0);
     println!("Best score = {}", score);
-    println!("bestmove {}", move_to_str(&mv));
-}
-
-fn print() {
-
+    println!("bestmove {}", mv.to_str());
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
@@ -108,10 +103,6 @@ fn position(params: &mut Vec<&str>) -> Board {
 
     println!("{}", pos);
     pos
-}
-
-fn set_option(params: &Vec<&str>) {
-
 }
 
 fn uci() {
