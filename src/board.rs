@@ -122,29 +122,24 @@ impl Board {
             add_moves_from(&mut moves, from,
                 queen_attacks(piece, from, occ) & !us.pieces);
         });
-        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.rook, &mut |from, piece| {
             add_moves_from(&mut moves, from,
                 rook_attacks(piece, from, occ) & !us.pieces);
         });
-        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.bishop, &mut |from, piece| {
             add_moves_from(&mut moves, from,
                 bishop_attacks(piece, from, occ) & !us.pieces);
         });
-        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.knight, &mut |from, piece| {
             add_moves_from(&mut moves, from, knight_attacks(from) & !us.pieces);
         });
-        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.king, &mut |from, piece| {
             add_moves_from(&mut moves, from, king_attacks(from) & !us.pieces);
         });
-        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         // Consider out of bounds pawn promotion
         // Implement pawn promotion!!!! king won't know it's checked

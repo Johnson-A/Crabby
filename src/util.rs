@@ -46,7 +46,7 @@ const BIT_REV: [u64; 256] = [
     BIT_REV[((bits >> 56) & 0xff) as usize]
 }
 
-#[inline] pub fn get_attacks(piece: u64, mask: u64, occ: u64) -> u64 {
+#[inline] pub fn get_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
     let forward = pot_blockers - 2*piece;
     let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
