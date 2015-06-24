@@ -35,7 +35,7 @@ const BIT_REV: [u64; 256] = [
     0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF
 ];
 
-pub fn reverse(bits: u64) -> u64 {
+#[inline] pub fn reverse(bits: u64) -> u64 {
     (BIT_REV[(bits & 0xff) as usize]         << 56) |
     (BIT_REV[((bits >> 8)  & 0xff) as usize] << 48) |
     (BIT_REV[((bits >> 16) & 0xff) as usize] << 40) |
@@ -46,36 +46,68 @@ pub fn reverse(bits: u64) -> u64 {
     BIT_REV[((bits >> 56) & 0xff) as usize]
 }
 
-pub fn bit_pop(x: &mut u64) -> u64 {
+#[inline] pub fn get_attacks(piece: u64, mask: u64, occ: u64) -> u64 {
+    let pot_blockers = occ & mask;
+    let forward = pot_blockers - 2*piece;
+    let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
+    (forward ^ rev) & mask
+}
+
+#[inline] pub fn queen_attacks(piece: u64, from: u32, occ: u64) -> u64 {
+    get_attacks(piece, occ, file(from)) |
+    get_attacks(piece, occ, row(from))  |
+    get_attacks(piece, occ, diag(from)) |
+    get_attacks(piece, occ, a_diag(from))
+}
+
+#[inline] pub fn rook_attacks(piece: u64, from: u32, occ: u64) -> u64 {
+    get_attacks(piece, occ, file(from)) |
+    get_attacks(piece, occ, row(from))
+}
+
+#[inline] pub fn bishop_attacks(piece: u64, from: u32, occ: u64) -> u64 {
+    get_attacks(piece, occ, diag(from)) |
+    get_attacks(piece, occ, a_diag(from))
+}
+
+#[inline] pub fn knight_attacks(from: u32) -> u64 {
+    KNIGHT_MAP[from as usize]
+}
+
+#[inline] pub fn king_attacks(from: u32) -> u64 {
+    KING_MAP[from as usize]
+}
+
+#[inline] pub fn bit_pop(x: &mut u64) -> u64 {
     let lsb = *x & -(*x);
     *x ^= lsb;
     lsb
 }
 
-pub fn bit_pop_pos(x: &mut u64) -> u32 {
+#[inline] pub fn bit_pop_pos(x: &mut u64) -> u32 {
     let lsb_pos = x.trailing_zeros();
     *x ^= 1 << lsb_pos;
     lsb_pos
 }
 
-pub fn file(from: u32) -> u64 {
+#[inline] pub fn file(from: u32) -> u64 {
     FILE_A << (from % 8)
 }
 
-pub fn row(from: u32) -> u64 {
+#[inline] pub fn row(from: u32) -> u64 {
     ROW_1 << (8 * (from / 8))
 }
 
 pub const MAIN_DIAG: u64 = 0x8040201008040201;
 
-pub fn diag(from: u32) -> u64 {
+#[inline] pub fn diag(from: u32) -> u64 {
     let diag_index = ((from / 8) - (from % 8)) & 15;
     if diag_index <= 7 {MAIN_DIAG << 8*diag_index} else {MAIN_DIAG >> 8*(16 - diag_index)}
 }
 
 pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
 
-pub fn a_diag(from: u32) -> u64 {
+#[inline] pub fn a_diag(from: u32) -> u64 {
     let diag_index = ((from / 8) + (from % 8)) ^ 7;
     if diag_index <= 7 {MAIN_ANTI_DIAG >> 8*diag_index} else {MAIN_ANTI_DIAG << 8*(16-diag_index)}
 }

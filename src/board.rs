@@ -29,13 +29,6 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
-pub fn get_line_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
-    let pot_blockers = occ & mask;
-    let forward = pot_blockers - 2*piece;
-    let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
-    (forward ^ rev) & mask
-}
-
 #[derive(Copy)]
 pub struct Board {
     pub w: BitBoard,
@@ -127,33 +120,31 @@ impl Board {
 
         for_all_pieces(us.queen, &mut |from, piece| {
             add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))  |
-                 get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+                queen_attacks(piece, from, occ) & !us.pieces);
         });
+        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.rook, &mut |from, piece| {
             add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))) & !us.pieces);
+                rook_attacks(piece, from, occ) & !us.pieces);
         });
+        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.bishop, &mut |from, piece| {
             add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+                bishop_attacks(piece, from, occ) & !us.pieces);
         });
+        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.knight, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KNIGHT_MAP[from as usize] & !us.pieces);
+            add_moves_from(&mut moves, from, knight_attacks(from) & !us.pieces);
         });
+        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         for_all_pieces(us.king, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KING_MAP[from as usize] & !us.pieces);
+            add_moves_from(&mut moves, from, king_attacks(from) & !us.pieces);
         });
+        println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
         // Consider out of bounds pawn promotion
         // Implement pawn promotion!!!! king won't know it's checked
@@ -278,53 +269,44 @@ impl Board {
         }
 
         for_all_pieces(us.queen, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))  |
-                         get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
+            mobility += queen_attacks(piece, from, occ).count_ones() as f32 * 0.01;
         });
 
         for_all_pieces(us.rook, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.015;
+            mobility += rook_attacks(piece, from, occ).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(us.bishop, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
+            mobility += bishop_attacks(piece, from, occ).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(us.knight, &mut |from, piece| {
-            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
+            mobility += knight_attacks(from).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(us.king, &mut |from, piece| {
-            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.005;
+            mobility += king_attacks(from).count_ones() as f32 * 0.005;
         });
 
+        // Opponent
         for_all_pieces(opp.queen, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))  |
-                         get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
+            mobility += queen_attacks(piece, from, occ).count_ones() as f32 * 0.01;
         });
 
         for_all_pieces(opp.rook, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.015;
+            mobility += rook_attacks(piece, from, occ).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(opp.bishop, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
+            mobility += bishop_attacks(piece, from, occ).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(opp.knight, &mut |from, piece| {
-            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
+            mobility += knight_attacks(from).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(opp.king, &mut |from, piece| {
-            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.005;
+            mobility += king_attacks(from).count_ones() as f32 * 0.005;
         });
 
         (us.pawn.count_ones() as f32  * 1.0)   +
@@ -342,8 +324,7 @@ impl Board {
         mobility * 0.5 + back_rank
     }
 
-    pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> (f32, Move) {
-        let mut alpha = alpha;
+    pub fn negamax_a_b(&mut self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
         let mut best = -1000.0;
         let mut best_mv = Move::NULL_MOVE;
 

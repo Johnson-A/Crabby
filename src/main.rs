@@ -46,15 +46,15 @@ fn tests() {
     println!("");
 
     let mut board = Board::new(START_POS);
-    println!("Start eval {}", board.evaluate());
+    // println!("Start eval {}", board.evaluate());
     println!("{}", board);
-    let moves = board.get_moves();
+    let moves = board.get_pseudo_moves();
     println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
 
-    board.make_str_move("e2e4");
-    println!("e2e4 eval {}", board.evaluate());
-    board.make_str_move("e7e5");
-    println!("e7e5 eval {}", board.evaluate());
+    // board.make_str_move("e2e4");
+    // println!("e2e4 eval {}", board.evaluate());
+    // board.make_str_move("e7e5");
+    // println!("e7e5 eval {}", board.evaluate());
 
     println!("{}", board);
 }
@@ -85,7 +85,7 @@ fn main() {
 
 fn go(board: &mut Board) {
     let (score, mv) = board.negamax_a_b(6, -10000.0, 10000.0);
-    println!("Best score = {}", score);
+    // println!("Best score = {}", score);
     println!("bestmove {}", mv.to_str());
 }
 
