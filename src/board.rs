@@ -209,7 +209,8 @@ impl Board {
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
 
-        let mut mobility = 0.0;
+        let mut mobility = 0.0; // minus double pawn pushes
+        let mut attacks = 0.0;
         let mut back_rank = 0.0;
 
         let is_white = self.move_num % 2 == 1;
@@ -225,8 +226,8 @@ impl Board {
             let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
 
             mobility += pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
+                        double_pushes.count_ones() as f32 * -0.01;
+            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
 
             let pushes = (opp.pawn >> 8) & !occ;
@@ -235,8 +236,8 @@ impl Board {
             let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
 
             mobility -= pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
+                        double_pushes.count_ones() as f32  * -0.01;
+            attacks -=  left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
         } else {
             back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() as f32 * 0.05;
@@ -248,8 +249,8 @@ impl Board {
             let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
 
             mobility += pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
+                        double_pushes.count_ones() as f32  * -0.01;
+            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
 
             let pushes = (opp.pawn << 8) & !occ;
@@ -258,50 +259,70 @@ impl Board {
             let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
 
             mobility -= pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
+                        double_pushes.count_ones() as f32 * -0.01;
+            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
         }
 
         for_all_pieces(us.queen, &mut |from, piece| {
-            mobility += queen_attacks(piece, from, occ).count_ones() as f32 * 0.01;
+            let att = queen_attacks(piece, from, occ);
+            mobility += (att & !occ).count_ones() as f32 * 0.005;
+            attacks += (att & opp.pieces).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(us.rook, &mut |from, piece| {
-            mobility += rook_attacks(piece, from, occ).count_ones() as f32 * 0.015;
+            let att = rook_attacks(piece, from, occ);
+            mobility += (att & !occ).count_ones() as f32 * 0.015;
+            attacks += (att & opp.pieces).count_ones() as f32 * 0.02;
         });
 
         for_all_pieces(us.bishop, &mut |from, piece| {
-            mobility += bishop_attacks(piece, from, occ).count_ones() as f32 * 0.03;
+            let att = bishop_attacks(piece, from, occ);
+            mobility += (att & !occ).count_ones() as f32 * 0.025;
+            attacks += (att & opp.pieces).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(us.knight, &mut |from, piece| {
-            mobility += knight_attacks(from).count_ones() as f32 * 0.03;
+            let att = knight_attacks(from);
+            mobility += (att & !occ).count_ones() as f32 * 0.03;
+            attacks += (att & opp.pieces).count_ones() as f32 * 0.035;
         });
 
         for_all_pieces(us.king, &mut |from, piece| {
-            mobility += king_attacks(from).count_ones() as f32 * 0.005;
+            let att = king_attacks(from);
+            mobility += (att & !occ).count_ones() as f32 * 0.01;
+            attacks += (att & opp.pieces).count_ones() as f32 * 0.015;
         });
 
         // Opponent
         for_all_pieces(opp.queen, &mut |from, piece| {
-            mobility += queen_attacks(piece, from, occ).count_ones() as f32 * 0.01;
+            let att = queen_attacks(piece, from, occ);
+            mobility -= (att & !occ).count_ones() as f32 * 0.005;
+            attacks -= (att & opp.pieces).count_ones() as f32 * 0.015;
         });
 
         for_all_pieces(opp.rook, &mut |from, piece| {
-            mobility += rook_attacks(piece, from, occ).count_ones() as f32 * 0.015;
+            let att = rook_attacks(piece, from, occ);
+            mobility -= (att & !occ).count_ones() as f32 * 0.015;
+            attacks -= (att & opp.pieces).count_ones() as f32 * 0.02;
         });
 
         for_all_pieces(opp.bishop, &mut |from, piece| {
-            mobility += bishop_attacks(piece, from, occ).count_ones() as f32 * 0.03;
+            let att = bishop_attacks(piece, from, occ);
+            mobility -= (att & !occ).count_ones() as f32 * 0.025;
+            attacks -= (att & opp.pieces).count_ones() as f32 * 0.03;
         });
 
         for_all_pieces(opp.knight, &mut |from, piece| {
-            mobility += knight_attacks(from).count_ones() as f32 * 0.03;
+            let att = knight_attacks(from);
+            mobility -= (att & !occ).count_ones() as f32 * 0.03;
+            attacks -= (att & opp.pieces).count_ones() as f32 * 0.035;
         });
 
         for_all_pieces(opp.king, &mut |from, piece| {
-            mobility += king_attacks(from).count_ones() as f32 * 0.005;
+            let att = king_attacks(from);
+            mobility -= (att & !occ).count_ones() as f32 * 0.01;
+            attacks -= (att & opp.pieces).count_ones() as f32 * 0.015;
         });
 
         (us.pawn.count_ones() as f32  * 1.0)   +
@@ -316,7 +337,7 @@ impl Board {
         (opp.rook.count_ones() as f32 * 5.0)   -
         (opp.queen.count_ones() as f32 * 9.0)  -
         (opp.king.count_ones() as f32 * 300.0) +
-        mobility * 0.5 + back_rank
+        mobility * 0.5 + back_rank + attacks
     }
 
     pub fn negamax_a_b(&mut self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
