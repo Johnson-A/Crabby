@@ -38,6 +38,18 @@ pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32)
     }
 }
 
+pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
+    while targets != 0 {
+        let to = bit_pop_pos(&mut targets);
+        let from = ((to as i32) - diff) as u32;
+
+        moves.push(Move::new(from, to, flags | KNIGHT_PROM));
+        moves.push(Move::new(from, to, flags | BISHOP_PROM));
+        moves.push(Move::new(from, to, flags | ROOK_PROM));
+        moves.push(Move::new(from, to, flags | QUEEN_PROM));
+    }
+}
+
 pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
@@ -78,9 +90,9 @@ impl Board {
             let col = if self.move_num % 2 == 1 { Color::White } else { Color::Black };
             match prom {
                 QUEEN_PROM  => Square::Piece(PieceType::Queen, col),
-                ROOK_PROM   => Square::Piece(PieceType::Queen, col),
-                BISHOP_PROM => Square::Piece(PieceType::Queen, col),
-                KNIGHT_PROM => Square::Piece(PieceType::Queen, col),
+                ROOK_PROM   => Square::Piece(PieceType::Rook, col),
+                BISHOP_PROM => Square::Piece(PieceType::Bishop, col),
+                KNIGHT_PROM => Square::Piece(PieceType::Knight, col),
                 _ => Square::Empty // This can't happen
             }
         } else {
@@ -102,7 +114,6 @@ impl Board {
 
         if mv.is_en_passant() {
             let diff = if self.move_num % 1 == 0 { -8 } else { 8 };
-            println!("{}", dest + diff);
             self.sqs[dest + diff] = Square::Empty;
         }
 
@@ -206,39 +217,45 @@ impl Board {
         // And the move number won't change when accepting a promotion capture move
         // Make move not copyable
         if is_white {
-            let mut pushes = (us.pawn << 8) & !occ;
+            let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
             let l_en_passant = left_attacks & self.en_passant;
             let r_en_passant = right_attacks & self.en_passant;
-            let promotions = pushes & ROW_8;
-            pushes &= !ROW_8;
+            let prom_pushes = pushes & ROW_8;
+            let prom_l_att = left_attacks & ROW_8;
+            let prom_r_att = right_attacks & ROW_8;
 
-            add_moves(&mut moves, pushes, 8, 0);
+            add_moves(&mut moves, pushes ^ prom_pushes, 8, 0);
             add_moves(&mut moves, double_pushes, 16, DOUBLE_PAWN_PUSH);
-            add_moves(&mut moves, left_attacks ^ l_en_passant, 7, IS_CAPTURE);
-            add_moves(&mut moves, right_attacks ^ r_en_passant, 9, IS_CAPTURE);
+            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, 7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, 9, IS_CAPTURE);
             add_moves(&mut moves, l_en_passant, 7, EN_PASSANT | IS_CAPTURE);
             add_moves(&mut moves, r_en_passant, 9, EN_PASSANT | IS_CAPTURE);
-            add_moves(&mut moves, promotions, 8, 0);
+            add_prom_moves(&mut moves, prom_pushes, 8, 0);
+            add_prom_moves(&mut moves, prom_l_att, 7, IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_r_att, 9, IS_CAPTURE);
         } else {
-            let mut pushes = (us.pawn >> 8) & !occ;
+            let pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
             let l_en_passant = left_attacks & self.en_passant;
             let r_en_passant = right_attacks & self.en_passant;
-            let promotions = pushes & ROW_1;
-            pushes &= !ROW_1;
+            let prom_pushes = pushes & ROW_1;
+            let prom_l_att = left_attacks & ROW_1;
+            let prom_r_att = right_attacks & ROW_1;
 
-            add_moves(&mut moves, pushes, -8, 0);
+            add_moves(&mut moves, pushes ^ prom_pushes, -8, 0);
             add_moves(&mut moves, double_pushes, -16, DOUBLE_PAWN_PUSH);
-            add_moves(&mut moves, left_attacks ^ l_en_passant, -7, IS_CAPTURE);
-            add_moves(&mut moves, right_attacks ^ r_en_passant, -9, IS_CAPTURE);
+            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, -7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, -9, IS_CAPTURE);
             add_moves(&mut moves, l_en_passant, -7, EN_PASSANT | IS_CAPTURE);
             add_moves(&mut moves, r_en_passant, -9, EN_PASSANT | IS_CAPTURE);
-            add_moves(&mut moves, promotions, -8, 0);
+            add_prom_moves(&mut moves, prom_pushes, -8, 0);
+            add_prom_moves(&mut moves, prom_l_att, -7, IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_r_att, -9, IS_CAPTURE);
         }
 
         moves.sort_by(|a,b| {

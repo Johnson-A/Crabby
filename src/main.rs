@@ -82,7 +82,7 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let (score, mv) = board.negamax_a_b(7, -10000.0, 10000.0);
+    let (score, mv) = board.negamax_a_b(6, -10000.0, 10000.0);
     println!("info depth 1 currmove {} multipv 1 score cp {}", mv.to_str(), (score*100.0) as i32);
     println!("bestmove {}", mv.to_str());
 }
