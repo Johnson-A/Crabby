@@ -72,13 +72,45 @@ impl Clone for Board { fn clone(&self) -> Self { *self } }
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        self.sqs[dest] = self.sqs[src];
+
+        let prom = mv.promotion();
+        self.sqs[dest] = if prom != 0 {
+            let col = if self.move_num % 2 == 1 { Color::White } else { Color::Black };
+            match prom {
+                QUEEN_PROM  => Square::Piece(PieceType::Queen, col),
+                ROOK_PROM   => Square::Piece(PieceType::Queen, col),
+                BISHOP_PROM => Square::Piece(PieceType::Queen, col),
+                KNIGHT_PROM => Square::Piece(PieceType::Queen, col),
+                _ => Square::Empty // This can't happen
+            }
+        } else {
+            self.sqs[src]
+        };
         self.sqs[src] = Square::Empty;
+
+        if mv.king_castle() {
+            println!("Castling");
+            let color_offset = if self.move_num % 2 == 1 { 0 } else { 56 };
+            println!("{} {}", self.move_num, color_offset + 5);
+            self.sqs[7 + color_offset] = Square::Empty;
+            self.sqs[5 + color_offset] = Square::Piece(PieceType::Rook, self.color_to_move());
+        }
+
+        if mv.queen_castle() {
+            let color_offset = if self.move_num % 2 == 1 { 0 } else { 56 };
+            self.sqs[color_offset] = Square::Empty;
+            self.sqs[3 + color_offset] = Square::Piece(PieceType::Rook, self.color_to_move());
+        }
+
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
         // Board::update(&mut self.w, &mut self.b, mv);
         self.move_num += 1;
+    }
+
+    pub fn color_to_move(&self) -> Color {
+        if self.move_num % 2 == 1 { Color::White } else { Color::Black }
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
@@ -90,17 +122,19 @@ impl Board {
                         'q' => QUEEN_PROM,
                         'r' => ROOK_PROM,
                         'b' => BISHOP_PROM,
-                        'n' => KNIGHT_PROM
-                    } else { 0 };
+                        'n' => KNIGHT_PROM,
+                        _ => 0
+                    }
+                } else { 0 };
 
-                    flags |= match mv {
-                        "e1g1" => if self.w_k_castle { CASTLE_KING } else {0}
-                        "e8g8" => if self.b_k_castle { CASTLE_KING } else {0}
-                        "e1c1" => if self.w_q_castle { CASTLE_QUEEN } else {0}
-                        "e8c8" => if self.b_q_castle { CASTLE_QUEEN } else {0}
-                    };
-                    Move {}
-                }
+                flags |= match mv {
+                    "e1g1" => if self.w_k_castle { CASTLE_KING } else {0},
+                    "e8g8" => if self.b_k_castle { CASTLE_KING } else {0},
+                    "e1c1" => if self.w_q_castle { CASTLE_QUEEN } else {0},
+                    "e8c8" => if self.b_q_castle { CASTLE_QUEEN } else {0},
+                    _ => 0
+                };
+                self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), flags));
             },
             _ => () // malformed move
         }
