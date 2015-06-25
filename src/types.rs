@@ -67,6 +67,8 @@ pub const QUEEN_PROM: u32  = 4;
 pub const CASTLE_KING: u32  = 1 << 3;
 pub const CASTLE_QUEEN: u32 = 1 << 4;
 
+pub const IS_CAPTURE: u32 = 1 << 5;
+
 #[derive(Copy, Clone)]
 pub struct Move { data: u32 }
 
@@ -84,6 +86,7 @@ impl Move {
     pub fn promotion(&self) -> u32 { self.flags() & 0x7 }
     pub fn king_castle(&self) -> bool { self.flags() & CASTLE_KING != 0 }
     pub fn queen_castle(&self) -> bool { self.flags() & CASTLE_QUEEN != 0 }
+    pub fn is_capture(&self) -> bool { self.flags() & IS_CAPTURE != 0 }
 
     pub fn to_str(&self) -> String {
         // TODO: add promotion moves

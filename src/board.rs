@@ -1,5 +1,5 @@
-use std::ascii::AsciiExt;
 use std::fmt;
+use std::cmp::Ordering::{Less, Equal, Greater};
 use types::*;
 use util::*;
 
@@ -29,19 +29,19 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
+pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
         let from = ((to as i32) - diff) as u32;
         // let capture = board
-        moves.push(Move::new(from, to, 0));
+        moves.push(Move::new(from, to, flags));
     }
 }
 
-pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64) {
+pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
-        moves.push(Move::new(from, to, 0));
+        moves.push(Move::new(from, to, flags));
     }
 }
 
@@ -140,7 +140,7 @@ impl Board {
         }
     }
 
-    pub fn get_pseudo_moves(&self) -> Vec<Move> {
+    pub fn get_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
         let is_white = self.move_num % 2 == 1;
@@ -148,29 +148,34 @@ impl Board {
 
         let occ = us.pieces | opp.pieces;
 
-        // Add pawn moves last
-
         for_all_pieces(us.queen, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                queen_attacks(piece, from, occ) & !us.pieces);
+            let mvs = queen_attacks(piece, from, occ);
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.rook, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                rook_attacks(piece, from, occ) & !us.pieces);
+            let mvs = rook_attacks(piece, from, occ);
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.bishop, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                bishop_attacks(piece, from, occ) & !us.pieces);
+            let mvs = bishop_attacks(piece, from, occ);
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.knight, &mut |from, piece| {
-            add_moves_from(&mut moves, from, knight_attacks(from) & !us.pieces);
+            let mvs = knight_attacks(from);
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.king, &mut |from, piece| {
-            add_moves_from(&mut moves, from, king_attacks(from) & !us.pieces);
+            let mvs = king_attacks(from);
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         // Consider out of bounds pawn promotion
@@ -185,11 +190,11 @@ impl Board {
             let promotions = pushes & ROW_8;
             pushes &= !ROW_8;
 
-            add_moves(&mut moves, pushes, 8);
-            add_moves(&mut moves, double_pushes, 16);
-            add_moves(&mut moves, left_attacks, 7);
-            add_moves(&mut moves, right_attacks, 9);
-            add_moves(&mut moves, promotions, 8);
+            add_moves(&mut moves, pushes, 8, 0);
+            add_moves(&mut moves, double_pushes, 16, 0);
+            add_moves(&mut moves, left_attacks, 7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks, 9, IS_CAPTURE);
+            add_moves(&mut moves, promotions, 8, 0);
         } else {
             let mut pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -198,13 +203,17 @@ impl Board {
             let promotions = pushes & ROW_1;
             pushes &= !ROW_1;
 
-            add_moves(&mut moves, pushes, -8);
-            add_moves(&mut moves, double_pushes, -16);
-            add_moves(&mut moves, left_attacks, -7);
-            add_moves(&mut moves, right_attacks, -9);
-            add_moves(&mut moves, promotions, -8);
+            add_moves(&mut moves, pushes, -8, 0);
+            add_moves(&mut moves, double_pushes, -16, 0);
+            add_moves(&mut moves, left_attacks, -7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks, -9, IS_CAPTURE);
+            add_moves(&mut moves, promotions, -8, 0);
         }
-
+        moves.sort_by(|a,b| {
+            if a.is_capture() { Less } else { Greater }
+            });
+        // println!("moves = {:?}", moves.iter().map(|mv| mv.flags()).collect::<Vec<u32>>());
+        // println!("{:?}", moves.iter().map(|a| a.is_capture()).collect::<Vec<bool>>());
         moves
     }
 
@@ -214,27 +223,6 @@ impl Board {
 
     pub fn prev_move(&self) -> &BitBoard {
         if self.move_num % 2 == 1 { &self.b } else { &self.w }
-    }
-
-    pub fn get_moves(&mut self) -> Vec<Move> {
-        let pseudo_legal_moves = self.get_pseudo_moves();
-        let mut legal_moves = Vec::with_capacity(pseudo_legal_moves.len());
-
-        for mv in pseudo_legal_moves.into_iter() {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let king_pos = new_board.prev_move().king.trailing_zeros(); // This will be the original player's king
-            let mut king_is_attacked = false;
-
-            for opp_mv in new_board.get_pseudo_moves() {
-                if opp_mv.to() == king_pos {
-                    king_is_attacked = true;
-                    break;
-                }
-            }
-            if !king_is_attacked { legal_moves.push(mv) };
-        }
-        legal_moves
     }
 
     pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> f32 {
@@ -351,16 +339,38 @@ impl Board {
         mobility + back_rank + attacks + Board::get_evals(us, opp) - Board::get_evals(opp, us)
     }
 
-    pub fn negamax_a_b(&mut self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
+    pub fn quiescence_search(&self, depth: u32, mut alpha: f32, beta: f32) -> f32 {
+        // TODO: remove depth so all takes are searched
+        let stand_pat = self.evaluate();
+        if depth == 0 { return stand_pat }
+        // println!("{} {} {}", stand_pat, alpha, beta);
+        if stand_pat >= beta { return beta }
+        if alpha < stand_pat { alpha = stand_pat }
+
+        // filter on is captured
+        for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
+            // println!("{}\n{} {}", self, mv.from(), mv.to());
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+            let score = -new_board.quiescence_search(depth - 1, -beta, -alpha);
+
+            if score > alpha { alpha = score; }
+            if score >= beta { return beta }
+        }
+        alpha
+    }
+
+    pub fn negamax_a_b(&self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
         let mut best = -1000.0;
         let mut best_mv = Move::NULL_MOVE;
 
-        for mv in self.get_pseudo_moves() {
+        for mv in self.get_moves() {
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
             let (score, submv) = if depth == 1 {
-                (-new_board.evaluate(), mv)
+                // (-new_board.evaluate(), mv)
+                (-new_board.quiescence_search(4, -10000.0, 10000.0), mv)
             } else {
                 let (sub_score, sub_move) = new_board.negamax_a_b(depth - 1, -beta, -alpha);
                 (-sub_score, sub_move)
