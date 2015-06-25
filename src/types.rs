@@ -68,6 +68,8 @@ pub const CASTLE_KING: u32  = 1 << 3;
 pub const CASTLE_QUEEN: u32 = 1 << 4;
 
 pub const IS_CAPTURE: u32 = 1 << 5;
+pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
+pub const EN_PASSANT: u32 = 1 << 7;
 
 #[derive(Copy, Clone)]
 pub struct Move { data: u32 }
@@ -87,6 +89,8 @@ impl Move {
     pub fn king_castle(&self) -> bool { self.flags() & CASTLE_KING != 0 }
     pub fn queen_castle(&self) -> bool { self.flags() & CASTLE_QUEEN != 0 }
     pub fn is_capture(&self) -> bool { self.flags() & IS_CAPTURE != 0 }
+    pub fn is_double_push(&self) -> bool { self.flags() & DOUBLE_PAWN_PUSH != 0 }
+    pub fn is_en_passant(&self) -> bool { self.flags() & EN_PASSANT != 0 }
 
     pub fn to_str(&self) -> String {
         // TODO: add promotion moves

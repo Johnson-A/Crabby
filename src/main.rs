@@ -24,18 +24,11 @@ fn bench(b: &mut test::Bencher) {
     let mut board4 = Board::new("8/1RBp1pq1/R3PPP1/PrP1pPn1/P2k1rB1/b1p1Nnp1/2pppP2/1QNb3K");
 
     b.iter(|| test::black_box({
-        for _ in 0..2 {
-            // board0.best_move();
-            // board1.best_move();
-            // board2.best_move();
-            // board3.best_move();
-            // board4.best_move();
-            board0.negamax_a_b(4, -10000.0, 10000.0);
-            board1.negamax_a_b(4, -10000.0, 10000.0);
-            board2.negamax_a_b(4, -10000.0, 10000.0);
-            board3.negamax_a_b(4, -10000.0, 10000.0);
-            board4.negamax_a_b(4, -10000.0, 10000.0);
-        }
+        board0.negamax_a_b(2, -10000.0, 10000.0);
+        board1.negamax_a_b(2, -10000.0, 10000.0);
+        board2.negamax_a_b(2, -10000.0, 10000.0);
+        board3.negamax_a_b(2, -10000.0, 10000.0);
+        board4.negamax_a_b(2, -10000.0, 10000.0);
     }));
 }
 
@@ -55,6 +48,10 @@ fn tests() {
     println!("e2e4 eval {}", board.evaluate());
     board.make_str_move("d7d5");
     println!("e7e5 eval {}", board.evaluate());
+    board.make_str_move("e4e5");
+    board.make_str_move("f7f5");
+    println!("moves = {:?}", board.get_moves().iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
+    board.make_str_move("e5f6");
     board.get_moves();
 
     println!("{}", board);
@@ -85,8 +82,8 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let (score, mv) = board.negamax_a_b(5, -10000.0, 10000.0);
-    println!("info score cp {}", score*100.0);
+    let (score, mv) = board.negamax_a_b(7, -10000.0, 10000.0);
+    println!("info depth 1 currmove {} multipv 1 score cp {}", mv.to_str(), (score*100.0) as i32);
     println!("bestmove {}", mv.to_str());
 }
 
