@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, negate_unsigned, associated_consts)]
+#![feature(slice_patterns, convert, negate_unsigned, associated_consts, append)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -39,7 +39,11 @@ fn tests() {
 }
 
 fn main() {
-    tests();
+    // let mut fen = "r5k1/1bpnqrpp/pp2p3/3p4/N1PPnb2/1P1B1N2/PBR1QPPP/3R2K1 w - - 0 1".split(' ').collect();
+    // let pos = Board::new_fen(&mut fen);
+    // let pos = Board::new_default();
+    // pos.negamax_a_b(7, -10000.0, 10000.0, &mut Vec::new());
+    // tests();
 
     let stdin = io::stdin();
     let mut pos = Board::new_default();
@@ -63,18 +67,20 @@ fn main() {
 }
 
 fn go(board: &mut Board) {
-    let (score, mv) = board.negamax_a_b(6 , -10000.0, 10000.0);
-    println!("info depth 1 currmove {} multipv 1 score cp {}", mv.to_str(), (score*100.0) as i32);
-    println!("bestmove {}", mv.to_str());
+	println!("Searching\n{}", board);
+    let mut pv = Vec::new();
+    let (score, _) = board.negamax_a_b(7, -10000.0, 10000.0, &mut pv);
+    println!("info score cp {} depth 1 currmove {} pv {}",
+    	(score*100.0) as i32, pv[0].to_str(),pv.iter().map(|mv| mv.to_str()).collect::<Vec<String>>().connect(" "));
+    println!("bestmove {}", pv[0].to_str());
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
-    let mut pos = match params[0] {
-        "startpos" => {
-            params.remove(0);
-            Board::new_default()
-        },
-        _ => Board::new_fen(params) // remove the fen string while creating board
+	let pos_type = params.remove(0);
+
+    let mut pos = match pos_type {
+        "startpos" => Board::new_default(),
+        fen => Board::new_fen(params) // remove the fen string while creating board
     };
 
     if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves

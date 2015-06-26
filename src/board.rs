@@ -43,10 +43,10 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
         let to = bit_pop_pos(&mut targets);
         let from = ((to as i32) - diff) as u32;
 
+        moves.push(Move::new(from, to, flags | QUEEN_PROM));
+        moves.push(Move::new(from, to, flags | ROOK_PROM));
         moves.push(Move::new(from, to, flags | KNIGHT_PROM));
         moves.push(Move::new(from, to, flags | BISHOP_PROM));
-        moves.push(Move::new(from, to, flags | ROOK_PROM));
-        moves.push(Move::new(from, to, flags | QUEEN_PROM));
     }
 }
 
@@ -214,8 +214,6 @@ impl Board {
         });
 
         // Consider out of bounds pawn promotion
-        // Implement pawn promotion!!!! king won't know it's checked
-        // And the move number won't change when accepting a promotion capture move
         // Make move not copyable
         if is_white {
             let pushes = (us.pawn << 8) & !occ;
@@ -399,56 +397,66 @@ impl Board {
         // TODO: Add illegal move detection in queiscence which might cause subtle bugs
         let stand_pat = self.evaluate();
         if depth == 0 { return stand_pat }
-        // println!("{} {} {}", stand_pat, alpha, beta);
         if stand_pat >= beta { return beta }
-        if alpha < stand_pat { alpha = stand_pat }
+        if stand_pat > alpha { alpha = stand_pat }
 
-        // filter on is captured
         for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
-            // println!("{}\n{} {}", self, mv.from(), mv.to());
             let mut new_board = self.clone();
             new_board.make_move(mv);
             let score = -new_board.quiescence_search(depth - 1, -beta, -alpha);
 
-            if score > alpha { alpha = score; }
             if score >= beta { return beta }
+            if score > alpha { alpha = score; }
         }
         alpha
     }
 
-    pub fn negamax_a_b(&self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
-        let mut best = -10000.0;
-        let mut best_mv = Move::NULL_MOVE;
-        let last_king_pos = self.prev_move().king.trailing_zeros();
+    pub fn is_in_check(&self) -> bool {
+        // TODO: this isn't super efficient since board is immutable, but only occurs if no legal moves
+        let king_pos = self.to_move().king.trailing_zeros();
+
+        let mut clone = self.clone();
+        clone.move_num += 1;
+
+        for mv in clone.get_moves() { // get opponent moves
+            if mv.to() == king_pos { return true }
+        }
+        false
+    }
+
+    pub fn negamax_a_b(&self, depth: u32, mut alpha: f32, beta: f32, line: &mut Vec<Move>) -> (f32, bool) {
+        if depth == 0 { return (self.quiescence_search(4, alpha, beta), true) }
+        let mut has_legal_move = false;
+        let enemy_king = self.prev_move().king.trailing_zeros();
+        let mut localpv = Vec::new();
 
         for mv in self.get_moves() {
-            if mv.to() == last_king_pos {
-                // If any move can capture the king because of the previous move,
-                // stop the search in that direction. Score needs to be positive since it is
-                // negated from the call site
-                return (10000.0, Move::NULL_MOVE);
-            } // use NULL_MOVE return, if no move is not null move return drawn position
+            if mv.to() == enemy_king { return (0.0, false) }
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (score, _) = if depth == 1 {
-                (-new_board.quiescence_search(4, -beta, -alpha), mv)
-            } else {
-                let (sub_score, sub_move) = new_board.negamax_a_b(depth - 1, -beta, -alpha);
-                (-sub_score, sub_move)
-            };
+            let (score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
+            let score = -score;
 
-            if score > best {
-                best = score;
-                best_mv = mv;
+            if is_legal { has_legal_move = true; } else { continue }
+
+            if score >= beta { return (score, true) }
+            if score > alpha {
+                alpha = score;
+                line.clear();
+                line.push(mv);
+                line.append(&mut localpv);
             }
-            if score > alpha { alpha = score; }
-            if score >= beta { return (alpha, best_mv) }
         }
-        if best_mv == Move::NULL_MOVE {
-            return (0.0, Move::NULL_MOVE) // Stalemate!
+        if !has_legal_move {
+            if self.is_in_check() {
+                return (-1000.0 - depth as f32, true)
+            } else {
+                return (0.0, true)
+            }
         }
-        (best, best_mv)
+
+        (alpha, true)
     }
 
     pub fn new_fen(fen: &mut Vec<&str>) -> Board {
