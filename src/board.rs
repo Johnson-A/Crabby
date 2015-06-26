@@ -113,8 +113,9 @@ impl Board {
         }
 
         if mv.is_en_passant() {
-            let diff = if self.move_num % 1 == 0 { -8 } else { 8 };
-            self.sqs[dest + diff] = Square::Empty;
+            // If white takes remove from row above, if black takes remove from row below
+            let ep_sq = if self.move_num % 1 == 1 { dest + 8 } else { dest - 8 };
+            self.sqs[ep_sq] = Square::Empty;
         }
 
         self.en_passant = 0;
@@ -260,9 +261,8 @@ impl Board {
 
         moves.sort_by(|a,b| {
             if a.is_capture() { Less } else { Greater }
-            });
-        // println!("moves = {:?}", moves.iter().map(|mv| mv.flags()).collect::<Vec<u32>>());
-        // println!("{:?}", moves.iter().map(|a| a.is_capture()).collect::<Vec<bool>>());
+        });
+
         moves
     }
 
@@ -384,7 +384,7 @@ impl Board {
 
             mobility -= pushes.count_ones() as f32 * 0.01 +
                         double_pushes.count_ones() as f32 * 0.01;
-            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
+            attacks -=  left_attacks.count_ones() as f32   * 0.04 +
                         right_attacks.count_ones() as f32  * 0.04;
         }
 
@@ -393,7 +393,10 @@ impl Board {
 
     pub fn quiescence_search(&self, depth: u32, mut alpha: f32, beta: f32) -> f32 {
         // TODO: remove depth so all takes are searched
-        // TODO: Check for king attacks and break
+        // TODO: Check for king attacks and break for that branch to avoid illegal moves
+        // TODO: When no legal moves possible, return draw to avoid stalemate
+        // TODO: Three move repition
+        // TODO: Add illegal move detection in queiscence which might cause subtle bugs
         let stand_pat = self.evaluate();
         if depth == 0 { return stand_pat }
         // println!("{} {} {}", stand_pat, alpha, beta);
@@ -414,16 +417,21 @@ impl Board {
     }
 
     pub fn negamax_a_b(&self, depth: u32, mut alpha: f32, beta: f32) -> (f32, Move) {
-        let mut best = -1000.0;
+        let mut best = -10000.0;
         let mut best_mv = Move::NULL_MOVE;
+        let last_king_pos = self.prev_move().king.trailing_zeros();
 
         for mv in self.get_moves() {
+            if mv.to() == last_king_pos {
+                // If any move can capture the king because of the previous move,
+                // stop the search in that direction. Score needs to be positive since it is
+                // negated from the call site
+                return (10000.0, Move::NULL_MOVE);
+            } // use NULL_MOVE return, if no move is not null move return drawn position
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (score, submv) = if depth == 1 {
-                // (-new_board.evaluate(), mv)
-                // (-new_board.quiescence_search(4, -10000.0, 10000.0), mv)
+            let (score, _) = if depth == 1 {
                 (-new_board.quiescence_search(4, -beta, -alpha), mv)
             } else {
                 let (sub_score, sub_move) = new_board.negamax_a_b(depth - 1, -beta, -alpha);
@@ -437,11 +445,16 @@ impl Board {
             if score > alpha { alpha = score; }
             if score >= beta { return (alpha, best_mv) }
         }
+        if best_mv == Move::NULL_MOVE {
+            return (0.0, Move::NULL_MOVE) // Stalemate!
+        }
         (best, best_mv)
     }
 
-    pub fn new(fen_board: &str) -> Board {
+    pub fn new_fen(fen: &mut Vec<&str>) -> Board {
+        let fen_board = fen.remove(0);
         let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
+
         let mut sqs = [Square::Empty; 64];
 
         for (r, row) in reversed_rows.enumerate() {
@@ -450,14 +463,40 @@ impl Board {
                 if !ch.is_numeric() {
                     sqs[r*8 + c+offset] = to_piece(ch);
                 } else {
-                    offset += (ch as u8 - b'0') as usize;
+                    offset += (ch as u8 - b'1') as usize;
                 }
             }
         }
+
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs, move_num: 1, w_k_castle: true, w_q_castle: true,
-                b_k_castle: true, b_q_castle: true, en_passant: 0 }
+        let to_move = fen.remove(0); // Player to move [b,w]
+        let move_num = match to_move {
+            "w" => 1,
+            _ =>   2, // Start of the move counter at an odd number
+        };
+
+        let castling = fen.remove(0); // Castling [KQkq]
+        let w_k_castle = castling.contains('K');
+        let w_q_castle = castling.contains('Q');
+        let b_k_castle = castling.contains('k');
+        let b_q_castle = castling.contains('q');
+
+        let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
+        let en_passant = match ep_sq.as_slice() {
+            [sc, sr] => 1 << to_pos(sc, sr),
+            _ => 0
+        };
+        fen.remove(0); // Halfmove Clock
+        fen.remove(0); // Fullmove Number
+
+        Board { w: w, b: b, sqs: sqs, move_num: move_num, w_k_castle: w_k_castle, w_q_castle: w_q_castle,
+                b_k_castle: b_k_castle, b_q_castle: b_q_castle, en_passant: en_passant }
+    }
+
+    pub fn new_default() -> Board {
+        let mut def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".split(' ').collect();
+        Board::new_fen(&mut def_fen)
     }
 }
 

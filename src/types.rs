@@ -71,7 +71,7 @@ pub const IS_CAPTURE: u32 = 1 << 5;
 pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
 pub const EN_PASSANT: u32 = 1 << 7;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Move { data: u32 }
 
 impl Move {
