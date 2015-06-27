@@ -17,7 +17,7 @@ pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
-    pub move_num: u8, // TODO: UGLY hack for now
+    pub move_num: u32,
     pub w_k_castle: bool,
     pub w_q_castle: bool,
     pub b_k_castle: bool,

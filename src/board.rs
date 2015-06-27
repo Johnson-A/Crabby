@@ -257,124 +257,121 @@ impl Board {
         if self.move_num % 2 == 1 { &self.b } else { &self.w }
     }
 
-    pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> f32 {
+    pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
         let occ = us.pieces | opp.pieces;
 
-        let mut mobility = 0.0;
-        let mut attacks = 0.0;
-        let mut defenses = 0.0;
+        let mut eval = 0;
 
         for_all_pieces(us.queen, &mut |from, piece| {
             let att = queen_attacks(piece, from, occ);
-            mobility += (att & !occ).count_ones() as f32 * 0.005;
-            attacks += (att & opp.pieces).count_ones() as f32 * 0.015;
-            defenses += (att & us.pieces).count_ones() as f32 * 0.0075;
+            eval += (att & !occ).count_ones() * 5 +
+                    (att & opp.pieces).count_ones() * 15 +
+                    (att & us.pieces).count_ones() * 8;
         });
 
         for_all_pieces(us.rook, &mut |from, piece| {
             let att = rook_attacks(piece, from, occ);
-            mobility += (att & !occ).count_ones() as f32 * 0.015;
-            attacks += (att & opp.pieces).count_ones() as f32 * 0.02;
-            defenses += (att & us.pieces).count_ones() as f32 * 0.01;
+            eval += (att & !occ).count_ones() * 15 +
+                    (att & opp.pieces).count_ones() * 20 +
+                    (att & us.pieces).count_ones() * 10;
         });
 
         for_all_pieces(us.bishop, &mut |from, piece| {
             let att = bishop_attacks(piece, from, occ);
-            mobility += (att & !occ).count_ones() as f32 * 0.025;
-            attacks += (att & opp.pieces).count_ones() as f32 * 0.03;
-            defenses += (att & us.pieces).count_ones() as f32 * 0.01;
+            eval += (att & !occ).count_ones() * 25 +
+                    (att & opp.pieces).count_ones() * 30 +
+                    (att & us.pieces).count_ones() * 10;
         });
 
         for_all_pieces(us.knight, &mut |from, piece| {
             let att = knight_attacks(from);
-            mobility += (att & !occ).count_ones() as f32 * 0.03;
-            attacks += (att & opp.pieces).count_ones() as f32 * 0.035;
-            defenses += (att & us.pieces).count_ones() as f32 * 0.0125;
+            eval += (att & !occ).count_ones() * 30 +
+                    (att & opp.pieces).count_ones() * 35 +
+                    (att & us.pieces).count_ones() * 12;
         });
 
         for_all_pieces(us.king, &mut |from, piece| {
             let att = king_attacks(from);
-            mobility += (att & !occ).count_ones() as f32 * 0.01;
-            attacks += (att & opp.pieces).count_ones() as f32 * 0.015;
-            defenses += (att & us.pieces).count_ones() as f32 * 0.01;
+            eval += (att & !occ).count_ones() * 10 +
+                    (att & opp.pieces).count_ones() * 15 +
+                    (att & us.pieces).count_ones() * 10;
         });
 
-        let material =  (us.pawn.count_ones() as f32  * 1.0)   +
-                        (us.knight.count_ones() as f32 * 3.0)  +
-                        (us.bishop.count_ones() as f32 * 3.0)  +
-                        (us.rook.count_ones() as f32 * 5.0)    +
-                        (us.queen.count_ones() as f32 * 9.0)   +
-                        (us.king.count_ones() as f32 * 300.0);
+        let material =  (us.pawn.count_ones()   * 1000)  +
+                        (us.knight.count_ones() * 3000)  +
+                        (us.bishop.count_ones() * 3000)  +
+                        (us.rook.count_ones()   * 5000)  +
+                        (us.queen.count_ones()  * 9000)  +
+                        (us.king.count_ones()   * 300000);
 
-        material + mobility + attacks + defenses
+        (material + eval) as i32
     }
 
-    pub fn evaluate(&self) -> f32 {
+    pub fn evaluate(&self) -> i32 {
         // TODO: Don't trade if material down or in worse position
         // TODO: doubled pawns
         // TODO: Center squares and pawns
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
 
-        let mut mobility = 0.0;
-        let mut attacks = 0.0;
-        let mut back_rank = 0.0;
+        let mut eval = 1000*1000;
 
         let is_white = self.is_white();
         let occ = us.pieces | opp.pieces;
 
         if is_white {
-            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() as f32 * 0.05;
-            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() as f32 * 0.05;
+            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() * 50;
+            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() * 50;
 
             let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
 
-            mobility += pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01;
-            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval += pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval += left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
 
             let pushes = (opp.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (opp.pawn >> 7) & (us.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
 
-            mobility -= pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01;
-            attacks -=  left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval -= pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval -= left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
         } else {
-            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() as f32 * 0.05;
-            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() as f32 * 0.05;
+            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() * 50;
+            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() * 50;
 
             let pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
 
-            mobility += pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01;
-            attacks +=  left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval += pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval += left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
 
             let pushes = (opp.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (opp.pawn << 7) & (us.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
 
-            mobility -= pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01;
-            attacks -=  left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval -= pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval -= left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
         }
 
-        mobility + back_rank + attacks + Board::get_evals(us, opp) - Board::get_evals(opp, us)
+        let real_eval = (eval as i32) - 1000*1000;
+        real_eval + Board::get_evals(us, opp) - Board::get_evals(opp, us)
     }
 
-    pub fn quiescence_search(&self, depth: u32, mut alpha: f32, beta: f32) -> f32 {
+    pub fn quiescence_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
         // TODO: remove depth so all takes are searched
         // TODO: Check for king attacks and break for that branch to avoid illegal moves
         // TODO: When no legal moves possible, return draw to avoid stalemate
@@ -409,14 +406,14 @@ impl Board {
         false
     }
 
-    pub fn negamax_a_b(&self, depth: u32, mut alpha: f32, beta: f32, line: &mut Vec<Move>) -> (f32, bool) {
+    pub fn negamax_a_b(&self, depth: u32, mut alpha: i32, beta: i32, line: &mut Vec<Move>) -> (i32, bool) {
         if depth == 0 { return (self.quiescence_search(4, alpha, beta), true) }
         let mut has_legal_move = false;
         let enemy_king = self.prev_move().king.trailing_zeros();
         let mut localpv = Vec::new();
 
         for mv in self.get_moves() {
-            if mv.to() == enemy_king { return (0.0, false) }
+            if mv.to() == enemy_king { return (0, false) }
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
@@ -435,9 +432,9 @@ impl Board {
         }
         if !has_legal_move {
             if self.is_in_check() {
-                return (-1000.0 - depth as f32, true)
+                return (-1000 - depth as i32, true)
             } else {
-                return (0.0, true)
+                return (0, true)
             }
         }
 
