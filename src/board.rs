@@ -6,20 +6,16 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     let mut w: BitBoard = Default::default();
     let mut b: BitBoard = Default::default();
 
-    for i in 0..64 {
-        match sqs[i] {
-            Square::Piece(pt, col) => {
-                let bb = if col == Color::White { &mut w } else { &mut b };
-                match pt {
-                    PieceType::Pawn   => bb.pawn   |= 1 << i,
-                    PieceType::Knight => bb.knight |= 1 << i,
-                    PieceType::Bishop => bb.bishop |= 1 << i,
-                    PieceType::Rook   => bb.rook   |= 1 << i,
-                    PieceType::Queen  => bb.queen  |= 1 << i,
-                    PieceType::King   => bb.king   |= 1 << i
-                };
-            },
-            Square::Empty => continue
+    for (pos, sq) in sqs.iter().enumerate() {
+        let bb = if sq & COLOR == WHITE { &mut w } else { &mut b };
+        match sq & PIECE {
+            PAWN   => bb.pawn   |= 1 << pos,
+            KNIGHT => bb.knight |= 1 << pos,
+            BISHOP => bb.bishop |= 1 << pos,
+            ROOK   => bb.rook   |= 1 << pos,
+            QUEEN  => bb.queen  |= 1 << pos,
+            KING   => bb.king   |= 1 << pos,
+            _      => continue
         }
     }
 
@@ -68,38 +64,38 @@ pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
+        let col = self.color_to_move();
 
         let prom = mv.promotion();
         self.sqs[dest] = if prom != 0 {
-            let col = if self.move_num % 2 == 1 { Color::White } else { Color::Black };
             match prom {
-                QUEEN_PROM  => Square::Piece(PieceType::Queen, col),
-                ROOK_PROM   => Square::Piece(PieceType::Rook, col),
-                BISHOP_PROM => Square::Piece(PieceType::Bishop, col),
-                KNIGHT_PROM => Square::Piece(PieceType::Knight, col),
-                _ => Square::Empty // This can't happen
+                QUEEN_PROM  => QUEEN  | col,
+                ROOK_PROM   => ROOK   | col,
+                BISHOP_PROM => BISHOP | col,
+                KNIGHT_PROM => KNIGHT | col,
+                _ => EMPTY // This can't happen
             }
         } else {
             self.sqs[src]
         };
-        self.sqs[src] = Square::Empty;
+        self.sqs[src] = EMPTY;
 
         if mv.king_castle() {
-            let color_offset = if self.move_num % 2 == 1 { 0 } else { 56 };
-            self.sqs[7 + color_offset] = Square::Empty;
-            self.sqs[5 + color_offset] = Square::Piece(PieceType::Rook, self.color_to_move());
+            let color_offset = if col == WHITE { 0 } else { 56 };
+            self.sqs[7 + color_offset] = EMPTY;
+            self.sqs[5 + color_offset] = ROOK | col;
         }
 
         if mv.queen_castle() {
-            let color_offset = if self.move_num % 2 == 1 { 0 } else { 56 };
-            self.sqs[color_offset] = Square::Empty;
-            self.sqs[3 + color_offset] = Square::Piece(PieceType::Rook, self.color_to_move());
+            let color_offset = if col == WHITE { 0 } else { 56 };
+            self.sqs[color_offset] = EMPTY;
+            self.sqs[3 + color_offset] = ROOK | col;
         }
 
         if mv.is_en_passant() {
             // If white takes remove from row above, if black takes remove from row below
-            let ep_sq = if self.move_num % 1 == 1 { dest + 8 } else { dest - 8 };
-            self.sqs[ep_sq] = Square::Empty;
+            let ep_sq = if col == WHITE { dest + 8 } else { dest - 8 };
+            self.sqs[ep_sq] = EMPTY;
         }
 
         self.en_passant = 0;
@@ -138,8 +134,8 @@ impl Board {
                     _ => 0
                 };
 
-                flags |= match self.sqs[src as usize] {
-                    Square::Piece(PieceType::Pawn, _) => {
+                flags |= match self.sqs[src as usize] & PIECE {
+                    PAWN => {
                         let is_double = if src > dest { src-dest } else { dest-src } == 16;
                         let is_en_passant = dest == self.en_passant.trailing_zeros();
 
@@ -158,7 +154,8 @@ impl Board {
     pub fn get_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let is_white = self.move_num % 2 == 1;
+        let is_white = self.is_white();
+
         let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
 
         let occ = us.pieces | opp.pieces;
@@ -244,8 +241,12 @@ impl Board {
         moves
     }
 
-    pub fn color_to_move(&self) -> Color {
-        if self.move_num % 2 == 1 { Color::White } else { Color::Black }
+    pub fn is_white(&self) -> bool {
+        (self.move_num % 2) == 1
+    }
+
+    pub fn color_to_move(&self) -> u8 {
+        if self.is_white() { WHITE } else { BLACK }
     }
 
     pub fn to_move(&self) -> &BitBoard {
@@ -319,7 +320,7 @@ impl Board {
         let mut attacks = 0.0;
         let mut back_rank = 0.0;
 
-        let is_white = self.move_num % 2 == 1;
+        let is_white = self.is_white();
         let occ = us.pieces | opp.pieces;
 
         if is_white {
@@ -447,7 +448,7 @@ impl Board {
         let fen_board = fen.remove(0);
         let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
 
-        let mut sqs = [Square::Empty; 64];
+        let mut sqs = [EMPTY; 64];
 
         for (r, row) in reversed_rows.enumerate() {
             let mut offset = 0;

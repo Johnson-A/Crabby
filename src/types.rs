@@ -1,18 +1,6 @@
 use std::ascii::AsciiExt;
 use std::fmt;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PieceType { Pawn = 0, Knight = 1, Bishop = 2, Rook = 3, Queen = 4, King = 5 }
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Color { Black = -1, White = 1 }
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Square {
-    Empty,
-    Piece(PieceType, Color)
-}
-
 #[derive(Default, Copy, Clone)]
 pub struct BitBoard {
     pub pawn: u64,
@@ -29,7 +17,7 @@ pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
-    pub move_num: u32,
+    pub move_num: u8, // TODO: UGLY hack for now
     pub w_k_castle: bool,
     pub w_q_castle: bool,
     pub b_k_castle: bool,
@@ -44,7 +32,7 @@ impl fmt::Display for Board {
         let mut characters = Vec::with_capacity(64);
 
         for (i, sq) in self.sqs.iter().enumerate() {
-            characters.push(to_char(sq));
+            characters.push(to_char(*sq));
             if (i+1) % 8 == 0 { characters.push('\n') }
         }
         let output = characters.iter().cloned().collect::<String>();
@@ -56,38 +44,34 @@ impl fmt::Display for Board {
     }
 }
 
-pub type Squares = [Square; 64];
+pub type Squares = [u8; 64];
 
-pub fn to_piece(c: char) -> Square {
+pub fn to_piece(c: char) -> u8 {
     let pt = match c.to_ascii_lowercase() {
-        'p' => PieceType::Pawn,
-        'n' => PieceType::Knight,
-        'b' => PieceType::Bishop,
-        'r' => PieceType::Rook,
-        'q' => PieceType::Queen,
-        'k' => PieceType::King,
-        _   => return Square::Empty
+        'p' => PAWN,
+        'n' => KNIGHT,
+        'b' => BISHOP,
+        'r' => ROOK,
+        'q' => QUEEN,
+        'k' => KING,
+        _   => return EMPTY
     };
 
-    let color = if c.is_lowercase() { Color::Black } else { Color::White };
-    Square::Piece(pt, color)
+    let color = if c.is_uppercase() { WHITE } else { BLACK };
+    pt | color
 }
 
-pub fn to_char(sq: &Square) -> char {
-    match *sq {
-        Square::Empty => ' ',
-        Square::Piece(pt, color) => {
-            let ch = match pt {
-                PieceType::Pawn   => 'p',
-                PieceType::Knight => 'n',
-                PieceType::Bishop => 'b',
-                PieceType::Rook   => 'r',
-                PieceType::Queen  => 'q',
-                PieceType::King   => 'k'
-            };
-            if color == Color::White { ch.to_ascii_uppercase() } else { ch }
-        }
-    }
+pub fn to_char(sq: u8) -> char {
+    let ch = match sq & NO_COLOR {
+        PAWN   => 'p',
+        KNIGHT => 'n',
+        BISHOP => 'b',
+        ROOK   => 'r',
+        QUEEN  => 'q',
+        KING   => 'k',
+        _      => ' '
+    };
+    if sq & COLOR == WHITE { ch.to_ascii_uppercase() } else { ch }
 }
 
 pub fn to_pos(col: char, row: char) -> u32 {
@@ -96,12 +80,19 @@ pub fn to_pos(col: char, row: char) -> u32 {
     (row_num * 8 + col_num) as u32
 }
 
-pub const EMPTY: u32  = 0;
-pub const PAWN: u32   = 1;
-pub const KNIGHT: u32 = 2;
-pub const BISHOP: u32 = 3;
-pub const ROOK: u32   = 4;
-pub const QUEEN: u32  = 5;
+pub const PAWN: u8   = 0;
+pub const KNIGHT: u8 = 1;
+pub const BISHOP: u8 = 2;
+pub const ROOK: u8   = 3;
+pub const QUEEN: u8  = 4;
+pub const KING: u8   = 5;
+pub const EMPTY: u8  = 6;
+
+pub const PIECE: u8 = 0x7;
+pub const COLOR: u8 = 0x8;
+pub const NO_COLOR: u8 = !COLOR;
+pub const WHITE: u8 = COLOR;
+pub const BLACK: u8 = 0;
 
 pub const KNIGHT_PROM: u32 = 1;
 pub const BISHOP_PROM: u32 = 2;
