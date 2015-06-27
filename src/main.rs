@@ -13,31 +13,6 @@ mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
-fn tests() {
-    for c in "pnbrqk PNBRQK123=".chars() {
-        println!("{:?}", to_piece(c));
-    }
-    println!("");
-
-    let mut board = Board::new_default();
-    println!("Start eval {}", board.evaluate());
-    println!("{}", board);
-    let moves = board.get_moves();
-    println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
-
-    board.make_str_move("e2e4");
-    println!("e2e4 eval {}", board.evaluate());
-    board.make_str_move("d7d5");
-    println!("e7e5 eval {}", board.evaluate());
-    board.make_str_move("e4e5");
-    board.make_str_move("f7f5");
-    println!("moves = {:?}", board.get_moves().iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
-    board.make_str_move("e5f6");
-    board.get_moves();
-
-    println!("{}", board);
-}
-
 fn main() {
     // let mut fen = "r5k1/1bpnqrpp/pp2p3/3p4/N1PPnb2/1P1B1N2/PBR1QPPP/3R2K1 w - - 0 1".split(' ').collect();
     // let pos = Board::new_fen(&mut fen);
@@ -104,5 +79,30 @@ fn position(params: &mut Vec<&str>) -> Board {
 fn uci() {
     println!("id name {}", ENGINE_NAME);
     println!("id author Alex Johnson");
-    println!("uciok")
+    println!("uciok");
+}
+
+fn tests() {
+    for c in "pnbrqk PNBRQK123=".chars() {
+        println!("{:?}", to_piece(c));
+    }
+    println!("");
+
+    let mut board = Board::new_default();
+    println!("Start eval {}", board.evaluate());
+    println!("{}", board);
+    let moves = board.get_moves();
+    println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
+
+    board.make_str_move("e2e4");
+    println!("e2e4 eval {}", board.evaluate());
+    board.make_str_move("d7d5");
+    println!("e7e5 eval {}", board.evaluate());
+    board.make_str_move("e4e5");
+    board.make_str_move("f7f5");
+    println!("moves = {:?}", board.get_moves().iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
+    board.make_str_move("e5f6");
+    board.get_moves();
+
+    println!("{}", board);
 }
