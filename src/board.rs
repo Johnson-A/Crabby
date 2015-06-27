@@ -1,4 +1,3 @@
-use std::fmt;
 use std::cmp::Ordering::{Less, Equal, Greater};
 use types::*;
 use util::*;
@@ -66,21 +65,6 @@ pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
     }
 }
 
-#[derive(Copy)]
-pub struct Board {
-    pub w: BitBoard,
-    pub b: BitBoard,
-    pub sqs: Squares,
-    pub move_num: u32,
-    pub w_k_castle: bool,
-    pub w_q_castle: bool,
-    pub b_k_castle: bool,
-    pub b_q_castle: bool,
-    pub en_passant: u64
-}
-
-impl Clone for Board { fn clone(&self) -> Self { *self } }
-
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
@@ -128,10 +112,6 @@ impl Board {
         self.b = b;
         // Board::update(&mut self.w, &mut self.b, mv);
         self.move_num += 1;
-    }
-
-    pub fn color_to_move(&self) -> Color {
-        if self.move_num % 2 == 1 { Color::White } else { Color::Black }
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
@@ -262,6 +242,10 @@ impl Board {
         });
 
         moves
+    }
+
+    pub fn color_to_move(&self) -> Color {
+        if self.move_num % 2 == 1 { Color::White } else { Color::Black }
     }
 
     pub fn to_move(&self) -> &BitBoard {
@@ -506,32 +490,4 @@ impl Board {
         let mut def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".split(' ').collect();
         Board::new_fen(&mut def_fen)
     }
-}
-
-impl fmt::Display for Board {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut characters = Vec::with_capacity(64);
-
-        for (i, sq) in self.sqs.iter().enumerate() {
-            characters.push(to_char(sq));
-            if (i+1) % 8 == 0 { characters.push('\n') }
-        }
-        let output = characters.iter().cloned().collect::<String>();
-        write!(f, "--------\n{}--------\n\
-                  Move # {:?}\n\
-                  wkcas {} wqcas {} bkcas {} bqcas {}\nen passant {}",
-                  output, self.move_num,
-                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle, self.en_passant)
-    }
-}
-
-#[derive(Default, Copy, Clone)]
-pub struct BitBoard {
-    pub pawn: u64,
-    pub knight: u64,
-    pub bishop: u64,
-    pub rook: u64,
-    pub queen: u64,
-    pub king: u64,
-    pub pieces: u64
 }

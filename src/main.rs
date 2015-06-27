@@ -1,13 +1,13 @@
 #![feature(slice_patterns, convert, negate_unsigned, associated_consts, append)]
 #[macro_use]
 extern crate lazy_static;
+extern crate time;
 
 use std::io;
 use std::io::prelude::*;
 
 use types::*;
 mod types;
-use board::*;
 mod board;
 mod util;
 
@@ -47,11 +47,13 @@ fn main() {
 
     let stdin = io::stdin();
     let mut pos = Board::new_default();
+    let mut depth = 6;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
         let mut words: Vec<&str> = line.trim().split(' ').collect();
         let first_word = words.remove(0);
+        println!("{}", depth);
 
         match first_word {
             "uci"        => uci(),
@@ -59,20 +61,26 @@ fn main() {
             "isready"    => println!("readyok"),
             "ucinewgame" => (), // new game
             "position"   => pos = position(&mut words),
-            "go"         => go(&mut pos),
+            "go"         => go(&pos, &mut depth),
             "print"      => (),
             _            => (), // Ignore any other command
         }
     }
 }
 
-fn go(board: &mut Board) {
+fn go(board: &Board, depth: &mut u32) {
+    let start = time::precise_time_s();
 	println!("Searching\n{}", board);
     let mut pv = Vec::new();
-    let (score, _) = board.negamax_a_b(7, -10000.0, 10000.0, &mut pv);
-    println!("info score cp {} depth 1 currmove {} pv {}",
-    	(score*100.0) as i32, pv[0].to_str(),pv.iter().map(|mv| mv.to_str()).collect::<Vec<String>>().connect(" "));
+    let (score, _) = board.negamax_a_b(*depth, -10000.0, 10000.0, &mut pv);
+    let calc_time = time::precise_time_s() - start;
+
+    println!("info depth {} score cp {} time {} pv {}",
+        depth, (score*100.0) as i32, (calc_time * 1000.0) as u32,
+        pv.iter().map(|mv| mv.to_str()).collect::<Vec<String>>().connect(" "));
     println!("bestmove {}", pv[0].to_str());
+    if calc_time < 1.0 { *depth += 1; }
+    if (calc_time > 20.0) & (*depth > 6) { *depth -= 1; }
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
@@ -80,7 +88,7 @@ fn position(params: &mut Vec<&str>) -> Board {
 
     let mut pos = match pos_type {
         "startpos" => Board::new_default(),
-        fen => Board::new_fen(params) // remove the fen string while creating board
+        _fen => Board::new_fen(params) // remove the fen string while creating board
     };
 
     if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves
