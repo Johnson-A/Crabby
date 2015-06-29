@@ -31,16 +31,21 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut characters = Vec::with_capacity(64);
 
-        for (i, sq) in self.sqs.iter().enumerate() {
-            characters.push(to_char(*sq));
-            if (i+1) % 8 == 0 { characters.push('\n') }
+        for r in (0..8).rev() {
+            for c in 0..8 {
+                characters.push(to_char(self.sqs[r*8 + c]));
+            }
+            characters.push('\n');
         }
+
         let output = characters.iter().cloned().collect::<String>();
         write!(f, "--------\n{}--------\n\
-                  Move # {:?}\n\
-                  wkcas {} wqcas {} bkcas {} bqcas {}\nen passant {}",
+                  Move # {}\n\
+                  wkcas {} wqcas {} bkcas {} bqcas {}\n\
+                  en passant {}",
                   output, self.move_num,
-                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle, self.en_passant)
+                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle,
+                  self.en_passant)
     }
 }
 
@@ -62,7 +67,7 @@ pub fn to_piece(c: char) -> u8 {
 }
 
 pub fn to_char(sq: u8) -> char {
-    let ch = match sq & NO_COLOR {
+    let ch = match sq & PIECE {
         PAWN   => 'p',
         KNIGHT => 'n',
         BISHOP => 'b',
@@ -80,6 +85,11 @@ pub fn to_pos(col: char, row: char) -> u32 {
     (row_num * 8 + col_num) as u32
 }
 
+pub fn from_pos(pos: u32) -> (char, char) {
+    let (row, col) = (pos / 8, pos % 8);
+    ((col as u8 + b'a') as char, (row as u8 + b'1') as char)
+}
+
 pub const PAWN: u8   = 0;
 pub const KNIGHT: u8 = 1;
 pub const BISHOP: u8 = 2;
@@ -90,7 +100,6 @@ pub const EMPTY: u8  = 6;
 
 pub const PIECE: u8 = 0x7;
 pub const COLOR: u8 = 0x8;
-pub const NO_COLOR: u8 = !COLOR;
 pub const WHITE: u8 = COLOR;
 pub const BLACK: u8 = 0;
 
@@ -106,7 +115,8 @@ pub const IS_CAPTURE: u32 = 1 << 5;
 pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
 pub const EN_PASSANT: u32 = 1 << 7;
 
-#[derive(Copy, Clone, PartialEq)]
+// Make move not copyable
+#[derive(Copy, Clone)]
 pub struct Move { data: u32 }
 
 impl Move {
@@ -114,8 +124,6 @@ impl Move {
         let d = from | to << 6 | flags << 12;
         Move { data: d }
     }
-
-    pub const NULL_MOVE: Move = Move { data: 0 };
 
     pub fn from(&self)  -> u32 { self.data & 0x3F }
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
@@ -128,13 +136,18 @@ impl Move {
     pub fn is_en_passant(&self) -> bool { self.flags() & EN_PASSANT != 0 }
 
     pub fn to_str(&self) -> String {
-        // TODO: add promotion moves
-        let (from, to) = (self.from() as u8, self.to() as u8);
-        let (sr, sc) = (from / 8, from % 8);
-        let (dr, dc) = (to / 8, to % 8);
-        let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
-        let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
-        let chars = vec![sc_char, sr_char, dc_char, dr_char];
+        let (sc, sr) = from_pos(self.from());
+        let (dc, dr) = from_pos(self.to());
+        let mut chars = vec![sc, sr, dc, dr];
+
+        match self.promotion() {
+            KNIGHT_PROM => chars.push('n'),
+            BISHOP_PROM => chars.push('b'),
+            ROOK_PROM   => chars.push('r'),
+            QUEEN_PROM  => chars.push('q'),
+            _ => ()
+        }
+
         chars.into_iter().collect::<String>()
     }
 }

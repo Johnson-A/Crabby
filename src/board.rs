@@ -1,4 +1,4 @@
-use std::cmp::Ordering::{Less, Equal, Greater};
+use std::cmp::Ordering::{Less, Greater};
 use types::*;
 use util::*;
 
@@ -93,9 +93,9 @@ impl Board {
         }
 
         if mv.is_en_passant() {
-            // If white takes remove from row above, if black takes remove from row below
-            let ep_sq = if col == WHITE { dest + 8 } else { dest - 8 };
-            self.sqs[ep_sq] = EMPTY;
+            // If white takes remove from row below, if black takes remove from row above
+            let ep_pawn = if col == WHITE { dest - 8 } else { dest + 8 };
+            self.sqs[ep_pawn] = EMPTY;
         }
 
         self.en_passant = 0;
@@ -190,8 +190,6 @@ impl Board {
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        // Consider out of bounds pawn promotion
-        // Make move not copyable
         if is_white {
             let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
@@ -258,6 +256,7 @@ impl Board {
     }
 
     pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
+        // TODO: remove king material? With legal move checking, and mate and stalemate
         let occ = us.pieces | opp.pieces;
 
         let mut eval = 0;
@@ -432,7 +431,7 @@ impl Board {
         }
         if !has_legal_move {
             if self.is_in_check() {
-                return (-1000 - depth as i32, true)
+                return (-1000000 - depth as i32, true)
             } else {
                 return (0, true)
             }
