@@ -52,12 +52,11 @@ pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags:
     }
 }
 
-pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
+pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32)) {
     while pieces != 0 {
-        let piece = bit_pop(&mut pieces);
-        let from = piece.trailing_zeros();
+        let from = bit_pop_pos(&mut pieces);
 
-        do_work(from, piece);
+        do_work(from);
     }
 }
 
@@ -160,32 +159,32 @@ impl Board {
 
         let occ = us.pieces | opp.pieces;
 
-        for_all_pieces(us.queen, &mut |from, piece| {
-            let mvs = queen_attacks(piece, from, occ);
+        for_all_pieces(us.queen, &mut |from| {
+            let mvs = BISHOP_MAP.att(from as usize, occ) | ROOK_MAP.att(from as usize, occ);
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.rook, &mut |from, piece| {
-            let mvs = rook_attacks(piece, from, occ);
+        for_all_pieces(us.rook, &mut |from| {
+            let mvs = ROOK_MAP.att(from as usize, occ);
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.bishop, &mut |from, piece| {
-            let mvs = bishop_attacks(piece, from, occ);
+        for_all_pieces(us.bishop, &mut |from| {
+            let mvs = BISHOP_MAP.att(from as usize, occ);
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.knight, &mut |from, piece| {
-            let mvs = knight_attacks(from);
+        for_all_pieces(us.knight, &mut |from| {
+            let mvs = KNIGHT_MAP[from as usize];
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.king, &mut |from, piece| {
-            let mvs = king_attacks(from);
+        for_all_pieces(us.king, &mut |from| {
+            let mvs = KING_MAP[from as usize];
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
@@ -261,36 +260,36 @@ impl Board {
 
         let mut eval = 0;
 
-        for_all_pieces(us.queen, &mut |from, piece| {
-            let att = queen_attacks(piece, from, occ);
+        for_all_pieces(us.queen, &mut |from| {
+            let att = BISHOP_MAP.att(from as usize, occ) | ROOK_MAP.att(from as usize, occ);
             eval += (att & !occ).count_ones() * 5 +
                     (att & opp.pieces).count_ones() * 15 +
                     (att & us.pieces).count_ones() * 8;
         });
 
-        for_all_pieces(us.rook, &mut |from, piece| {
-            let att = rook_attacks(piece, from, occ);
+        for_all_pieces(us.rook, &mut |from| {
+            let att = ROOK_MAP.att(from as usize, occ);
             eval += (att & !occ).count_ones() * 15 +
                     (att & opp.pieces).count_ones() * 20 +
                     (att & us.pieces).count_ones() * 10;
         });
 
-        for_all_pieces(us.bishop, &mut |from, piece| {
-            let att = bishop_attacks(piece, from, occ);
+        for_all_pieces(us.bishop, &mut |from| {
+            let att = BISHOP_MAP.att(from as usize, occ);
             eval += (att & !occ).count_ones() * 25 +
                     (att & opp.pieces).count_ones() * 30 +
                     (att & us.pieces).count_ones() * 10;
         });
 
-        for_all_pieces(us.knight, &mut |from, piece| {
-            let att = knight_attacks(from);
+        for_all_pieces(us.knight, &mut |from| {
+            let att = KNIGHT_MAP[from as usize];
             eval += (att & !occ).count_ones() * 30 +
                     (att & opp.pieces).count_ones() * 35 +
                     (att & us.pieces).count_ones() * 12;
         });
 
-        for_all_pieces(us.king, &mut |from, piece| {
-            let att = king_attacks(from);
+        for_all_pieces(us.king, &mut |from| {
+            let att = KING_MAP[from as usize];
             eval += (att & !occ).count_ones() * 10 +
                     (att & opp.pieces).count_ones() * 15 +
                     (att & us.pieces).count_ones() * 10;

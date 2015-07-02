@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate time;
+extern crate rand;
 
 use std::io;
 use std::io::prelude::*;
@@ -9,6 +10,7 @@ use std::io::prelude::*;
 use types::*;
 mod types;
 mod board;
+use util::*;
 mod util;
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
@@ -19,7 +21,9 @@ fn main() {
     // let pos = Board::new_default();
     // pos.negamax_a_b(7, -1000000, 1000000, &mut Vec::new());
     // tests();
-    //
+    // println!("{}", BISHOP_MAP.size());
+    // println!("{}", ROOK_MAP.size());
+
     let stdin = io::stdin();
     let mut pos = Board::new_default();
     let mut depth = 6;
@@ -53,7 +57,8 @@ fn go(board: &Board, depth: &mut u32) {
         depth, score / 10, (calc_time * 1000.0) as u32,
         pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().connect(" "));
     println!("bestmove {}", pv[0].to_str());
-    if calc_time < 1.0 { *depth += 1; }
+
+    if calc_time < 2.0 { *depth += 1; }
     if (calc_time > 20.0) & (*depth > 6) { *depth -= 1; }
 }
 

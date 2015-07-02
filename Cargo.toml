@@ -6,6 +6,7 @@ authors = ["alex"]
 [dependencies]
 lazy_static = "*"
 time = "*"
+rand = "*"
 
 [profile.release]
 opt-level = 3
