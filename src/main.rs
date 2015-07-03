@@ -1,6 +1,4 @@
 #![feature(slice_patterns, convert, negate_unsigned, append, test)]
-#[macro_use]
-extern crate lazy_static;
 extern crate time;
 extern crate rand;
 extern crate test;
@@ -14,39 +12,52 @@ mod board;
 use util::*;
 mod util;
 
-use rand::Rng;
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    &MAP[0];
+    use rand::Rng;
+    if unsafe { MAP[0] } == 0 { init(); }
 
     let mut rng = rand::thread_rng();
     let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
-    b.iter(|| {
+    let mut res = 0;
+    b.iter(|| test::black_box({
         unsafe {
-        BISHOP_MAP[0].att(c);
-        BISHOP_MAP[0].att(c);
-        BISHOP_MAP[10].att(c);
-        BISHOP_MAP[10].att(c);
-        BISHOP_MAP[20].att(c);
-        BISHOP_MAP[20].att(c);
-        BISHOP_MAP[30].att(c);
-        BISHOP_MAP[1].att(c);
-        BISHOP_MAP[40].att(c);
-        BISHOP_MAP[20].att(c);
+        res |= BISHOP_MAP[0].att(c);
+        res |= BISHOP_MAP[0].att(c);
+        res |= BISHOP_MAP[10].att(c);
+        res |= BISHOP_MAP[20].att(c);
+        res |= BISHOP_MAP[10].att(c);
+        res |= BISHOP_MAP[20].att(c);
+        res |= BISHOP_MAP[30].att(c);
+        res |= BISHOP_MAP[1].att(c);
+        res |= BISHOP_MAP[40].att(c);
+        res |= BISHOP_MAP[20].att(c);
+
+        res |= ROOK_MAP[0].att(c);
+        res |= ROOK_MAP[0].att(c);
+        res |= ROOK_MAP[10].att(c);
+        res |= ROOK_MAP[20].att(c);
+        res |= ROOK_MAP[10].att(c);
+        res |= ROOK_MAP[20].att(c);
+        res |= ROOK_MAP[30].att(c);
+        res |= ROOK_MAP[1].att(c);
+        res |= ROOK_MAP[40].att(c);
+        res |= ROOK_MAP[20].att(c);
         }
-        });
+        }));
+        println!("{}", res)
 }
 
 
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
 fn main() {
+    init();
     // let mut fen = "r5k1/1bpnqrpp/pp2p3/3p4/N1PPnb2/1P1B1N2/PBR1QPPP/3R2K1 w - - 0 1".split(' ').collect();
     // let pos = Board::new_fen(&mut fen);
     // let pos = Board::new_default();
     // pos.negamax_a_b(7, -1000000, 1000000, &mut Vec::new());
     // tests();
-
     let stdin = io::stdin();
     let mut pos = Board::new_default();
     let mut depth = 6;

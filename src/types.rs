@@ -96,7 +96,8 @@ pub const BISHOP: u8 = 2;
 pub const ROOK: u8   = 3;
 pub const QUEEN: u8  = 4;
 pub const KING: u8   = 5;
-pub const EMPTY: u8  = 6;
+pub const ALL: u8    = 6;
+pub const EMPTY: u8  = 255;
 
 pub const PIECE: u8 = 0x7;
 pub const COLOR: u8 = 0x8;

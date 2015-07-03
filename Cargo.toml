@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["alex"]
 
 [dependencies]
-lazy_static = "*"
 time = "*"
 rand = "*"
 

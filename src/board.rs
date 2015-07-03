@@ -102,36 +102,6 @@ impl Board {
             self.en_passant = 1 << ((src + dest) / 2);
         }
 
-        // {
-        // let us = if col == WHITE { &mut self.w } else { &mut self.b };
-        // let from_to = (1 << src) ^ (1 << dest);
-        //
-        // match self.sqs[src] & PIECE {
-        //     PAWN   => us.pawn   ^= from_to,
-        //     KNIGHT => us.knight ^= from_to,
-        //     BISHOP => us.bishop ^= from_to,
-        //     ROOK   => us.rook   ^= from_to,
-        //     QUEEN  => us.queen  ^= from_to,
-        //     KING   => us.king   ^= from_to,
-        //     _ => ()
-        // };
-        // us.pieces ^= from_to;
-        // }
-        //
-        // if mv.is_capture() {
-        // let opp = if col == WHITE { &mut self.w } else { &mut self.b };
-        //
-        // match self.sqs[dest] & PIECE {
-        //     PAWN   => opp.pawn   ^= 1 << dest,
-        //     KNIGHT => opp.knight ^= 1 << dest,
-        //     BISHOP => opp.bishop ^= 1 << dest,
-        //     ROOK   => opp.rook   ^= 1 << dest,
-        //     QUEEN  => opp.queen  ^= 1 << dest,
-        //     KING   => opp.king   ^= 1 << dest,
-        //     _ => ()
-        // }
-        // opp.pieces ^= 1 << dest;
-        // }
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
@@ -184,9 +154,7 @@ impl Board {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
         let is_white = self.is_white();
-
         let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
-
         let occ = us.pieces | opp.pieces;
 
         for_all_pieces(us.queen, &mut |from| {
@@ -209,13 +177,13 @@ impl Board {
         });
 
         for_all_pieces(us.knight, &mut |from| {
-            let mvs = KNIGHT_MAP[from as usize];
+            let mvs = unsafe { KNIGHT_MAP[from as usize] };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.king, &mut |from| {
-            let mvs = KING_MAP[from as usize];
+            let mvs = unsafe { KING_MAP[from as usize] };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
@@ -314,14 +282,14 @@ impl Board {
         });
 
         for_all_pieces(us.knight, &mut |from| {
-            let att = KNIGHT_MAP[from as usize];
+            let att = unsafe { KNIGHT_MAP[from as usize] };
             eval += (att & !occ).count_ones() * 30 +
                     (att & opp.pieces).count_ones() * 35 +
                     (att & us.pieces).count_ones() * 12;
         });
 
         for_all_pieces(us.king, &mut |from| {
-            let att = KING_MAP[from as usize];
+            let att = unsafe { KING_MAP[from as usize] };
             eval += (att & !occ).count_ones() * 10 +
                     (att & opp.pieces).count_ones() * 15 +
                     (att & us.pieces).count_ones() * 10;

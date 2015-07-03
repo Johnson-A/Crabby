@@ -80,60 +80,61 @@ pub fn a_diag(from: u32) -> u64 {
     if diag_index <= 7 {MAIN_ANTI_DIAG >> 8*diag_index} else {MAIN_ANTI_DIAG << 8*(16-diag_index)}
 }
 
-lazy_static! {
-    pub static ref KNIGHT_MAP: [u64; 64] = {
-        let mut map = [0; 64];
-        let offsets = vec![
-        (-1, -2), (-2, -1), (-2, 1), (-1, 2),
-        (1, -2),  (2, -1),  (2, 1),  (1, 2)];
+pub unsafe fn knight_map_init() {
+    let offsets = vec![
+    (-1, -2), (-2, -1), (-2, 1), (-1, 2),
+    (1, -2),  (2, -1),  (2, 1),  (1, 2)];
 
-        for (i, att) in map.iter_mut().enumerate() {
-            let mut targets = 0;
-            let (r, c) = ((i / 8) as isize, (i % 8) as isize);
+    for (i, att) in KNIGHT_MAP.iter_mut().enumerate() {
+        let mut targets = 0;
+        let (r, c) = ((i / 8) as isize, (i % 8) as isize);
 
-            for &(dr, dc) in &offsets {
-                if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
-                    targets |= 1 << ((r+dr)*8 + (c+dc));
-                }
+        for &(dr, dc) in &offsets {
+            if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
+                targets |= 1 << ((r+dr)*8 + (c+dc));
             }
-            *att = targets;
         }
-        map
-    };
-
-    pub static ref KING_MAP: [u64; 64] = {
-        let mut map = [0; 64];
-        let offsets = vec![
-        (1, -1), (1, 0),  (1, 1),
-        (0, -1),          (0, 1),
-        (-1,-1), (-1, 0), (-1, 1)];
-
-        for (i, att) in map.iter_mut().enumerate() {
-            let mut targets = 0;
-            let (r, c) = ((i / 8) as isize, (i % 8) as isize);
-
-            for &(dr, dc) in &offsets {
-                if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
-                    targets |= 1 << ((r+dr)*8 + (c+dc));
-                }
-            }
-            *att = targets;
-        }
-        map
-    };
-
-    pub static ref MAP: Vec<u64> = {
-        let mut table = Vec::new();
-        unsafe {
-        BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
-        ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
-        }
-        table
-    };
+        *att = targets;
+    }
 }
 
+pub unsafe fn king_map_init() {
+    let offsets = vec![
+    (1, -1), (1, 0),  (1, 1),
+    (0, -1),          (0, 1),
+    (-1,-1), (-1, 0), (-1, 1)];
+
+    for (i, att) in KING_MAP.iter_mut().enumerate() {
+        let mut targets = 0;
+        let (r, c) = ((i / 8) as isize, (i % 8) as isize);
+
+        for &(dr, dc) in &offsets {
+            if (r+dr >= 0) & (c+dc >= 0) & (r+dr < 8) & (c+dc < 8) {
+                targets |= 1 << ((r+dr)*8 + (c+dc));
+            }
+        }
+        *att = targets;
+    }
+}
+
+pub fn init() {
+    unsafe {
+        let mut table = Vec::new();
+        king_map_init();
+        knight_map_init();
+        BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
+        ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
+        for (i, elem) in table.iter().enumerate() {
+            MAP[i] = *elem;
+        }
+    }
+}
+
+pub static mut KING_MAP: [u64; 64] = [0; 64];
+pub static mut KNIGHT_MAP: [u64; 64] = [0; 64];
 pub static mut BISHOP_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
 pub static mut ROOK_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+pub static mut MAP: [u64; 107648] = [0; 107648];
 
 pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -> [SMagic; 64] {
     let mut map = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
@@ -203,7 +204,7 @@ pub struct SMagic {
 }
 
 impl SMagic {
-    pub fn att(&self, occ: u64) -> u64 {
+    pub unsafe fn att(&self, occ: u64) -> u64 {
         let ind = (self.magic * (occ & self.mask)) >> self.shift;
         MAP[self.offset + ind as usize]
     }
