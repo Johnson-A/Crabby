@@ -102,10 +102,40 @@ impl Board {
             self.en_passant = 1 << ((src + dest) / 2);
         }
 
+        // {
+        // let us = if col == WHITE { &mut self.w } else { &mut self.b };
+        // let from_to = (1 << src) ^ (1 << dest);
+        //
+        // match self.sqs[src] & PIECE {
+        //     PAWN   => us.pawn   ^= from_to,
+        //     KNIGHT => us.knight ^= from_to,
+        //     BISHOP => us.bishop ^= from_to,
+        //     ROOK   => us.rook   ^= from_to,
+        //     QUEEN  => us.queen  ^= from_to,
+        //     KING   => us.king   ^= from_to,
+        //     _ => ()
+        // };
+        // us.pieces ^= from_to;
+        // }
+        //
+        // if mv.is_capture() {
+        // let opp = if col == WHITE { &mut self.w } else { &mut self.b };
+        //
+        // match self.sqs[dest] & PIECE {
+        //     PAWN   => opp.pawn   ^= 1 << dest,
+        //     KNIGHT => opp.knight ^= 1 << dest,
+        //     BISHOP => opp.bishop ^= 1 << dest,
+        //     ROOK   => opp.rook   ^= 1 << dest,
+        //     QUEEN  => opp.queen  ^= 1 << dest,
+        //     KING   => opp.king   ^= 1 << dest,
+        //     _ => ()
+        // }
+        // opp.pieces ^= 1 << dest;
+        // }
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
-        // Board::update(&mut self.w, &mut self.b, mv);
+
         self.move_num += 1;
     }
 
@@ -160,19 +190,20 @@ impl Board {
         let occ = us.pieces | opp.pieces;
 
         for_all_pieces(us.queen, &mut |from| {
-            let mvs = BISHOP_MAP.att(from as usize, occ) | ROOK_MAP.att(from as usize, occ);
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) |
+                               ROOK_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.rook, &mut |from| {
-            let mvs = ROOK_MAP.att(from as usize, occ);
+            let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
         for_all_pieces(us.bishop, &mut |from| {
-            let mvs = BISHOP_MAP.att(from as usize, occ);
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
             add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
@@ -255,27 +286,28 @@ impl Board {
     }
 
     pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
-        // TODO: remove king material? With legal move checking, and mate and stalemate
+        // TODO: remove king material? With legal move checking, and mate and stalemate now added
         let occ = us.pieces | opp.pieces;
 
         let mut eval = 0;
 
         for_all_pieces(us.queen, &mut |from| {
-            let att = BISHOP_MAP.att(from as usize, occ) | ROOK_MAP.att(from as usize, occ);
+            let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
+                               ROOK_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 5 +
                     (att & opp.pieces).count_ones() * 15 +
                     (att & us.pieces).count_ones() * 8;
         });
 
         for_all_pieces(us.rook, &mut |from| {
-            let att = ROOK_MAP.att(from as usize, occ);
+            let att = unsafe { ROOK_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 15 +
                     (att & opp.pieces).count_ones() * 20 +
                     (att & us.pieces).count_ones() * 10;
         });
 
         for_all_pieces(us.bishop, &mut |from| {
-            let att = BISHOP_MAP.att(from as usize, occ);
+            let att = unsafe { BISHOP_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 25 +
                     (att & opp.pieces).count_ones() * 30 +
                     (att & us.pieces).count_ones() * 10;

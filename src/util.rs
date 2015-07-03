@@ -1,5 +1,4 @@
 extern crate rand;
-use std::iter::repeat;
 use rand::Rng;
 
 pub const ROW_1: u64 = 0x00000000000000FF;
@@ -123,15 +122,22 @@ lazy_static! {
         map
     };
 
-    pub static ref BISHOP_MAP: PieceMap = get_piece_map(&bishop_attacks);
-    pub static ref ROOK_MAP: PieceMap = get_piece_map(&rook_attacks);
+    pub static ref MAP: Vec<u64> = {
+        let mut table = Vec::new();
+        unsafe {
+        BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
+        ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
+        }
+        table
+    };
 }
 
-pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64) -> PieceMap {
-    let mut map = repeat(vec![]).take(64).collect::<Vec<_>>();
-    let mut masks = [0; 64];
-    let mut shifts = [0; 64];
-    let mut magics = [0; 64];
+pub static mut BISHOP_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+pub static mut ROOK_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+
+pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -> [SMagic; 64] {
+    let mut map = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+    let mut offset = table.len();
     let mut rng = rand::thread_rng();
 
     for (pos, entry) in map.iter_mut().enumerate() {
@@ -141,9 +147,9 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64) -> PieceMap {
                     ((FILE_A | FILE_H) & !file(s));
 
         // The mask for square 's' is the set of moves on an empty board
-        masks[pos] = attacks(1 << s, s, 1 << s) & !edges;
-        let num_ones = masks[pos].count_ones();
-        shifts[pos] = 64 - num_ones;
+        let mask = attacks(1 << s, s, 1 << s) & !edges;
+        let num_ones = mask.count_ones();
+        let shift = 64 - num_ones;
 
         let mut occupancy = vec![0; 1 << num_ones];
         let mut reference = vec![0; 1 << num_ones];
@@ -155,21 +161,22 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64) -> PieceMap {
             reference[size] = attacks(1 << s, s, occ | (1 << s));
 
             size += 1;
-            occ = (occ - masks[pos]) & masks[pos];
+            occ = (occ - mask) & mask;
             if occ == 0 { break } // We will have enumerated all subsets of mask
         }
 
         'outer: loop {
+            let mut magic;
             loop {
-                magics[pos] = rng.gen::<u64>() & rng.gen::<u64>() & rng.gen::<u64>();
+                magic = rng.gen::<u64>() & rng.gen::<u64>() & rng.gen::<u64>();
                 // TODO: Sparse random number
-                if ((magics[pos] * masks[pos]) >> 56).count_ones() >= 6 { break }
+                if ((magic * mask) >> 56).count_ones() >= 6 { break }
             }
-            *entry = vec![0; size];
+            let mut attacks = vec![0; size];
 
             for i in 0..size {
-                let index = (magics[pos] * occupancy[i]) >> shifts[pos];
-                let attack = &mut entry[index as usize];
+                let index = (magic * occupancy[i]) >> shift;
+                let attack = &mut attacks[index as usize];
 
                 if (*attack != 0) & (*attack != reference[i]) {
                     continue 'outer
@@ -177,30 +184,27 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64) -> PieceMap {
 
                 *attack = reference[i];
             }
+
+            *entry = SMagic { offset: offset, mask: mask, magic: magic, shift: shift };
+            offset += size;
+            table.append(&mut attacks);
             break // If we've reached this point, all from 0..size have been verified
         }
     }
-    PieceMap { magics: magics, shifts: shifts, masks: masks, map: map }
+    map
 }
 
-pub struct PieceMap {
-    pub magics: [u64; 64],
-    pub shifts: [u32; 64],
-    pub masks: [u64; 64],
-    pub map: Vec<Vec<u64>>
+#[derive(Copy, Clone)]
+pub struct SMagic {
+    pub offset: usize,
+    pub mask: u64,
+    pub magic: u64,
+    pub shift: u32
 }
 
-impl PieceMap {
-    pub fn att(&self, s: usize, occ: u64) -> u64 {
-        let ind = (self.magics[s] * (occ & self.masks[s])) >> self.shifts[s];
-        self.map[s][ind as usize]
-    }
-
-    pub fn size(&self) -> usize {
-        let mut size = 0;
-        for sq_map in &self.map {
-            size += 8 * sq_map.len();
-        }
-        size
+impl SMagic {
+    pub fn att(&self, occ: u64) -> u64 {
+        let ind = (self.magic * (occ & self.mask)) >> self.shift;
+        MAP[self.offset + ind as usize]
     }
 }

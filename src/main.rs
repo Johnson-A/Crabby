@@ -1,8 +1,9 @@
-#![feature(slice_patterns, convert, negate_unsigned, append)]
+#![feature(slice_patterns, convert, negate_unsigned, append, test)]
 #[macro_use]
 extern crate lazy_static;
 extern crate time;
 extern crate rand;
+extern crate test;
 
 use std::io;
 use std::io::prelude::*;
@@ -13,6 +14,30 @@ mod board;
 use util::*;
 mod util;
 
+use rand::Rng;
+#[bench]
+fn bench(b: &mut test::Bencher) {
+    &MAP[0];
+
+    let mut rng = rand::thread_rng();
+    let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
+    b.iter(|| {
+        unsafe {
+        BISHOP_MAP[0].att(c);
+        BISHOP_MAP[0].att(c);
+        BISHOP_MAP[10].att(c);
+        BISHOP_MAP[10].att(c);
+        BISHOP_MAP[20].att(c);
+        BISHOP_MAP[20].att(c);
+        BISHOP_MAP[30].att(c);
+        BISHOP_MAP[1].att(c);
+        BISHOP_MAP[40].att(c);
+        BISHOP_MAP[20].att(c);
+        }
+        });
+}
+
+
 static ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
 fn main() {
@@ -21,8 +46,6 @@ fn main() {
     // let pos = Board::new_default();
     // pos.negamax_a_b(7, -1000000, 1000000, &mut Vec::new());
     // tests();
-    // println!("{}", BISHOP_MAP.size());
-    // println!("{}", ROOK_MAP.size());
 
     let stdin = io::stdin();
     let mut pos = Board::new_default();
@@ -47,10 +70,11 @@ fn main() {
 }
 
 fn go(board: &Board, depth: &mut u32) {
+    println!("Searching\n{}", board);
+
     let start = time::precise_time_s();
-	println!("Searching\n{}", board);
     let mut pv = Vec::new();
-    let (score, _) = board.negamax_a_b(*depth, -10000000, 10000000, &mut pv);
+    let (score, _) = board.negamax_a_b(*depth, -std::i32::MAX, std::i32::MAX, &mut pv);
     let calc_time = time::precise_time_s() - start;
 
     println!("info depth {} score cp {} time {} pv {}",
