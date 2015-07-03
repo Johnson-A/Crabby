@@ -1,2 +1,2 @@
 # chess
-This is a uci chess engine in progress, written in rust
+This is a UCI chess engine written in the rust programming language. 

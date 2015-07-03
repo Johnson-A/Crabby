@@ -1,31 +1,21 @@
-extern crate num_cpus;
-use std::fmt;
-use threadpool::ThreadPool;
-use std::sync::mpsc::channel;
-use std::ascii::AsciiExt;
-use piece::*;
+use std::cmp::Ordering::{Less, Greater};
+use types::*;
 use util::*;
-
-pub type Squares = [Square; 64];
 
 pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     let mut w: BitBoard = Default::default();
     let mut b: BitBoard = Default::default();
 
-    for i in 0..64 {
-        match sqs[i] {
-            Square::Piece(pt, col) => {
-                let bb = if col == Color::White { &mut w } else { &mut b };
-                match pt {
-                    PieceType::Pawn   => bb.pawn   |= 1 << i,
-                    PieceType::Knight => bb.knight |= 1 << i,
-                    PieceType::Bishop => bb.bishop |= 1 << i,
-                    PieceType::Rook   => bb.rook   |= 1 << i,
-                    PieceType::Queen  => bb.queen  |= 1 << i,
-                    PieceType::King   => bb.king   |= 1 << i
-                };
-            },
-            Square::Empty => continue
+    for (pos, sq) in sqs.iter().enumerate() {
+        let bb = if sq & COLOR == WHITE { &mut w } else { &mut b };
+        match sq & PIECE {
+            PAWN   => bb.pawn   |= 1 << pos,
+            KNIGHT => bb.knight |= 1 << pos,
+            BISHOP => bb.bishop |= 1 << pos,
+            ROOK   => bb.rook   |= 1 << pos,
+            QUEEN  => bb.queen  |= 1 << pos,
+            KING   => bb.king   |= 1 << pos,
+            _      => continue
         }
     }
 
@@ -34,190 +24,257 @@ pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     (w, b)
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct Move { data: u32 }
-
-impl Move {
-    pub fn new(from: u32, to: u32, flags: u32) -> Move {
-        let d = from | to << 6 | flags << 12;
-        Move { data: d }
-    }
-
-    pub fn from(&self)  -> u32 { self.data & 0x3F }
-    pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
-    pub fn flags(&self) -> u32 { self.data >> 12 }
-}
-
-pub fn move_to_str(mv: &Move) -> String {
-    let (from, to) = (mv.from() as u8, mv.to() as u8);
-    let (sr, sc) = (from / 8, from % 8);
-    let (dr, dc) = (to / 8, to % 8);
-    let (sr_char, sc_char) = ((sr + b'1') as char, (sc + b'a') as char);
-    let (dr_char, dc_char) = ((dr + b'1') as char, (dc + b'a') as char);
-    let chars = vec![sc_char, sr_char, dc_char, dr_char];
-    chars.into_iter().collect::<String>()
-}
-
-pub fn get_line_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
-    let pot_blockers = occ & mask;
-    let forward = pot_blockers - 2*piece;
-    let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
-    (forward ^ rev) & mask
-}
-
-#[derive(Copy)]
-pub struct Board {
-    pub w: BitBoard,
-    pub b: BitBoard,
-    pub sqs: Squares,
-    pub move_num: u32,
-    pub w_castle: bool,
-    pub b_castle: bool,
-    pub en_passant: u64
-}
-
-impl Clone for Board { fn clone(&self) -> Self { *self } }
-
-
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32) {
+pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
         let from = ((to as i32) - diff) as u32;
         // let capture = board
-        moves.push(Move::new(from, to, 0));
+        moves.push(Move::new(from, to, flags));
     }
 }
 
-pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64) {
+pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
-        moves.push(Move::new(from, to, 0));
+        let from = ((to as i32) - diff) as u32;
+
+        moves.push(Move::new(from, to, flags | QUEEN_PROM));
+        moves.push(Move::new(from, to, flags | ROOK_PROM));
+        moves.push(Move::new(from, to, flags | KNIGHT_PROM));
+        moves.push(Move::new(from, to, flags | BISHOP_PROM));
     }
 }
 
-pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32, u64)) {
-    while pieces != 0 {
-        let piece = bit_pop(&mut pieces);
-        let from = piece.trailing_zeros();
+pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
+    while targets != 0 {
+        let to = bit_pop_pos(&mut targets);
+        moves.push(Move::new(from, to, flags));
+    }
+}
 
-        do_work(from, piece);
+pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32)) {
+    while pieces != 0 {
+        let from = bit_pop_pos(&mut pieces);
+
+        do_work(from);
     }
 }
 
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        self.sqs[dest] = self.sqs[src];
-        self.sqs[src] = Square::Empty;
+        let col = self.color_to_move();
+
+        let prom = mv.promotion();
+        self.sqs[dest] = if prom != 0 {
+            match prom {
+                QUEEN_PROM  => QUEEN  | col,
+                ROOK_PROM   => ROOK   | col,
+                BISHOP_PROM => BISHOP | col,
+                KNIGHT_PROM => KNIGHT | col,
+                _ => EMPTY // This can't happen
+            }
+        } else {
+            self.sqs[src]
+        };
+        self.sqs[src] = EMPTY;
+
+        if mv.king_castle() {
+            let color_offset = if col == WHITE { 0 } else { 56 };
+            self.sqs[7 + color_offset] = EMPTY;
+            self.sqs[5 + color_offset] = ROOK | col;
+        }
+
+        if mv.queen_castle() {
+            let color_offset = if col == WHITE { 0 } else { 56 };
+            self.sqs[color_offset] = EMPTY;
+            self.sqs[3 + color_offset] = ROOK | col;
+        }
+
+        if mv.is_en_passant() {
+            // If white takes remove from row below, if black takes remove from row above
+            let ep_pawn = if col == WHITE { dest - 8 } else { dest + 8 };
+            self.sqs[ep_pawn] = EMPTY;
+        }
+
+        self.en_passant = 0;
+        if mv.is_double_push() {
+            self.en_passant = 1 << ((src + dest) / 2);
+        }
+
+        // {
+        // let us = if col == WHITE { &mut self.w } else { &mut self.b };
+        // let from_to = (1 << src) ^ (1 << dest);
+        //
+        // match self.sqs[src] & PIECE {
+        //     PAWN   => us.pawn   ^= from_to,
+        //     KNIGHT => us.knight ^= from_to,
+        //     BISHOP => us.bishop ^= from_to,
+        //     ROOK   => us.rook   ^= from_to,
+        //     QUEEN  => us.queen  ^= from_to,
+        //     KING   => us.king   ^= from_to,
+        //     _ => ()
+        // };
+        // us.pieces ^= from_to;
+        // }
+        //
+        // if mv.is_capture() {
+        // let opp = if col == WHITE { &mut self.w } else { &mut self.b };
+        //
+        // match self.sqs[dest] & PIECE {
+        //     PAWN   => opp.pawn   ^= 1 << dest,
+        //     KNIGHT => opp.knight ^= 1 << dest,
+        //     BISHOP => opp.bishop ^= 1 << dest,
+        //     ROOK   => opp.rook   ^= 1 << dest,
+        //     QUEEN  => opp.queen  ^= 1 << dest,
+        //     KING   => opp.king   ^= 1 << dest,
+        //     _ => ()
+        // }
+        // opp.pieces ^= 1 << dest;
+        // }
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
-        // Board::update(&mut self.w, &mut self.b, mv);
-        self.move_num += 1;
-    }
 
-    // pub fn update(us: &mut BitBoard, opp: &mut BitBoard, mv: Move) {
-    // TODO:
-    // }
-
-    pub fn make_promotion(&mut self, mv: Move, prom: Square) {
-        let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        self.sqs[dest] = prom;
-        self.sqs[src] = Square::Empty;
-        let (w, b) = gen_bitboards(&self.sqs);
-        self.w = w;
-        self.b = b;
         self.move_num += 1;
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
         let moves: Vec<char> = mv.chars().collect();
         match moves.as_slice() {
-            // [sc, sr, dc, dr, promotion..] => {
-            [sc, sr, dc, dr] => {
-                self.make_move(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0));
+            [sc, sr, dc, dr, promotion..] => {
+                let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
+
+                let mut flags = if promotion.len() == 1 {
+                    match promotion[0] {
+                        'q' => QUEEN_PROM,
+                        'r' => ROOK_PROM,
+                        'b' => BISHOP_PROM,
+                        'n' => KNIGHT_PROM,
+                        _ => 0
+                    }
+                } else { 0 };
+
+                flags |= match mv {
+                    "e1g1" => if self.w_k_castle { CASTLE_KING } else { 0 },
+                    "e8g8" => if self.b_k_castle { CASTLE_KING } else { 0 },
+                    "e1c1" => if self.w_q_castle { CASTLE_QUEEN } else { 0 },
+                    "e8c8" => if self.b_q_castle { CASTLE_QUEEN } else { 0 },
+                    _ => 0
+                };
+
+                flags |= match self.sqs[src as usize] & PIECE {
+                    PAWN => {
+                        let is_double = if src > dest { src-dest } else { dest-src } == 16;
+                        let is_en_passant = dest == self.en_passant.trailing_zeros();
+
+                        (if is_en_passant { EN_PASSANT } else { 0 }) |
+                        (if is_double { DOUBLE_PAWN_PUSH } else { 0 })
+                    },
+                    _ => 0
+                };
+
+                self.make_move(Move::new(src, dest, flags));
             },
-            [sc, sr, dc, dr, promotion] => {
-                let prom_piece = to_piece(if self.move_num % 2 == 1 {promotion.to_ascii_uppercase()} else {promotion});
-                self.make_promotion(Move::new(to_pos(sc, sr), to_pos(dc, dr), 0), prom_piece); // TODO:
-            }
             _ => () // malformed move
         }
     }
 
-    pub fn get_pseudo_moves(&self) -> Vec<Move> {
+    pub fn get_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let is_white = self.move_num % 2 == 1;
+        let is_white = self.is_white();
+
         let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
 
         let occ = us.pieces | opp.pieces;
 
-        // Add pawn moves last
-
-        for_all_pieces(us.queen, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))  |
-                 get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        for_all_pieces(us.queen, &mut |from| {
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) |
+                               ROOK_MAP[from as usize].att(occ) };
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.rook, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, file(from)) |
-                 get_line_attacks(piece, occ, row(from))) & !us.pieces);
+        for_all_pieces(us.rook, &mut |from| {
+            let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.bishop, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                (get_line_attacks(piece, occ, diag(from)) |
-                 get_line_attacks(piece, occ, a_diag(from))) & !us.pieces);
+        for_all_pieces(us.bishop, &mut |from| {
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.knight, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KNIGHT_MAP[from as usize] & !us.pieces);
+        for_all_pieces(us.knight, &mut |from| {
+            let mvs = KNIGHT_MAP[from as usize];
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        for_all_pieces(us.king, &mut |from, piece| {
-            add_moves_from(&mut moves, from,
-                KING_MAP[from as usize] & !us.pieces);
+        for_all_pieces(us.king, &mut |from| {
+            let mvs = KING_MAP[from as usize];
+            add_moves_from(&mut moves, from, mvs & !occ, 0);
+            add_moves_from(&mut moves, from, mvs & opp.pieces, IS_CAPTURE);
         });
 
-        // Consider out of bounds pawn promotion
-        // Implement pawn promotion!!!! king won't know it's checked
-        // And the move number won't change when accepting a promotion capture move
-        // Make move not copyable
         if is_white {
-            let mut pushes = (us.pawn << 8) & !occ;
+            let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
-            let promotions = pushes & ROW_8;
-            pushes &= !ROW_8;
+            let l_en_passant = left_attacks & self.en_passant;
+            let r_en_passant = right_attacks & self.en_passant;
+            let prom_pushes = pushes & ROW_8;
+            let prom_l_att = left_attacks & ROW_8;
+            let prom_r_att = right_attacks & ROW_8;
 
-            add_moves(&mut moves, pushes, 8);
-            add_moves(&mut moves, double_pushes, 16);
-            add_moves(&mut moves, left_attacks, 7);
-            add_moves(&mut moves, right_attacks, 9);
-            add_moves(&mut moves, promotions, 8);
+            add_moves(&mut moves, pushes ^ prom_pushes, 8, 0);
+            add_moves(&mut moves, double_pushes, 16, DOUBLE_PAWN_PUSH);
+            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, 7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, 9, IS_CAPTURE);
+            add_moves(&mut moves, l_en_passant, 7, EN_PASSANT | IS_CAPTURE);
+            add_moves(&mut moves, r_en_passant, 9, EN_PASSANT | IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_pushes, 8, 0);
+            add_prom_moves(&mut moves, prom_l_att, 7, IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_r_att, 9, IS_CAPTURE);
         } else {
-            let mut pushes = (us.pawn >> 8) & !occ;
+            let pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
-            let promotions = pushes & ROW_1;
-            pushes &= !ROW_1;
+            let l_en_passant = left_attacks & self.en_passant;
+            let r_en_passant = right_attacks & self.en_passant;
+            let prom_pushes = pushes & ROW_1;
+            let prom_l_att = left_attacks & ROW_1;
+            let prom_r_att = right_attacks & ROW_1;
 
-            add_moves(&mut moves, pushes, -8);
-            add_moves(&mut moves, double_pushes, -16);
-            add_moves(&mut moves, left_attacks, -7);
-            add_moves(&mut moves, right_attacks, -9);
-            add_moves(&mut moves, promotions, -8);
+            add_moves(&mut moves, pushes ^ prom_pushes, -8, 0);
+            add_moves(&mut moves, double_pushes, -16, DOUBLE_PAWN_PUSH);
+            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, -7, IS_CAPTURE);
+            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, -9, IS_CAPTURE);
+            add_moves(&mut moves, l_en_passant, -7, EN_PASSANT | IS_CAPTURE);
+            add_moves(&mut moves, r_en_passant, -9, EN_PASSANT | IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_pushes, -8, 0);
+            add_prom_moves(&mut moves, prom_l_att, -7, IS_CAPTURE);
+            add_prom_moves(&mut moves, prom_r_att, -9, IS_CAPTURE);
         }
 
+        moves.sort_by(|a,b| {
+            if a.is_capture() { Less } else { Greater }
+        });
+
         moves
+    }
+
+    pub fn is_white(&self) -> bool {
+        (self.move_num % 2) == 1
+    }
+
+    pub fn color_to_move(&self) -> u8 {
+        if self.is_white() { WHITE } else { BLACK }
     }
 
     pub fn to_move(&self) -> &BitBoard {
@@ -228,235 +285,197 @@ impl Board {
         if self.move_num % 2 == 1 { &self.b } else { &self.w }
     }
 
-    pub fn get_moves(&mut self) -> Vec<Move> {
-        let pseudo_legal_moves = self.get_pseudo_moves();
-        let mut legal_moves = Vec::with_capacity(pseudo_legal_moves.len());
+    pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
+        // TODO: remove king material? With legal move checking, and mate and stalemate now added
+        let occ = us.pieces | opp.pieces;
 
-        for mv in pseudo_legal_moves.into_iter() {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let king_pos = new_board.prev_move().king.trailing_zeros(); // This will be the original player's king
-            let mut king_is_attacked = false;
+        let mut eval = 0;
 
-            for opp_mv in new_board.get_pseudo_moves() {
-                if opp_mv.to() == king_pos {
-                    king_is_attacked = true;
-                    break;
-                }
-            }
-            if !king_is_attacked { legal_moves.push(mv) };
-        }
-        legal_moves
+        for_all_pieces(us.queen, &mut |from| {
+            let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
+                               ROOK_MAP[from as usize].att(occ) };
+            eval += (att & !occ).count_ones() * 5 +
+                    (att & opp.pieces).count_ones() * 15 +
+                    (att & us.pieces).count_ones() * 8;
+        });
+
+        for_all_pieces(us.rook, &mut |from| {
+            let att = unsafe { ROOK_MAP[from as usize].att(occ) };
+            eval += (att & !occ).count_ones() * 15 +
+                    (att & opp.pieces).count_ones() * 20 +
+                    (att & us.pieces).count_ones() * 10;
+        });
+
+        for_all_pieces(us.bishop, &mut |from| {
+            let att = unsafe { BISHOP_MAP[from as usize].att(occ) };
+            eval += (att & !occ).count_ones() * 25 +
+                    (att & opp.pieces).count_ones() * 30 +
+                    (att & us.pieces).count_ones() * 10;
+        });
+
+        for_all_pieces(us.knight, &mut |from| {
+            let att = KNIGHT_MAP[from as usize];
+            eval += (att & !occ).count_ones() * 30 +
+                    (att & opp.pieces).count_ones() * 35 +
+                    (att & us.pieces).count_ones() * 12;
+        });
+
+        for_all_pieces(us.king, &mut |from| {
+            let att = KING_MAP[from as usize];
+            eval += (att & !occ).count_ones() * 10 +
+                    (att & opp.pieces).count_ones() * 15 +
+                    (att & us.pieces).count_ones() * 10;
+        });
+
+        let material =  (us.pawn.count_ones()   * 1000)  +
+                        (us.knight.count_ones() * 3000)  +
+                        (us.bishop.count_ones() * 3000)  +
+                        (us.rook.count_ones()   * 5000)  +
+                        (us.queen.count_ones()  * 9000)  +
+                        (us.king.count_ones()   * 300000);
+
+        (material + eval) as i32
     }
 
-    pub fn evaluate(&self) -> f32 {
+    pub fn evaluate(&self) -> i32 {
+        // TODO: Don't trade if material down or in worse position
+        // TODO: doubled pawns
+        // TODO: Center squares and pawns
         let opp = self.prev_move();
         let us = self.to_move(); // Node player
 
-        let mut mobility = 0.0;
-        let mut back_rank = 0.0;
+        let mut eval = 1000*1000;
 
-        let is_white = self.move_num % 2 == 1;
+        let is_white = self.is_white();
         let occ = us.pieces | opp.pieces;
 
         if is_white {
-            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() as f32 * 0.05;
-            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() as f32 * 0.05;
+            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() * 50;
+            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() * 50;
 
             let pushes = (us.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
 
-            mobility += pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval += pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval += left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
 
             let pushes = (opp.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (opp.pawn >> 7) & (us.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
 
-            mobility -= pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval -= pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval -= left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
         } else {
-            back_rank -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() as f32 * 0.05;
-            back_rank += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() as f32 * 0.05;
+            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() * 50;
+            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() * 50;
 
             let pushes = (us.pawn >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
             let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
             let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
 
-            mobility += pushes.count_ones() as f32  * 0.01 +
-                        double_pushes.count_ones() as f32  * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval += pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval += left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
 
             let pushes = (opp.pawn << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
             let left_attacks = (opp.pawn << 7) & (us.pieces | self.en_passant) & !FILE_H;
             let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
 
-            mobility -= pushes.count_ones() as f32 * 0.01 +
-                        double_pushes.count_ones() as f32 * 0.01 +
-                        left_attacks.count_ones() as f32   * 0.04 +
-                        right_attacks.count_ones() as f32  * 0.04;
+            eval -= pushes.count_ones() * 10 +
+                    double_pushes.count_ones() * 10;
+            eval -= left_attacks.count_ones() * 40 +
+                    right_attacks.count_ones() * 40;
         }
 
-        for_all_pieces(us.queen, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))  |
-                         get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
-        });
-
-        for_all_pieces(us.rook, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(us.bishop, &mut |from, piece| {
-            mobility += (get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(us.knight, &mut |from, piece| {
-            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(us.king, &mut |from, piece| {
-            mobility += KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
-        });
-
-        for_all_pieces(opp.queen, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))  |
-                         get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.01;
-        });
-
-        for_all_pieces(opp.rook, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, file(from)) |
-                         get_line_attacks(piece, occ, row(from))).count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(opp.bishop, &mut |from, piece| {
-            mobility -= (get_line_attacks(piece, occ, diag(from)) |
-                         get_line_attacks(piece, occ, a_diag(from))).count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(opp.knight, &mut |from, piece| {
-            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.03;
-        });
-
-        for_all_pieces(opp.king, &mut |from, piece| {
-            mobility -= KNIGHT_MAP[from as usize].count_ones() as f32 * 0.01;
-        });
-
-        (us.pawn.count_ones() as f32  * 1.0)   +
-        (us.knight.count_ones() as f32 * 3.0)  +
-        (us.bishop.count_ones() as f32 * 3.0)  +
-        (us.rook.count_ones() as f32 * 5.0)    +
-        (us.queen.count_ones() as f32 * 9.0)   +
-        (us.king.count_ones() as f32 * 300.0)  -
-        (opp.pawn.count_ones() as f32 * 1.0)   -
-        (opp.knight.count_ones() as f32 * 3.0) -
-        (opp.bishop.count_ones() as f32 * 3.0) -
-        (opp.rook.count_ones() as f32 * 5.0)   -
-        (opp.queen.count_ones() as f32 * 9.0)  -
-        (opp.king.count_ones() as f32 * 300.0) +
-        mobility * 0.3 + back_rank
+        let real_eval = (eval as i32) - 1000*1000;
+        real_eval + Board::get_evals(us, opp) - Board::get_evals(opp, us)
     }
 
-    pub fn best_move(&mut self) -> Move {
-        let mut best_score = 1000.0;
-        let mut best_move = Move::new(0,0,0);
-        let moves = self.get_moves();
+    pub fn quiescence_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
+        // TODO: remove depth so all takes are searched
+        // TODO: Check for king attacks and break for that branch to avoid illegal moves
+        // TODO: When no legal moves possible, return draw to avoid stalemate
+        // TODO: Three move repition
+        // TODO: Add illegal move detection in queiscence which might cause subtle bugs
+        let stand_pat = self.evaluate();
+        if depth == 0 { return stand_pat }
+        if stand_pat >= beta { return beta }
+        if stand_pat > alpha { alpha = stand_pat }
 
-        let (tx, rx) = channel();
-        let pool = ThreadPool::new(num_cpus::get());
-
-        for &mv in moves.iter() {
-            let tx = tx.clone();
-
-            let mut new_board = self.clone();
-
-            pool.execute( move || {
-                new_board.make_move(mv);
-                let score = new_board.negamax_a_b(5, -10000.0, 10000.0); // Alpha beta outside?
-                tx.send((score, mv));
-                });
-        }
-
-        for (score, mv) in rx.iter().take(moves.len()) {
-            if score < best_score {
-                best_move = mv;
-                best_score = score;
-            }
-        }
-
-        println!("\nbest score {}", best_score);
-        best_move
-    }
-
-    pub fn quiescence_search(&mut self, depth: u32, alpha: f32, beta: f32, last_score: f32) -> f32 {
-        let mut alpha = alpha;
-        let mut best = -1000.0;
-        let moves = self.get_pseudo_moves();
-        if moves.len() == 0 { return best }
-
-        for mv in moves.into_iter() {
+        for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let mut score = new_board.evaluate();
-            // println!("test score {} with last score {} with diff {}", score, last_score, (score - last_score).abs());
+            let score = -new_board.quiescence_search(depth - 1, -beta, -alpha);
 
-            if (depth == 0) | ((score + last_score).abs() < 1.5) {
-                return -score;
+            if score >= beta { return beta }
+            if score > alpha { alpha = score; }
+        }
+        alpha
+    }
+
+    pub fn is_in_check(&self) -> bool {
+        // TODO: this isn't super efficient since board is immutable, but only occurs if no legal moves
+        let king_pos = self.to_move().king.trailing_zeros();
+
+        let mut clone = self.clone();
+        clone.move_num += 1;
+
+        for mv in clone.get_moves() { // get opponent moves
+            if mv.to() == king_pos { return true }
+        }
+        false
+    }
+
+    pub fn negamax_a_b(&self, depth: u32, mut alpha: i32, beta: i32, line: &mut Vec<Move>) -> (i32, bool) {
+        if depth == 0 { return (self.quiescence_search(4, alpha, beta), true) }
+        let mut has_legal_move = false;
+        let enemy_king = self.prev_move().king.trailing_zeros();
+        let mut localpv = Vec::new();
+
+        for mv in self.get_moves() {
+            if mv.to() == enemy_king { return (0, false) }
+            let mut new_board = self.clone();
+            new_board.make_move(mv);
+
+            let (score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
+            let score = -score;
+
+            if is_legal { has_legal_move = true; } else { continue }
+
+            if score >= beta { return (score, true) }
+            if score > alpha {
+                alpha = score;
+                line.clear();
+                line.push(mv);
+                line.append(&mut localpv);
+            }
+        }
+        if !has_legal_move {
+            if self.is_in_check() {
+                return (-1000000 - depth as i32, true)
             } else {
-                // println!("{} {} diff {}", score, last_score, (score + last_score).abs());
-                score = -new_board.quiescence_search(depth - 1, -beta, -alpha, score);
-                // println!("new score {} new diff {}", score, (temp + score).abs());
+                return (0, true)
             }
-
-            if score > best { best = score; }
-            if score > alpha { alpha = score; }
-            if score >= beta { return alpha }
         }
-        best
+
+        (alpha, true)
     }
 
-    pub fn negamax_a_b(&mut self, depth: u32, alpha: f32, beta: f32) -> f32 {
-        if depth == 0 {
-            let score = self.evaluate();
-            return self.quiescence_search(5, alpha, beta, score);
-            // return score;
-        }
-
-        let mut alpha = alpha;
-        let mut best = -1000.0;
-        let moves = self.get_pseudo_moves();
-        if moves.len() == 0 { return best }
-
-        for mv in moves.into_iter() {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let score = -new_board.negamax_a_b(depth - 1, -beta, -alpha);
-
-            if score > best { best = score; }
-            if score > alpha { alpha = score; }
-            if score >= beta { return alpha }
-        }
-        best
-    }
-
-    pub fn new(fen_board: &str) -> Board {
+    pub fn new_fen(fen: &mut Vec<&str>) -> Board {
+        let fen_board = fen.remove(0);
         let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
-        let mut sqs = [Square::Empty; 64];
+
+        let mut sqs = [EMPTY; 64];
 
         for (r, row) in reversed_rows.enumerate() {
             let mut offset = 0;
@@ -464,41 +483,39 @@ impl Board {
                 if !ch.is_numeric() {
                     sqs[r*8 + c+offset] = to_piece(ch);
                 } else {
-                    offset += (ch as u8 - b'0') as usize;
+                    offset += (ch as u8 - b'1') as usize;
                 }
             }
         }
+
         let (w, b) = gen_bitboards(&sqs);
 
-        Board { w: w, b: b, sqs: sqs, move_num: 1, w_castle: true, b_castle: true, en_passant: 0 }
+        let to_move = fen.remove(0); // Player to move [b,w]
+        let move_num = match to_move {
+            "w" => 1,
+            _ =>   2, // Start of the move counter at an odd number
+        };
+
+        let castling = fen.remove(0); // Castling [KQkq]
+        let w_k_castle = castling.contains('K');
+        let w_q_castle = castling.contains('Q');
+        let b_k_castle = castling.contains('k');
+        let b_q_castle = castling.contains('q');
+
+        let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
+        let en_passant = match ep_sq.as_slice() {
+            [sc, sr] => 1 << to_pos(sc, sr),
+            _ => 0
+        };
+        fen.remove(0); // Halfmove Clock
+        fen.remove(0); // Fullmove Number
+
+        Board { w: w, b: b, sqs: sqs, move_num: move_num, w_k_castle: w_k_castle, w_q_castle: w_q_castle,
+                b_k_castle: b_k_castle, b_q_castle: b_q_castle, en_passant: en_passant }
     }
-}
 
-impl fmt::Display for Board {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut characters = Vec::with_capacity(64);
-
-        for (i, sq) in self.sqs.iter().enumerate() {
-            characters.push(to_char(sq));
-            if (i+1) % 8 == 0 { characters.push('\n') }
-        }
-        let output = characters.iter().cloned().collect::<String>();
-        // write!(f, "--------\n{}--------\n\
-        //           Move # {:?}\n\
-        //           wcas {} bcas {}\nen passant {}",
-        //           output, self.move_num,
-        //           self.w_castle, self.b_castle, self.en_passant)
-        write!(f, "--------\n{}--------\nmove # {}\n", output, self.move_num)
+    pub fn new_default() -> Board {
+        let mut def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".split(' ').collect();
+        Board::new_fen(&mut def_fen)
     }
-}
-
-#[derive(Debug, Default, Copy, Clone)]
-pub struct BitBoard {
-    pub pawn: u64,
-    pub knight: u64,
-    pub bishop: u64,
-    pub rook: u64,
-    pub queen: u64,
-    pub king: u64,
-    pub pieces: u64
 }
