@@ -12,6 +12,8 @@ pub struct BitBoard {
     pub pieces: u64
 }
 
+pub type Squares = [u8; 64];
+
 #[derive(Copy)]
 pub struct Board {
     pub w: BitBoard,
@@ -29,7 +31,7 @@ impl Clone for Board { fn clone(&self) -> Self { *self } }
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut characters = Vec::with_capacity(64);
+        let mut characters = Vec::with_capacity(64+8);
 
         for r in (0..8).rev() {
             for c in 0..8 {
@@ -48,8 +50,6 @@ impl fmt::Display for Board {
                   self.en_passant)
     }
 }
-
-pub type Squares = [u8; 64];
 
 pub fn to_piece(c: char) -> u8 {
     let pt = match c.to_ascii_lowercase() {
@@ -90,6 +90,7 @@ pub fn from_pos(pos: u32) -> (char, char) {
     ((col as u8 + b'a') as char, (row as u8 + b'1') as char)
 }
 
+// TODO: Use of (| and &) or xor ^ to glue piece and color
 pub const PAWN: u8   = 0;
 pub const KNIGHT: u8 = 1;
 pub const BISHOP: u8 = 2;
@@ -116,7 +117,7 @@ pub const IS_CAPTURE: u32 = 1 << 5;
 pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
 pub const EN_PASSANT: u32 = 1 << 7;
 
-// Make move not copyable
+// TODO: Consider making move non-copyable, overhead would be lower than passing pointer
 #[derive(Copy, Clone)]
 pub struct Move { data: u32 }
 

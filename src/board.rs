@@ -33,6 +33,13 @@ pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32)
     }
 }
 
+pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
+    while targets != 0 {
+        let to = bit_pop_pos(&mut targets);
+        moves.push(Move::new(from, to, flags));
+    }
+}
+
 pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
@@ -42,13 +49,6 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
         moves.push(Move::new(from, to, flags | ROOK_PROM));
         moves.push(Move::new(from, to, flags | KNIGHT_PROM));
         moves.push(Move::new(from, to, flags | BISHOP_PROM));
-    }
-}
-
-pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
-    while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
-        moves.push(Move::new(from, to, flags));
     }
 }
 
