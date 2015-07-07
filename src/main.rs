@@ -11,6 +11,7 @@ mod types;
 mod board;
 use util::*;
 mod util;
+mod evaluation;
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
@@ -93,7 +94,7 @@ fn go(board: &Board, depth: &mut u32) {
         pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().connect(" "));
     println!("bestmove {}", pv[0].to_str());
 
-    if calc_time < 2.0 { *depth += 1; }
+    if calc_time < 0.5 { *depth += 1; }
     if (calc_time > 20.0) & (*depth > 6) { *depth -= 1; }
 }
 

@@ -28,7 +28,6 @@ pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32)
     while targets != 0 {
         let to = bit_pop_pos(&mut targets);
         let from = ((to as i32) - diff) as u32;
-        // let capture = board
         moves.push(Move::new(from, to, flags));
     }
 }
@@ -52,30 +51,17 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
     }
 }
 
-pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32)) {
-    while pieces != 0 {
-        let from = bit_pop_pos(&mut pieces);
-
-        do_work(from);
-    }
-}
-
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
         let col = self.color_to_move();
 
-        let prom = mv.promotion();
-        self.sqs[dest] = if prom != 0 {
-            match prom {
+        self.sqs[dest] = match mv.promotion() {
                 QUEEN_PROM  => QUEEN  | col,
                 ROOK_PROM   => ROOK   | col,
                 BISHOP_PROM => BISHOP | col,
                 KNIGHT_PROM => KNIGHT | col,
-                _ => EMPTY // This can't happen
-            }
-        } else {
-            self.sqs[src]
+                _ => self.sqs[src] // If there is no promotion
         };
         self.sqs[src] = EMPTY;
 
@@ -92,12 +78,12 @@ impl Board {
         }
 
         if mv.is_en_passant() {
-            // If white takes remove from row below, if black takes remove from row above
+            // If white takes - remove from row below, if black takes - remove from row above
             let ep_pawn = if col == WHITE { dest - 8 } else { dest + 8 };
             self.sqs[ep_pawn] = EMPTY;
         }
 
-        self.en_passant = 0;
+        self.en_passant = 0; // TODO: refactor
         if mv.is_double_push() {
             self.en_passant = 1 << ((src + dest) / 2);
         }
@@ -115,34 +101,29 @@ impl Board {
             [sc, sr, dc, dr, promotion..] => {
                 let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
 
-                let mut flags = if promotion.len() == 1 {
-                    match promotion[0] {
-                        'q' => QUEEN_PROM,
-                        'r' => ROOK_PROM,
-                        'b' => BISHOP_PROM,
-                        'n' => KNIGHT_PROM,
-                        _ => 0
-                    }
-                } else { 0 };
+                let mut flags = match promotion {
+                    ['q'] => QUEEN_PROM,
+                    ['r'] => ROOK_PROM,
+                    ['b'] => BISHOP_PROM,
+                    ['n'] => KNIGHT_PROM,
+                    _ => 0
+                };
 
                 flags |= match mv {
-                    "e1g1" => if self.w_k_castle { CASTLE_KING } else { 0 },
-                    "e8g8" => if self.b_k_castle { CASTLE_KING } else { 0 },
-                    "e1c1" => if self.w_q_castle { CASTLE_QUEEN } else { 0 },
-                    "e8c8" => if self.b_q_castle { CASTLE_QUEEN } else { 0 },
+                    "e1g1" if self.w_k_castle => CASTLE_KING,
+                    "e8g8" if self.b_k_castle => CASTLE_KING,
+                    "e1c1" if self.w_q_castle => CASTLE_QUEEN,
+                    "e8c8" if self.b_q_castle => CASTLE_QUEEN,
                     _ => 0
                 };
 
-                flags |= match self.sqs[src as usize] & PIECE {
-                    PAWN => {
-                        let is_double = if src > dest { src-dest } else { dest-src } == 16;
-                        let is_en_passant = dest == self.en_passant.trailing_zeros();
+                flags |= if self.sqs[src as usize] & PIECE == PAWN {
+                    let is_double = if src > dest { src-dest } else { dest-src } == 16;
+                    let is_en_passant = dest == self.en_passant.trailing_zeros();
 
-                        (if is_en_passant { EN_PASSANT } else { 0 }) |
-                        (if is_double { DOUBLE_PAWN_PUSH } else { 0 })
-                    },
-                    _ => 0
-                };
+                    (if is_en_passant { EN_PASSANT } else { 0 }) |
+                    (if is_double { DOUBLE_PAWN_PUSH } else { 0 })
+                } else { 0 };
 
                 self.make_move(Move::new(src, dest, flags));
             },
@@ -253,123 +234,7 @@ impl Board {
         if self.move_num % 2 == 1 { &self.b } else { &self.w }
     }
 
-    pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
-        // TODO: remove king material? With legal move checking, and mate and stalemate now added
-        let occ = us.pieces | opp.pieces;
-
-        let mut eval = 0;
-
-        for_all_pieces(us.queen, &mut |from| {
-            let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
-                               ROOK_MAP[from as usize].att(occ) };
-            eval += (att & !occ).count_ones() * 5 +
-                    (att & opp.pieces).count_ones() * 15 +
-                    (att & us.pieces).count_ones() * 8;
-        });
-
-        for_all_pieces(us.rook, &mut |from| {
-            let att = unsafe { ROOK_MAP[from as usize].att(occ) };
-            eval += (att & !occ).count_ones() * 15 +
-                    (att & opp.pieces).count_ones() * 20 +
-                    (att & us.pieces).count_ones() * 10;
-        });
-
-        for_all_pieces(us.bishop, &mut |from| {
-            let att = unsafe { BISHOP_MAP[from as usize].att(occ) };
-            eval += (att & !occ).count_ones() * 25 +
-                    (att & opp.pieces).count_ones() * 30 +
-                    (att & us.pieces).count_ones() * 10;
-        });
-
-        for_all_pieces(us.knight, &mut |from| {
-            let att = unsafe { KNIGHT_MAP[from as usize] };
-            eval += (att & !occ).count_ones() * 30 +
-                    (att & opp.pieces).count_ones() * 35 +
-                    (att & us.pieces).count_ones() * 12;
-        });
-
-        for_all_pieces(us.king, &mut |from| {
-            let att = unsafe { KING_MAP[from as usize] };
-            eval += (att & !occ).count_ones() * 10 +
-                    (att & opp.pieces).count_ones() * 15 +
-                    (att & us.pieces).count_ones() * 10;
-        });
-
-        let material =  (us.pawn.count_ones()   * 1000)  +
-                        (us.knight.count_ones() * 3000)  +
-                        (us.bishop.count_ones() * 3000)  +
-                        (us.rook.count_ones()   * 5000)  +
-                        (us.queen.count_ones()  * 9000)  +
-                        (us.king.count_ones()   * 300000);
-
-        (material + eval) as i32
-    }
-
-    pub fn evaluate(&self) -> i32 {
-        // TODO: Don't trade if material down or in worse position
-        // TODO: doubled pawns
-        // TODO: Center squares and pawns
-        let opp = self.prev_move();
-        let us = self.to_move(); // Node player
-
-        let mut eval = 1000*1000;
-
-        let is_white = self.is_white();
-        let occ = us.pieces | opp.pieces;
-
-        if is_white {
-            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_1).count_ones() * 50;
-            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_8).count_ones() * 50;
-
-            let pushes = (us.pawn << 8) & !occ;
-            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
-            let left_attacks = (us.pawn << 7) & (opp.pieces | self.en_passant) & !FILE_H;
-            let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
-
-            eval += pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval += left_attacks.count_ones() * 40 +
-                    right_attacks.count_ones() * 40;
-
-            let pushes = (opp.pawn >> 8) & !occ;
-            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
-            let left_attacks = (opp.pawn >> 7) & (us.pieces | self.en_passant) & !FILE_A;
-            let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
-
-            eval -= pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval -= left_attacks.count_ones() * 40 +
-                    right_attacks.count_ones() * 40;
-        } else {
-            eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() * 50;
-            eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() * 50;
-
-            let pushes = (us.pawn >> 8) & !occ;
-            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
-            let left_attacks = (us.pawn >> 7) & (opp.pieces | self.en_passant) & !FILE_A;
-            let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
-
-            eval += pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval += left_attacks.count_ones() * 40 +
-                    right_attacks.count_ones() * 40;
-
-            let pushes = (opp.pawn << 8) & !occ;
-            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
-            let left_attacks = (opp.pawn << 7) & (us.pieces | self.en_passant) & !FILE_H;
-            let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
-
-            eval -= pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval -= left_attacks.count_ones() * 40 +
-                    right_attacks.count_ones() * 40;
-        }
-
-        let real_eval = (eval as i32) - 1000*1000;
-        real_eval + Board::get_evals(us, opp) - Board::get_evals(opp, us)
-    }
-
-    pub fn quiescence_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
+    pub fn q_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
         // TODO: remove depth so all takes are searched
         // TODO: Check for king attacks and break for that branch to avoid illegal moves
         // TODO: When no legal moves possible, return draw to avoid stalemate
@@ -383,7 +248,7 @@ impl Board {
         for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
             let mut new_board = self.clone();
             new_board.make_move(mv);
-            let score = -new_board.quiescence_search(depth - 1, -beta, -alpha);
+            let score = -new_board.q_search(depth - 1, -beta, -alpha);
 
             if score >= beta { return beta }
             if score > alpha { alpha = score; }
@@ -391,21 +256,8 @@ impl Board {
         alpha
     }
 
-    pub fn is_in_check(&self) -> bool {
-        // TODO: this isn't super efficient since board is immutable, but only occurs if no legal moves
-        let king_pos = self.to_move().king.trailing_zeros();
-
-        let mut clone = self.clone();
-        clone.move_num += 1;
-
-        for mv in clone.get_moves() { // get opponent moves
-            if mv.to() == king_pos { return true }
-        }
-        false
-    }
-
     pub fn negamax_a_b(&self, depth: u32, mut alpha: i32, beta: i32, line: &mut Vec<Move>) -> (i32, bool) {
-        if depth == 0 { return (self.quiescence_search(4, alpha, beta), true) }
+        if depth == 0 { return (self.q_search(4, alpha, beta), true) }
         let mut has_legal_move = false;
         let enemy_king = self.prev_move().king.trailing_zeros();
         let mut localpv = Vec::new();
@@ -415,8 +267,8 @@ impl Board {
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
-            let score = -score;
+            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
+            score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
 
@@ -428,6 +280,7 @@ impl Board {
                 line.append(&mut localpv);
             }
         }
+
         if !has_legal_move {
             if self.is_in_check() {
                 return (-1000000 - depth as i32, true)
@@ -437,6 +290,19 @@ impl Board {
         }
 
         (alpha, true)
+    }
+
+    pub fn is_in_check(&self) -> bool {
+        let king_pos = self.to_move().king.trailing_zeros();
+
+        // TODO: Board needs to be mutable to avoid clone here
+        let mut clone = self.clone();
+        clone.move_num += 1;
+
+        for mv in clone.get_moves() { // get opponent moves
+            if mv.to() == king_pos { return true }
+        }
+        false
     }
 
     pub fn new_fen(fen: &mut Vec<&str>) -> Board {
@@ -475,11 +341,14 @@ impl Board {
             [sc, sr] => 1 << to_pos(sc, sr),
             _ => 0
         };
+
         fen.remove(0); // Halfmove Clock
         fen.remove(0); // Fullmove Number
 
-        Board { w: w, b: b, sqs: sqs, move_num: move_num, w_k_castle: w_k_castle, w_q_castle: w_q_castle,
-                b_k_castle: b_k_castle, b_q_castle: b_q_castle, en_passant: en_passant }
+        Board { w: w, b: b, sqs: sqs, move_num: move_num, hash: 0,
+                w_k_castle: w_k_castle, w_q_castle: w_q_castle,
+                b_k_castle: b_k_castle, b_q_castle: b_q_castle,
+                en_passant: en_passant }
     }
 
     pub fn new_default() -> Board {

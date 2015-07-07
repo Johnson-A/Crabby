@@ -45,6 +45,14 @@ pub fn bishop_attacks(piece: u64, from: u32, occ: u64) -> u64 {
     get_attacks(piece, occ, a_diag(from))
 }
 
+pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32)) {
+    while pieces != 0 {
+        let from = bit_pop_pos(&mut pieces);
+
+        do_work(from);
+    }
+}
+
 #[inline] pub fn bit_pop(x: &mut u64) -> u64 {
     let lsb = *x & -(*x);
     // TODO: v & (!v + 1)

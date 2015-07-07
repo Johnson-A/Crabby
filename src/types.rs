@@ -20,6 +20,7 @@ pub struct Board {
     pub b: BitBoard,
     pub sqs: Squares,
     pub move_num: u32,
+    pub hash: u64,
     pub w_k_castle: bool,
     pub w_q_castle: bool,
     pub b_k_castle: bool,
@@ -40,16 +41,30 @@ impl fmt::Display for Board {
             characters.push('\n');
         }
 
-        let output = characters.iter().cloned().collect::<String>();
+        let output: String = characters.into_iter().collect();
         write!(f, "--------\n{}--------\n\
                   Move # {}\n\
-                  wkcas {} wqcas {} bkcas {} bqcas {}\n\
-                  en passant {}",
-                  output, self.move_num,
-                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle,
-                  self.en_passant)
+                  en passant {}\n\
+                  wkcas {} wqcas {} bkcas {} bqcas {}\n",
+                  output, self.move_num, self.en_passant,
+                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle)
     }
 }
+
+// TODO: Index Bitboard with piece type
+pub const PAWN: u8   = 0;
+pub const KNIGHT: u8 = 1;
+pub const BISHOP: u8 = 2;
+pub const ROOK: u8   = 3;
+pub const QUEEN: u8  = 4;
+pub const KING: u8   = 5;
+pub const ALL: u8    = 6;
+pub const EMPTY: u8  = 255;
+
+pub const PIECE: u8 = 0x7;
+pub const COLOR: u8 = 0x8;
+pub const WHITE: u8 = COLOR;
+pub const BLACK: u8 = 0;
 
 pub fn to_piece(c: char) -> u8 {
     let pt = match c.to_ascii_lowercase() {
@@ -89,21 +104,6 @@ pub fn from_pos(pos: u32) -> (char, char) {
     let (row, col) = (pos / 8, pos % 8);
     ((col as u8 + b'a') as char, (row as u8 + b'1') as char)
 }
-
-// TODO: Use of (| and &) or xor ^ to glue piece and color
-pub const PAWN: u8   = 0;
-pub const KNIGHT: u8 = 1;
-pub const BISHOP: u8 = 2;
-pub const ROOK: u8   = 3;
-pub const QUEEN: u8  = 4;
-pub const KING: u8   = 5;
-pub const ALL: u8    = 6;
-pub const EMPTY: u8  = 255;
-
-pub const PIECE: u8 = 0x7;
-pub const COLOR: u8 = 0x8;
-pub const WHITE: u8 = COLOR;
-pub const BLACK: u8 = 0;
 
 pub const KNIGHT_PROM: u32 = 1;
 pub const BISHOP_PROM: u32 = 2;
