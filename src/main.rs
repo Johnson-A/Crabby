@@ -1,7 +1,7 @@
 #![feature(slice_patterns, convert, negate_unsigned, append, test)]
+extern crate test;
 extern crate time;
 extern crate rand;
-extern crate test;
 
 use std::io;
 use std::io::prelude::*;
@@ -12,48 +12,12 @@ mod board;
 use util::*;
 mod util;
 mod evaluation;
+mod search;
 
-#[bench]
-fn bench(b: &mut test::Bencher) {
-    use rand::Rng;
-    if unsafe { MAP[0] } == 0 { init(); }
-
-    let mut rng = rand::thread_rng();
-    let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
-    let mut res = 0;
-    b.iter(|| test::black_box({
-        unsafe {
-        res |= BISHOP_MAP[0].att(c);
-        res |= BISHOP_MAP[0].att(c);
-        res |= BISHOP_MAP[10].att(c);
-        res |= BISHOP_MAP[20].att(c);
-        res |= BISHOP_MAP[10].att(c);
-        res |= BISHOP_MAP[20].att(c);
-        res |= BISHOP_MAP[30].att(c);
-        res |= BISHOP_MAP[1].att(c);
-        res |= BISHOP_MAP[40].att(c);
-        res |= BISHOP_MAP[20].att(c);
-
-        res |= ROOK_MAP[0].att(c);
-        res |= ROOK_MAP[0].att(c);
-        res |= ROOK_MAP[10].att(c);
-        res |= ROOK_MAP[20].att(c);
-        res |= ROOK_MAP[10].att(c);
-        res |= ROOK_MAP[20].att(c);
-        res |= ROOK_MAP[30].att(c);
-        res |= ROOK_MAP[1].att(c);
-        res |= ROOK_MAP[40].att(c);
-        res |= ROOK_MAP[20].att(c);
-        }
-        }));
-        println!("{}", res)
-}
-
-
-static ENGINE_NAME: &'static str = "Prototype Chess Engine";
+const ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
 fn main() {
-    init();
+    unsafe { init() }
     // let mut fen = "r5k1/1bpnqrpp/pp2p3/3p4/N1PPnb2/1P1B1N2/PBR1QPPP/3R2K1 w - - 0 1".split(' ').collect();
     // let pos = Board::new_fen(&mut fen);
     // let pos = Board::new_default();
@@ -101,7 +65,7 @@ fn go(board: &Board, depth: &mut u32) {
 fn position(params: &mut Vec<&str>) -> Board {
     let mut pos = match params.remove(0) { // ["startpos", "fen"]
         "startpos" => Board::new_default(),
-        _fen 	   => Board::new_fen(params) // remove the fen string while creating board
+        _fen 	   => Board::from_fen(params) // remove the fen string while creating board
     };
 
     if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves
@@ -118,27 +82,38 @@ fn uci() {
     println!("uciok");
 }
 
-fn tests() {
-    for c in "pnbrqk PNBRQK123=".chars() {
-        println!("{:?}", to_piece(c));
-    }
-    println!("");
+#[bench]
+fn bench(b: &mut test::Bencher) {
+    use rand::Rng;
+    unsafe { if { MAP[0] } == 0 { init(); } }
 
-    let mut board = Board::new_default();
-    println!("Start eval {}", board.evaluate());
-    println!("{}", board);
-    let moves = board.get_moves();
-    println!("moves = {:?}", moves.iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
+    let mut rng = rand::thread_rng();
+    let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
+    let mut res = 0;
+    b.iter(|| test::black_box({
+        unsafe {
+        res |= BISHOP_MAP[0].att(c);
+        res |= BISHOP_MAP[0].att(c);
+        res |= BISHOP_MAP[10].att(c);
+        res |= BISHOP_MAP[20].att(c);
+        res |= BISHOP_MAP[10].att(c);
+        res |= BISHOP_MAP[20].att(c);
+        res |= BISHOP_MAP[30].att(c);
+        res |= BISHOP_MAP[1].att(c);
+        res |= BISHOP_MAP[40].att(c);
+        res |= BISHOP_MAP[20].att(c);
 
-    board.make_str_move("e2e4");
-    println!("e2e4 eval {}", board.evaluate());
-    board.make_str_move("d7d5");
-    println!("e7e5 eval {}", board.evaluate());
-    board.make_str_move("e4e5");
-    board.make_str_move("f7f5");
-    println!("moves = {:?}", board.get_moves().iter().map(|mv| mv.to_str()).collect::<Vec<String>>());
-    board.make_str_move("e5f6");
-    board.get_moves();
-
-    println!("{}", board);
+        res |= ROOK_MAP[0].att(c);
+        res |= ROOK_MAP[0].att(c);
+        res |= ROOK_MAP[10].att(c);
+        res |= ROOK_MAP[20].att(c);
+        res |= ROOK_MAP[10].att(c);
+        res |= ROOK_MAP[20].att(c);
+        res |= ROOK_MAP[30].att(c);
+        res |= ROOK_MAP[1].att(c);
+        res |= ROOK_MAP[40].att(c);
+        res |= ROOK_MAP[20].att(c);
+        }
+        }));
+        println!("{}", res)
 }

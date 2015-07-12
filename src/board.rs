@@ -54,36 +54,36 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        let col = self.color_to_move();
+        let color = self.color_to_move();
 
         self.sqs[dest] = match mv.promotion() {
-                QUEEN_PROM  => QUEEN  | col,
-                ROOK_PROM   => ROOK   | col,
-                BISHOP_PROM => BISHOP | col,
-                KNIGHT_PROM => KNIGHT | col,
+                QUEEN_PROM  => QUEEN  | color,
+                ROOK_PROM   => ROOK   | color,
+                BISHOP_PROM => BISHOP | color,
+                KNIGHT_PROM => KNIGHT | color,
                 _ => self.sqs[src] // If there is no promotion
         };
         self.sqs[src] = EMPTY;
 
         if mv.king_castle() {
-            let color_offset = if col == WHITE { 0 } else { 56 };
+            let color_offset = if color == WHITE { 0 } else { 56 };
             self.sqs[7 + color_offset] = EMPTY;
-            self.sqs[5 + color_offset] = ROOK | col;
+            self.sqs[5 + color_offset] = ROOK | color;
         }
 
         if mv.queen_castle() {
-            let color_offset = if col == WHITE { 0 } else { 56 };
+            let color_offset = if color == WHITE { 0 } else { 56 };
             self.sqs[color_offset] = EMPTY;
-            self.sqs[3 + color_offset] = ROOK | col;
+            self.sqs[3 + color_offset] = ROOK | color;
         }
 
         if mv.is_en_passant() {
             // If white takes - remove from row below, if black takes - remove from row above
-            let ep_pawn = if col == WHITE { dest - 8 } else { dest + 8 };
+            let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
             self.sqs[ep_pawn] = EMPTY;
         }
 
-        self.en_passant = 0; // TODO: refactor
+        self.en_passant = 0;
         if mv.is_double_push() {
             self.en_passant = 1 << ((src + dest) / 2);
         }
@@ -117,13 +117,13 @@ impl Board {
                     _ => 0
                 };
 
-                flags |= if self.sqs[src as usize] & PIECE == PAWN {
+                if self.sqs[src as usize] & PIECE == PAWN {
                     let is_double = if src > dest { src-dest } else { dest-src } == 16;
                     let is_en_passant = dest == self.en_passant.trailing_zeros();
 
-                    (if is_en_passant { EN_PASSANT } else { 0 }) |
-                    (if is_double { DOUBLE_PAWN_PUSH } else { 0 })
-                } else { 0 };
+                    if is_double { flags |= DOUBLE_PAWN_PUSH };
+                    if is_en_passant { flags |= EN_PASSANT };
+                }
 
                 self.make_move(Move::new(src, dest, flags));
             },
@@ -211,6 +211,8 @@ impl Board {
             add_prom_moves(&mut moves, prom_r_att, -9, IS_CAPTURE);
         }
 
+        // Move captures to the front to improve move ordering in alpha-beta search
+        // Iterative deepening will eventually replace / improve this
         moves.sort_by(|a,b| {
             if a.is_capture() { Less } else { Greater }
         });
@@ -227,85 +229,14 @@ impl Board {
     }
 
     pub fn to_move(&self) -> &BitBoard {
-        if self.move_num % 2 == 1 { &self.w } else { &self.b }
+        if self.is_white() { &self.w } else { &self.b }
     }
 
     pub fn prev_move(&self) -> &BitBoard {
-        if self.move_num % 2 == 1 { &self.b } else { &self.w }
+        if self.is_white() { &self.b } else { &self.w }
     }
 
-    pub fn q_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
-        // TODO: remove depth so all takes are searched
-        // TODO: Check for king attacks and break for that branch to avoid illegal moves
-        // TODO: When no legal moves possible, return draw to avoid stalemate
-        // TODO: Three move repition
-        // TODO: Add illegal move detection in queiscence which might cause subtle bugs
-        let stand_pat = self.evaluate();
-        if depth == 0 { return stand_pat }
-        if stand_pat >= beta { return beta }
-        if stand_pat > alpha { alpha = stand_pat }
-
-        for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let score = -new_board.q_search(depth - 1, -beta, -alpha);
-
-            if score >= beta { return beta }
-            if score > alpha { alpha = score; }
-        }
-        alpha
-    }
-
-    pub fn negamax_a_b(&self, depth: u32, mut alpha: i32, beta: i32, line: &mut Vec<Move>) -> (i32, bool) {
-        if depth == 0 { return (self.q_search(4, alpha, beta), true) }
-        let mut has_legal_move = false;
-        let enemy_king = self.prev_move().king.trailing_zeros();
-        let mut localpv = Vec::new();
-
-        for mv in self.get_moves() {
-            if mv.to() == enemy_king { return (0, false) }
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-
-            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
-            score *= -1;
-
-            if is_legal { has_legal_move = true; } else { continue }
-
-            if score >= beta { return (score, true) }
-            if score > alpha {
-                alpha = score;
-                line.clear();
-                line.push(mv);
-                line.append(&mut localpv);
-            }
-        }
-
-        if !has_legal_move {
-            if self.is_in_check() {
-                return (-1000000 - depth as i32, true)
-            } else {
-                return (0, true)
-            }
-        }
-
-        (alpha, true)
-    }
-
-    pub fn is_in_check(&self) -> bool {
-        let king_pos = self.to_move().king.trailing_zeros();
-
-        // TODO: Board needs to be mutable to avoid clone here
-        let mut clone = self.clone();
-        clone.move_num += 1;
-
-        for mv in clone.get_moves() { // get opponent moves
-            if mv.to() == king_pos { return true }
-        }
-        false
-    }
-
-    pub fn new_fen(fen: &mut Vec<&str>) -> Board {
+    pub fn from_fen(fen: &mut Vec<&str>) -> Board {
         let fen_board = fen.remove(0);
         let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
 
@@ -353,6 +284,6 @@ impl Board {
 
     pub fn new_default() -> Board {
         let mut def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".split(' ').collect();
-        Board::new_fen(&mut def_fen)
+        Board::from_fen(&mut def_fen)
     }
 }

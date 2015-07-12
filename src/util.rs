@@ -125,16 +125,30 @@ pub unsafe fn king_map_init() {
     }
 }
 
-pub fn init() {
-    unsafe {
-        let mut table = Vec::new();
-        king_map_init();
-        knight_map_init();
-        BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
-        ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
-        for (i, elem) in table.iter().enumerate() {
-            MAP[i] = *elem;
-        }
+#[derive(Copy, Clone)]
+pub struct SMagic {
+    pub offset: usize,
+    pub mask: u64,
+    pub magic: u64,
+    pub shift: u32
+}
+
+impl SMagic {
+    pub unsafe fn att(&self, occ: u64) -> u64 {
+        let ind = (self.magic * (occ & self.mask)) >> self.shift;
+        MAP[self.offset + ind as usize]
+    }
+}
+
+
+pub unsafe fn init() {
+    let mut table = Vec::new();
+    king_map_init();
+    knight_map_init();
+    BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
+    ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
+    for (i, elem) in table.iter().enumerate() {
+        MAP[i] = *elem;
     }
 }
 
@@ -201,19 +215,4 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -
         }
     }
     map
-}
-
-#[derive(Copy, Clone)]
-pub struct SMagic {
-    pub offset: usize,
-    pub mask: u64,
-    pub magic: u64,
-    pub shift: u32
-}
-
-impl SMagic {
-    pub unsafe fn att(&self, occ: u64) -> u64 {
-        let ind = (self.magic * (occ & self.mask)) >> self.shift;
-        MAP[self.offset + ind as usize]
-    }
 }
