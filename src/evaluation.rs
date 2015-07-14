@@ -76,9 +76,9 @@ impl Board {
 			let right_attacks = (us.pawn << 9) & (opp.pieces | self.en_passant) & !FILE_A;
 
 			eval += pushes.count_ones() * 10 +
-			double_pushes.count_ones() * 10;
+					double_pushes.count_ones() * 10;
 			eval += left_attacks.count_ones() * 40 +
-			right_attacks.count_ones() * 40;
+					right_attacks.count_ones() * 40;
 
 			let pushes = (opp.pawn >> 8) & !occ;
 			let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -86,9 +86,9 @@ impl Board {
 			let right_attacks = (opp.pawn >> 9) & (us.pieces | self.en_passant) & !FILE_H;
 
 			eval -= pushes.count_ones() * 10 +
-			double_pushes.count_ones() * 10;
+					double_pushes.count_ones() * 10;
 			eval -= left_attacks.count_ones() * 40 +
-			right_attacks.count_ones() * 40;
+					right_attacks.count_ones() * 40;
 		} else {
 			eval -= ((us.pieces ^ (us.king | us.queen)) & ROW_8).count_ones() * 50;
 			eval += ((opp.pieces ^ (opp.king | opp.queen)) & ROW_1).count_ones() * 50;
@@ -99,9 +99,9 @@ impl Board {
 			let right_attacks = (us.pawn >> 9) & (opp.pieces | self.en_passant) & !FILE_H;
 
 			eval += pushes.count_ones() * 10 +
-			double_pushes.count_ones() * 10;
+					double_pushes.count_ones() * 10;
 			eval += left_attacks.count_ones() * 40 +
-			right_attacks.count_ones() * 40;
+					right_attacks.count_ones() * 40;
 
 			let pushes = (opp.pawn << 8) & !occ;
 			let double_pushes = ((pushes & ROW_3) << 8) & !occ;
@@ -109,9 +109,9 @@ impl Board {
 			let right_attacks = (opp.pawn << 9) & (us.pieces | self.en_passant) & !FILE_A;
 
 			eval -= pushes.count_ones() * 10 +
-			double_pushes.count_ones() * 10;
+					double_pushes.count_ones() * 10;
 			eval -= left_attacks.count_ones() * 40 +
-			right_attacks.count_ones() * 40;
+								right_attacks.count_ones() * 40;
 		}
 
 		let real_eval = (eval as i32) - 1000*1000;

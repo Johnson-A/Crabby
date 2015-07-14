@@ -57,6 +57,7 @@ fn go(board: &Board, depth: &mut u32) {
         depth, score / 10, (calc_time * 1000.0) as u32,
         pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().connect(" "));
     println!("bestmove {}", pv[0].to_str());
+    // board.iter_deep(1, board.get_moves());
 
     if calc_time < 0.5 { *depth += 1; }
     if (calc_time > 20.0) & (*depth > 6) { *depth -= 1; }

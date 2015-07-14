@@ -213,9 +213,9 @@ impl Board {
 
         // Move captures to the front to improve move ordering in alpha-beta search
         // Iterative deepening will eventually replace / improve this
-        moves.sort_by(|a,b| {
+        moves.sort_by(|a,b|
             if a.is_capture() { Less } else { Greater }
-        });
+        );
 
         moves
     }
