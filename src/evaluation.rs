@@ -11,7 +11,7 @@ impl Board {
 
 		for_all_pieces(us.queen, &mut |from| {
 			let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
-							   	ROOK_MAP[from as usize].att(occ) };
+							   ROOK_MAP[from as usize].att(occ) };
 			eval += (att & !occ).count_ones() * 5 +
 					(att & opp.pieces).count_ones() * 15 +
 					(att & us.pieces).count_ones() * 8;
@@ -112,7 +112,7 @@ impl Board {
 			eval -= pushes.count_ones() * 10 +
 					double_pushes.count_ones() * 10;
 			eval -= left_attacks.count_ones() * 40 +
-								right_attacks.count_ones() * 40;
+					right_attacks.count_ones() * 40;
 		}
 
 		let real_eval = (eval as i32) - 1000*1000;
