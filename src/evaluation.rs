@@ -1,5 +1,6 @@
 use types::*;
 use util::*;
+use magics::*;
 
 impl Board {
 	pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {

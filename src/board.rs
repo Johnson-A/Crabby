@@ -1,6 +1,7 @@
 use std::cmp::Ordering::{Less, Greater};
 use types::*;
 use util::*;
+use magics::*;
 
 pub fn gen_bitboards(sqs: &Squares) -> (BitBoard, BitBoard) {
     let mut w: BitBoard = Default::default();

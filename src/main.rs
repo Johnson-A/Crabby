@@ -9,15 +9,19 @@ use std::io::prelude::*;
 use types::*;
 mod types;
 mod board;
-use util::*;
 mod util;
 mod evaluation;
 mod search;
+mod table;
+mod magics;
 
 const ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
 fn main() {
-    unsafe { init() }
+    unsafe {
+        magics::init();
+        table::init();
+    }
     // let mut fen = "r5k1/1bpnqrpp/pp2p3/3p4/N1PPnb2/1P1B1N2/PBR1QPPP/3R2K1 w - - 0 1".split(' ').collect();
     // let pos = Board::new_fen(&mut fen);
     // let pos = Board::new_default();
