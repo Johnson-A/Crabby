@@ -1,4 +1,3 @@
-use std::cmp::Ordering::{Less, Greater};
 use types::*;
 use table::*;
 
@@ -26,39 +25,50 @@ impl Board {
     }
 
     // TODO: Fail soft
-    pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32, line: &mut Vec<Move>, table: &mut Table) -> (i32, bool) {
+    pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32, table: &mut Table) -> (i32, bool) {
         let (score, mut best_move) = table.probe(self.hash, depth, alpha, beta);
+
+        match score {
+            Some(s) => return (s, true),
+            None => ()
+        }
 
         if depth == 0 {
             let score = self.q_search(4, alpha, beta);
             table.record(self, score, Move::NULL, depth, NodeBound::Exact);
             return (score, true)
         }
+
         let mut has_legal_move = false;
         let enemy_king = self.prev_move().king.trailing_zeros();
-        let mut localpv = Vec::new();
 
-        for mv in self.get_moves() {
+        let mut moves = self.get_moves();
+        if best_move != Move::NULL {
+            let ind = moves.iter().position(|x| *x == best_move);
+            match ind {
+                Some(val) => moves.swap(0, val),
+                None => (),
+            }
+        }
+        if !moves.contains(&best_move) && best_move != Move::NULL { println!("UHOH") }
+
+        for mv in moves {
             if mv.to() == enemy_king { return (0, false) }
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv, table);
+            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, table);
             score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
 
             if score >= beta {
-                best_move = mv;
                 table.record(self, beta, mv, depth, NodeBound::Beta);
                 return (beta, true)
             }
             if score > alpha {
                 best_move = mv;
                 alpha = score;
-                line.clear();
-                line.push(mv);
-                line.append(&mut localpv);
             }
         }
 

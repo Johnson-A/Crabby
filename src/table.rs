@@ -79,20 +79,20 @@ impl Entry {
 }
 
 pub struct Table {
-    table: Vec<Entry>
+    pub entries: Vec<Entry>
 }
 
 impl Table {
     pub fn empty(size: usize) -> Self {
-        Table { table: vec![Entry::NULL; size] }
+        Table { entries: vec![Entry::NULL; size] }
     }
 
     pub fn index(&self, hash: Hash) -> usize {
-        hash.val as usize % self.table.len()
+        hash.val as usize % self.entries.len()
     }
 
     pub fn probe(&self, hash: Hash, depth: u8, alpha: i32, beta: i32) -> (Option<i32>, Move) {
-        let entry = &self.table[self.index(hash)];
+        let entry = &self.entries[self.index(hash)];
 
         if !entry.is_empty() && entry.hash == hash {
             if entry.depth >= depth {
@@ -109,7 +109,7 @@ impl Table {
     }
 
     pub fn best_move(&self, hash: Hash) -> Option<Move> {
-        let entry = &self.table[self.index(hash)];
+        let entry = &self.entries[self.index(hash)];
 
         if !entry.is_empty() && entry.hash == hash {
             return if entry.best_move == Move::NULL { None } else { Some(entry.best_move) }
@@ -123,11 +123,34 @@ impl Table {
 
     pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: NodeBound) {
         let ind = self.index(board.hash);
-        let entry= &mut self.table[ind];
+        let entry = &mut self.entries[ind];
 
-        if entry.is_empty() || entry.depth > depth || entry.ancient { // TODO: use ancient here
+        if entry.is_empty() || entry.depth < depth || entry.ancient {
             *entry = Entry { hash: board.hash, score: score, best_move: best_move,
                              depth: depth, bound: bound, ancient: false };
+        }
+    }
+
+    pub fn pv(&self, board: &mut Board, pv: &mut Vec<Move>) {
+        let mv = self.best_move(board.hash);
+
+        match mv {
+            Some(m) => {
+                pv.push(m);
+                board.make_move(m);
+                self.pv(board, pv)
+            },
+            None => ()
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.entries.iter().fold(0, |acc, e| if !e.is_empty() { acc + 1 } else { acc })
+    }
+
+    pub fn set_ancient(&mut self) {
+        for entry in &mut self.entries {
+            if !entry.is_empty() { entry.ancient = true }
         }
     }
 }

@@ -30,7 +30,8 @@ fn main() {
     // tests();
     let stdin = io::stdin();
     let mut pos = Board::new_default();
-    let mut depth = 6;
+    let mut table = Table::empty(10000000);
+    let mut depth = 8;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
@@ -41,33 +42,49 @@ fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 6, // new game
+            "ucinewgame" => depth = 8, // new game
             "position"   => pos = position(&mut words),
-            "go"         => go(&pos, &mut depth),
+            "go"         => go(&pos, &mut depth, &mut table),
             "print"      => (),
             _            => (), // Ignore any other command
         }
     }
 }
 
-fn go(board: &Board, depth: &mut u8) {
+fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
 
     let start = time::precise_time_s();
-    let mut table = Table::empty(1000000);
-    let mut pv = Vec::new();
-    let (score, _) = board.negamax_a_b(*depth, -std::i32::MAX, std::i32::MAX, &mut pv, &mut table);
-    let calc_time = time::precise_time_s() - start;
+    let mut pos = 1;
+    let mut calc_time = start;
 
-    let test_best = table.best_move(board.hash);
-    println!("matches ? {}", test_best.unwrap().to_str());
+    while pos <= *depth {
+        let (score, _) = board.negamax_a_b(pos, -std::i32::MAX, std::i32::MAX, table);
+        calc_time = time::precise_time_s() - start;
 
-    println!("info depth {} score cp {} time {} pv {}",
-        depth, score / 10, (calc_time * 1000.0) as u32,
-        pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().join(" "));
-    println!("bestmove {}", pv[0].to_str());
+        let mut pv = Vec::new();
+        table.pv(&mut board.clone(), &mut pv);
 
-    if calc_time < 0.5 { *depth += 1; }
+        println!("info depth {} score cp {} time {} pv {}",
+            pos, score / 10, (calc_time * 1000.0) as u32,
+            pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().join(" "));
+        pos += 1;
+    }
+
+    // let mut max = 0;
+    // for entry in &table.entries {
+    //     if entry.depth > max {
+    //         max = entry.depth;
+    //         println!("found entry {}", max);
+    //     }
+    // }
+    // println!("occ {} of {}", table.count(), table.entries.len());
+    table.set_ancient();
+
+    let best = table.best_move(board.hash);
+    println!("bestmove {}", best.unwrap().to_str());
+
+    if calc_time < 3.0 { *depth += 1; }
     if calc_time > 20.0 && *depth > 6 { *depth -= 1; }
 }
 
