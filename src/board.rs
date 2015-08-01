@@ -98,6 +98,7 @@ impl Board {
 
     pub fn make_str_move(&mut self, mv: &str) {
         let moves: Vec<char> = mv.chars().collect();
+
         match moves.as_slice() {
             [sc, sr, dc, dr, promotion..] => {
                 let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
@@ -111,24 +112,24 @@ impl Board {
                 };
 
                 flags |= match mv {
-                    "e1g1" if self.w_k_castle => CASTLE_KING,
-                    "e8g8" if self.b_k_castle => CASTLE_KING,
-                    "e1c1" if self.w_q_castle => CASTLE_QUEEN,
-                    "e8c8" if self.b_q_castle => CASTLE_QUEEN,
+                    "e1g1" if self.castling & Castle::WKing as u8 != 0 => CASTLE_KING,
+                    "e8g8" if self.castling & Castle::BKing as u8 != 0 => CASTLE_KING,
+                    "e1c1" if self.castling & Castle::WQueen as u8 != 0 => CASTLE_QUEEN,
+                    "e8c8" if self.castling & Castle::BQueen as u8 != 0 => CASTLE_QUEEN,
                     _ => 0
                 };
 
                 if self.sqs[src as usize] & PIECE == PAWN {
                     let is_double = if src > dest { src-dest } else { dest-src } == 16;
-                    let is_en_passant = dest == self.en_passant.trailing_zeros();
-
                     if is_double { flags |= DOUBLE_PAWN_PUSH };
+
+                    let is_en_passant = dest == self.en_passant.trailing_zeros();
                     if is_en_passant { flags |= EN_PASSANT };
                 }
 
                 self.make_move(Move::new(src, dest, flags));
             },
-            _ => () // malformed move
+            _ => panic!("Malformed move {}", mv)
         }
     }
 
@@ -262,11 +263,12 @@ impl Board {
             _ =>   2, // Start of the move counter at an odd number
         };
 
-        let castling = fen.remove(0); // Castling [KQkq]
-        let w_k_castle = castling.contains('K');
-        let w_q_castle = castling.contains('Q');
-        let b_k_castle = castling.contains('k');
-        let b_q_castle = castling.contains('q');
+        let castle_str = fen.remove(0); // Castling [KQkq]
+        let mut castling = 0;
+        if castle_str.contains('K') { castling |= Castle::WKing as u8  };
+        if castle_str.contains('Q') { castling |= Castle::WQueen as u8 };
+        if castle_str.contains('k') { castling |= Castle::BKing as u8  };
+        if castle_str.contains('q') { castling |= Castle::BQueen as u8 };
 
         let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
         let en_passant = match ep_sq.as_slice() {
@@ -277,10 +279,11 @@ impl Board {
         fen.remove(0); // Halfmove Clock
         fen.remove(0); // Fullmove Number
 
-        Board { w: w, b: b, sqs: sqs, move_num: move_num, hash: 0,
-                w_k_castle: w_k_castle, w_q_castle: w_q_castle,
-                b_k_castle: b_k_castle, b_q_castle: b_q_castle,
-                en_passant: en_passant }
+        let mut b = Board { w: w, b: b, sqs: sqs, move_num: move_num, hash: Hash { val: 0 },
+                            castling: castling, en_passant: en_passant };
+
+        b.hash = Hash::init(&b);
+        b
     }
 
     pub fn new_default() -> Board {

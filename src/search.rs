@@ -73,24 +73,4 @@ impl Board {
         }
         false
     }
-
-    pub fn iter_deep(&self, depth: u32, moves: Vec<Move>) {
-        let mut pv = Vec::new();
-        let mut scores = Vec::new();
-
-        for mv in moves {
-            let mut new_board = self.clone();
-            new_board.make_move(mv);
-            let (score, _) = new_board.negamax_a_b(depth, -100000, 100000, &mut pv);
-            scores.push((mv, -score));
-        }
-
-        scores.sort_by(|a, b|
-            if a.1 >= b.1 { Less } else { Greater }
-        );
-        println!("{} {}", depth, scores.iter().map(|a| a.0.to_str() + " " + &a.1.to_string()).collect::<Vec<_>>().connect(" "));
-        let sorted_moves = scores.iter().map(|a| a.0 ).collect();
-
-        self.iter_deep(depth + 1, sorted_moves);
-    }
 }

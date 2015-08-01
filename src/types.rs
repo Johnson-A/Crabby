@@ -14,17 +14,17 @@ pub struct BitBoard {
 
 pub type Squares = [u8; 64];
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Hash { pub val: u64 }
+
 #[derive(Copy)]
 pub struct Board {
     pub w: BitBoard,
     pub b: BitBoard,
     pub sqs: Squares,
     pub move_num: u32,
-    pub hash: u64,
-    pub w_k_castle: bool,
-    pub w_q_castle: bool,
-    pub b_k_castle: bool,
-    pub b_q_castle: bool,
+    pub hash: Hash,
+    pub castling: u8,
     pub en_passant: u64
 }
 
@@ -45,10 +45,14 @@ impl fmt::Display for Board {
         write!(f, "--------\n{}--------\n\
                   Move # {}\n\
                   en passant {}\n\
-                  wkcas {} wqcas {} bkcas {} bqcas {}\n",
-                  output, self.move_num, self.en_passant,
-                  self.w_k_castle, self.w_q_castle, self.b_k_castle, self.b_q_castle)
+                  castling {}\n\
+                  hash {}\n",
+                  output, self.move_num, self.en_passant, self.castling, self.hash.val)
     }
+}
+
+pub enum Castle {
+    WKing = 1, WQueen = 2, BKing = 4, BQueen = 8
 }
 
 // TODO: Index Bitboard with piece type
@@ -118,13 +122,12 @@ pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
 pub const EN_PASSANT: u32 = 1 << 7;
 
 // TODO: Consider making move non-copyable, overhead would be lower than passing pointer
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move { data: u32 }
 
 impl Move {
-    pub fn new(from: u32, to: u32, flags: u32) -> Move {
-        let d = from | to << 6 | flags << 12;
-        Move { data: d }
+    pub const fn new(from: u32, to: u32, flags: u32) -> Move {
+        Move { data: from | to << 6 | flags << 12 }
     }
 
     pub fn from(&self)  -> u32 { self.data & 0x3F }
@@ -152,4 +155,6 @@ impl Move {
 
         chars.into_iter().collect::<String>()
     }
+
+    pub const NULL: Move = Move::new(0,0,0);
 }

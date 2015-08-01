@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, negate_unsigned, append, test)]
+#![feature(slice_patterns, convert, negate_unsigned, append, test, associated_consts, const_fn)]
 extern crate test;
 extern crate time;
 extern crate rand;
@@ -59,18 +59,17 @@ fn go(board: &Board, depth: &mut u32) {
 
     println!("info depth {} score cp {} time {} pv {}",
         depth, score / 10, (calc_time * 1000.0) as u32,
-        pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().connect(" "));
+        pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().join(" "));
     println!("bestmove {}", pv[0].to_str());
-    // board.iter_deep(1, board.get_moves());
 
     if calc_time < 0.5 { *depth += 1; }
-    if (calc_time > 20.0) & (*depth > 6) { *depth -= 1; }
+    if calc_time > 20.0 && *depth > 6 { *depth -= 1; }
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
     let mut pos = match params.remove(0) { // ["startpos", "fen"]
         "startpos" => Board::new_default(),
-        _fen 	   => Board::from_fen(params) // remove the fen string while creating board
+        _fen       => Board::from_fen(params) // remove the fen string while creating board
     };
 
     if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves
@@ -89,36 +88,36 @@ fn uci() {
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    use rand::Rng;
-    unsafe { if { MAP[0] } == 0 { init(); } }
-
-    let mut rng = rand::thread_rng();
-    let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
+    // use rand::Rng;
+    // unsafe { if { MAP[0] } == 0 { init(); } }
+    //
+    // let mut rng = rand::thread_rng();
+    // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
     let mut res = 0;
     b.iter(|| test::black_box({
-        unsafe {
-        res |= BISHOP_MAP[0].att(c);
-        res |= BISHOP_MAP[0].att(c);
-        res |= BISHOP_MAP[10].att(c);
-        res |= BISHOP_MAP[20].att(c);
-        res |= BISHOP_MAP[10].att(c);
-        res |= BISHOP_MAP[20].att(c);
-        res |= BISHOP_MAP[30].att(c);
-        res |= BISHOP_MAP[1].att(c);
-        res |= BISHOP_MAP[40].att(c);
-        res |= BISHOP_MAP[20].att(c);
-
-        res |= ROOK_MAP[0].att(c);
-        res |= ROOK_MAP[0].att(c);
-        res |= ROOK_MAP[10].att(c);
-        res |= ROOK_MAP[20].att(c);
-        res |= ROOK_MAP[10].att(c);
-        res |= ROOK_MAP[20].att(c);
-        res |= ROOK_MAP[30].att(c);
-        res |= ROOK_MAP[1].att(c);
-        res |= ROOK_MAP[40].att(c);
-        res |= ROOK_MAP[20].att(c);
-        }
+        // unsafe {
+        // res |= BISHOP_MAP[0].att(c);
+        // res |= BISHOP_MAP[0].att(c);
+        // res |= BISHOP_MAP[10].att(c);
+        // res |= BISHOP_MAP[20].att(c);
+        // res |= BISHOP_MAP[10].att(c);
+        // res |= BISHOP_MAP[20].att(c);
+        // res |= BISHOP_MAP[30].att(c);
+        // res |= BISHOP_MAP[1].att(c);
+        // res |= BISHOP_MAP[40].att(c);
+        // res |= BISHOP_MAP[20].att(c);
+        //
+        // res |= ROOK_MAP[0].att(c);
+        // res |= ROOK_MAP[0].att(c);
+        // res |= ROOK_MAP[10].att(c);
+        // res |= ROOK_MAP[20].att(c);
+        // res |= ROOK_MAP[10].att(c);
+        // res |= ROOK_MAP[20].att(c);
+        // res |= ROOK_MAP[30].att(c);
+        // res |= ROOK_MAP[1].att(c);
+        // res |= ROOK_MAP[40].att(c);
+        // res |= ROOK_MAP[20].att(c);
+        // }
         }));
         println!("{}", res)
 }

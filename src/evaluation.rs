@@ -45,7 +45,7 @@ impl Board {
                     (att & us.pieces).count_ones() * 10;
         });
 
-        let material = 	(us.pawn.count_ones()   * 1000)  +
+        let material =  (us.pawn.count_ones()   * 1000)  +
                         (us.knight.count_ones() * 3000)  +
                         (us.bishop.count_ones() * 3000)  +
                         (us.rook.count_ones()   * 5000)  +
