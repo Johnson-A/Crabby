@@ -1,8 +1,9 @@
 use std::cmp::Ordering::{Less, Greater};
 use types::*;
+use table::*;
 
 impl Board {
-    pub fn q_search(&self, depth: u32, mut alpha: i32, beta: i32) -> i32 {
+    pub fn q_search(&self, depth: u8, mut alpha: i32, beta: i32) -> i32 {
         // TODO: remove depth so all takes are searched
         // TODO: Check for king attacks and break for that branch to avoid illegal moves
         // TODO: When no legal moves possible, return draw to avoid stalemate
@@ -25,8 +26,14 @@ impl Board {
     }
 
     // TODO: Fail soft
-    pub fn negamax_a_b(&self, depth: u32, mut alpha: i32, beta: i32, line: &mut Vec<Move>) -> (i32, bool) {
-        if depth == 0 { return (self.q_search(4, alpha, beta), true) }
+    pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32, line: &mut Vec<Move>, table: &mut Table) -> (i32, bool) {
+        let (score, mut best_move) = table.probe(self.hash, depth, alpha, beta);
+
+        if depth == 0 {
+            let score = self.q_search(4, alpha, beta);
+            table.record(self, score, Move::NULL, depth, NodeBound::Exact);
+            return (score, true)
+        }
         let mut has_legal_move = false;
         let enemy_king = self.prev_move().king.trailing_zeros();
         let mut localpv = Vec::new();
@@ -36,13 +43,18 @@ impl Board {
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv);
+            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, &mut localpv, table);
             score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
 
-            if score >= beta { return (beta, true) }
+            if score >= beta {
+                best_move = mv;
+                table.record(self, beta, mv, depth, NodeBound::Beta);
+                return (beta, true)
+            }
             if score > alpha {
+                best_move = mv;
                 alpha = score;
                 line.clear();
                 line.push(mv);
@@ -58,6 +70,7 @@ impl Board {
             }
         }
 
+        table.record(self, alpha, best_move, depth, NodeBound::Alpha);
         (alpha, true)
     }
 

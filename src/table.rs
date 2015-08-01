@@ -25,9 +25,7 @@ impl Hash {
         let mut hash = Hash { val: 0 };
 
         for (i, sq) in board.sqs.iter().enumerate() {
-            if *sq != EMPTY {
-                hash.set_piece(i, *sq);
-            }
+            hash.set_piece(i, *sq);
         }
 
         hash.set_castling(board.castling);
@@ -37,21 +35,23 @@ impl Hash {
         hash
     }
 
-    fn set_piece(&mut self, pos: usize, sq: u8) {
-        let index = pos + (sq & PIECE) as usize * 64 + ((sq & COLOR) / COLOR) as usize * 384;
-        self.val ^= unsafe { piece_keys[index] };
+    pub fn set_piece(&mut self, pos: usize, sq: u8) {
+        if sq != EMPTY {
+            let index = pos + (sq & PIECE) as usize * 64 + ((sq & COLOR) / COLOR) as usize * 384;
+            self.val ^= unsafe { piece_keys[index] };
+        }
     }
 
-    fn set_castling(&mut self, castling: u8) {
+    pub fn set_castling(&mut self, castling: u8) {
         self.val ^= unsafe { castle_keys[castling as usize] };
     }
 
-    fn set_ep(&mut self, en_passant: u64) {
+    pub fn set_ep(&mut self, en_passant: u64) {
         let file = en_passant.trailing_zeros() % 8;
         self.val ^= unsafe { ep_keys[file as usize] };
     }
 
-    fn flip_color(&mut self) {
+    pub fn flip_color(&mut self) {
         self.val ^= unsafe { color_key };
     }
 }

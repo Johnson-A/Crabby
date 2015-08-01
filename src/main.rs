@@ -12,6 +12,7 @@ mod board;
 mod util;
 mod evaluation;
 mod search;
+use table::Table;
 mod table;
 mod magics;
 
@@ -49,13 +50,17 @@ fn main() {
     }
 }
 
-fn go(board: &Board, depth: &mut u32) {
+fn go(board: &Board, depth: &mut u8) {
     println!("Searching\n{}", board);
 
     let start = time::precise_time_s();
+    let mut table = Table::empty(1000000);
     let mut pv = Vec::new();
-    let (score, _) = board.negamax_a_b(*depth, -std::i32::MAX, std::i32::MAX, &mut pv);
+    let (score, _) = board.negamax_a_b(*depth, -std::i32::MAX, std::i32::MAX, &mut pv, &mut table);
     let calc_time = time::precise_time_s() - start;
+
+    let test_best = table.best_move(board.hash);
+    println!("matches ? {}", test_best.unwrap().to_str());
 
     println!("info depth {} score cp {} time {} pv {}",
         depth, score / 10, (calc_time * 1000.0) as u32,

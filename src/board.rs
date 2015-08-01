@@ -54,8 +54,14 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
 
 impl Board {
     pub fn make_move(&mut self, mv: Move) {
+        self.hash.set_ep(self.en_passant); // Remove enpessant
+        self.hash.flip_color(); // Change color
+
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
         let color = self.color_to_move();
+
+        self.hash.set_piece(src, self.sqs[src]); // Remove moving piece
+        self.hash.set_piece(dest, self.sqs[dest]); // Remove destination piece
 
         self.sqs[dest] = match mv.promotion() {
             QUEEN_PROM  => QUEEN  | color,
@@ -66,27 +72,36 @@ impl Board {
         };
         self.sqs[src] = EMPTY;
 
+        self.hash.set_piece(dest, self.sqs[dest]); // Add src piece at dest square
+
+        // TODO: move method
         if mv.king_castle() {
             let color_offset = if color == WHITE { 0 } else { 56 };
+            self.hash.set_piece(7 + color_offset, self.sqs[7 + color_offset]);
             self.sqs[7 + color_offset] = EMPTY;
             self.sqs[5 + color_offset] = ROOK | color;
+            self.hash.set_piece(5 + color_offset, self.sqs[5 + color_offset]);
         }
 
         if mv.queen_castle() {
             let color_offset = if color == WHITE { 0 } else { 56 };
+            self.hash.set_piece(color_offset, self.sqs[color_offset]);
             self.sqs[color_offset] = EMPTY;
             self.sqs[3 + color_offset] = ROOK | color;
+            self.hash.set_piece(3 + color_offset, self.sqs[3 + color_offset]);
         }
 
         if mv.is_en_passant() {
             // If white takes - remove from row below, if black takes - remove from row above
             let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
             self.sqs[ep_pawn] = EMPTY;
+            self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]);
         }
 
         self.en_passant = 0;
         if mv.is_double_push() {
             self.en_passant = 1 << ((src + dest) / 2);
+            self.hash.set_ep(self.en_passant);
         }
 
         let (w, b) = gen_bitboards(&self.sqs);
