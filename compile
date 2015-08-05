@@ -1,2 +1,3 @@
 cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=haswell
 # use target-cpu=help to find more info
+# -g flag for debug info

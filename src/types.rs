@@ -70,6 +70,18 @@ pub const COLOR: u8 = 0x8;
 pub const WHITE: u8 = COLOR;
 pub const BLACK: u8 = 0;
 
+pub fn piece_value(piece: u8) -> isize {
+    match piece {
+        PAWN   => 1,
+        KNIGHT => 3,
+        BISHOP => 3,
+        ROOK   => 5,
+        QUEEN  => 9,
+        KING   => 300,
+        _      => 0
+    }
+}
+
 pub fn to_piece(c: char) -> u8 {
     let pt = match c.to_ascii_lowercase() {
         'p' => PAWN,

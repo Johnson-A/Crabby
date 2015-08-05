@@ -24,17 +24,17 @@ impl Board {
         alpha
     }
 
-    // TODO: Fail soft
+    // TODO: Fail soft, retain the pv
     pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32, table: &mut Table) -> (i32, bool) {
-        let (score, mut best_move) = table.probe(self.hash, depth, alpha, beta);
+        let (table_score, mut best_move) = table.probe(self.hash, depth, alpha, beta);
 
-        match score {
+        match table_score {
             Some(s) => return (s, true),
             None => ()
         }
 
         if depth == 0 {
-            let score = self.q_search(4, alpha, beta);
+            let score = self.q_search(8, alpha, beta);
             table.record(self, score, Move::NULL, depth, NodeBound::Exact);
             return (score, true)
         }
@@ -46,11 +46,14 @@ impl Board {
         if best_move != Move::NULL {
             let ind = moves.iter().position(|x| *x == best_move);
             match ind {
-                Some(val) => moves.swap(0, val),
-                None => (),
+                Some(val) => {
+                    moves.remove(val);
+                    moves.insert(0, best_move);
+                    // moves.swap(0, val),
+                },
+                None => println!("UHOH")
             }
         }
-        if !moves.contains(&best_move) && best_move != Move::NULL { println!("UHOH") }
 
         for mv in moves {
             if mv.to() == enemy_king { return (0, false) }

@@ -4,7 +4,7 @@ use magics::*;
 
 impl Board {
     pub fn get_evals(us: &BitBoard, opp: &BitBoard) -> i32 {
-        // TODO: remove king material? With legal move checking, and mate and stalemate now added
+        // TODO: remove king material? With legal move checking, and mate and stalemate now added - qsearch still
         let occ = us.pieces | opp.pieces;
 
         let mut eval = 0;

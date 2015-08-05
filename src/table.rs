@@ -95,16 +95,15 @@ impl Table {
         let entry = &self.entries[self.index(hash)];
 
         if !entry.is_empty() && entry.hash == hash {
-            if entry.depth >= depth {
+            if  entry.depth >= depth &&
                 match entry.bound {
-                    NodeBound::Alpha => if alpha >= entry.score { return (Some(entry.score), Move::NULL) },
-                    NodeBound::Beta  => if beta  <= entry.score { return (Some(entry.score), Move::NULL) },
-                    NodeBound::Exact => return (Some(entry.score), Move::NULL)
-                }
-            }
+                    NodeBound::Alpha => alpha >= entry.score,
+                    NodeBound::Beta  => beta  <= entry.score,
+                    NodeBound::Exact => true }
+                { return (Some(entry.score), Move::NULL) }
+
             return (None, entry.best_move)
         }
-
         (None, Move::NULL)
     }
 
@@ -113,10 +112,6 @@ impl Table {
 
         if !entry.is_empty() && entry.hash == hash {
             return if entry.best_move == Move::NULL { None } else { Some(entry.best_move) }
-            // match entry.best_move {
-            //     Move::NULL => return None,
-            //     _ => return Some(entry.best_move)
-            // }
         }
         None
     }
@@ -131,7 +126,7 @@ impl Table {
         }
     }
 
-    pub fn pv(&self, board: &mut Board, pv: &mut Vec<Move>) {
+    pub fn pv(&self, board: &mut Board, pv: &mut Vec<Move>) { // TODO: pv recursive reference - consume memory
         let mv = self.best_move(board.hash);
 
         match mv {

@@ -111,6 +111,13 @@ impl Board {
         self.move_num += 1;
     }
 
+    // TODO:
+    pub fn see(&self, mv: &Move) -> isize {
+        let src_piece = self.sqs[mv.from() as usize] & PIECE;
+        let dest_piece = self.sqs[mv.to() as usize] & PIECE;
+        piece_value(dest_piece) - piece_value(src_piece)
+    }
+
     pub fn make_str_move(&mut self, mv: &str) {
         let moves: Vec<char> = mv.chars().collect();
 
@@ -229,9 +236,8 @@ impl Board {
         }
 
         // Move captures to the front to improve move ordering in alpha-beta search
-        // Iterative deepening will eventually replace / improve this
         moves.sort_by(|a,b|
-            if a.is_capture() { Less } else { Greater }
+            if self.see(a) > self.see(b) { Less } else { Greater }
         );
 
         moves
