@@ -7,7 +7,7 @@ impl Board {
         // TODO: Check for king attacks and break for that branch to avoid illegal moves
         // TODO: When no legal moves possible, return draw to avoid stalemate
         // TODO: Three move repition
-        // TODO: Add illegal move detection in queiscence which might cause subtle bugs
+        // TODO: Add illegal move detection in queiscence which might otherwise cause subtle bugs
         let stand_pat = self.evaluate();
         if depth == 0 { return stand_pat }
         if stand_pat >= beta { return beta }
@@ -43,20 +43,23 @@ impl Board {
         let enemy_king = self.prev_move().king.trailing_zeros();
 
         let mut moves = self.get_moves();
+
+        for mv in &moves {
+            if mv.to() == enemy_king { return (0, false) }
+        }
+
         if best_move != Move::NULL {
             let ind = moves.iter().position(|x| *x == best_move);
             match ind {
                 Some(val) => {
                     moves.remove(val);
                     moves.insert(0, best_move);
-                    // moves.swap(0, val),
                 },
                 None => println!("UHOH")
             }
         }
 
         for mv in moves {
-            if mv.to() == enemy_king { return (0, false) }
             let mut new_board = self.clone();
             new_board.make_move(mv);
 

@@ -3,8 +3,9 @@ extern crate test;
 extern crate time;
 extern crate rand;
 
-use std::io;
+use std::io::{stdin, BufReader};
 use std::io::prelude::*;
+use std::fs::File;
 
 use types::*;
 mod types;
@@ -23,11 +24,12 @@ fn main() {
         magics::init();
         table::init();
     }
+    // test_positions("test_positions/positions");
 
-    let stdin = io::stdin();
+    let stdin = stdin();
     let mut pos = Board::new_default();
-    let mut table = Table::empty(10000000 * 10);
-    let mut depth = 7;
+    let mut table = Table::empty(10000000);
+    let mut depth = 8;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
@@ -38,7 +40,7 @@ fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 7, // new game
+            "ucinewgame" => depth = 8, // new game
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "print"      => (),
@@ -56,7 +58,6 @@ fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
 
 fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
-
     let start = time::precise_time_s();
     let mut pos = 1;
     let mut calc_time = start;
@@ -107,6 +108,19 @@ fn uci() {
     println!("id name {}", ENGINE_NAME);
     println!("id author Alex Johnson");
     println!("uciok");
+}
+
+fn test_positions(path: &str) {
+    let file = match File::open(path) {
+        Ok(file) => BufReader::new(file),
+        Err(_)  => panic!("Test suite {} could not be read", path)
+    };
+
+    for line in file.lines() {
+        let fen = line.unwrap();
+        let board = Board::from_fen(&mut fen.split(' ').collect());
+        println!("{}", board);
+    }
 }
 
 #[bench]

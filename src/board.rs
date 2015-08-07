@@ -53,6 +53,18 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
 }
 
 impl Board {
+    /// Move the specified piece, which may not be the original src piece (when promoting)
+    /// Update the board hash correspondingly
+    pub fn move_piece(&mut self, src: usize, dest: usize, piece: u8) {
+        self.hash.set_piece(src, self.sqs[src]); // Remove moving piece
+        self.hash.set_piece(dest, self.sqs[dest]); // Remove destination piece
+
+        self.sqs[src]  = EMPTY;
+        self.sqs[dest] = piece;
+
+        self.hash.set_piece(dest, piece); // Add src piece at dest square
+    }
+
     pub fn make_move(&mut self, mv: Move) {
         self.hash.set_ep(self.en_passant); // Remove enpessant
         self.hash.flip_color(); // Change color
@@ -60,42 +72,31 @@ impl Board {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
         let color = self.color_to_move();
 
-        self.hash.set_piece(src, self.sqs[src]); // Remove moving piece
-        self.hash.set_piece(dest, self.sqs[dest]); // Remove destination piece
-
-        self.sqs[dest] = match mv.promotion() {
+        let dest_piece = match mv.promotion() {
             QUEEN_PROM  => QUEEN  | color,
             ROOK_PROM   => ROOK   | color,
             BISHOP_PROM => BISHOP | color,
             KNIGHT_PROM => KNIGHT | color,
             _ => self.sqs[src] // If there is no promotion
         };
-        self.sqs[src] = EMPTY;
+        self.move_piece(src, dest, dest_piece);
 
-        self.hash.set_piece(dest, self.sqs[dest]); // Add src piece at dest square
-
-        // TODO: move method
         if mv.king_castle() {
             let color_offset = if color == WHITE { 0 } else { 56 };
-            self.hash.set_piece(7 + color_offset, self.sqs[7 + color_offset]);
-            self.sqs[7 + color_offset] = EMPTY;
-            self.sqs[5 + color_offset] = ROOK | color;
-            self.hash.set_piece(5 + color_offset, self.sqs[5 + color_offset]);
+            self.move_piece(7 + color_offset, 5 + color_offset, ROOK | color);
         }
 
         if mv.queen_castle() {
             let color_offset = if color == WHITE { 0 } else { 56 };
-            self.hash.set_piece(color_offset, self.sqs[color_offset]);
-            self.sqs[color_offset] = EMPTY;
-            self.sqs[3 + color_offset] = ROOK | color;
-            self.hash.set_piece(3 + color_offset, self.sqs[3 + color_offset]);
+            self.move_piece(color_offset, 3 + color_offset, ROOK | color);
         }
 
         if mv.is_en_passant() {
-            // If white takes - remove from row below, if black takes - remove from row above
+            // If white takes -> remove from row below
+            // If black takes -> remove from row above
             let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
             self.sqs[ep_pawn] = EMPTY;
-            self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]);
+            self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]); // Remove taken pawn
         }
 
         self.en_passant = 0;
@@ -104,6 +105,7 @@ impl Board {
             self.hash.set_ep(self.en_passant);
         }
 
+        // TODO: Update in place
         let (w, b) = gen_bitboards(&self.sqs);
         self.w = w;
         self.b = b;
@@ -116,6 +118,61 @@ impl Board {
         let src_piece = self.sqs[mv.from() as usize] & PIECE;
         let dest_piece = self.sqs[mv.to() as usize] & PIECE;
         piece_value(dest_piece) - piece_value(src_piece)
+    }
+
+    /// Return the lowest value attacker of a given square
+    pub fn attacker(&self, pos: u32) -> u8 {
+        let dest = 1 << pos;
+        let is_white = self.is_white();
+        let (us, opp) = if is_white { (&self.w, &self.b) } else { (&self.b, &self.w) };
+
+        let l_file = if pos & 8 >= 1 { file(pos - 1) } else { 0 };
+        let r_file = if pos & 8 <= 7 { file(pos + 1) } else { 0 };
+        let pawns = opp.pawn & (l_file | r_file);
+
+        let mut attacks = if !is_white { // Opponent is white
+            ((pawns << 7) & dest & !FILE_H) &
+            ((pawns << 9) & dest & !FILE_A)
+        } else {
+            ((us.pawn >> 7) & dest & !FILE_A) &
+            ((us.pawn >> 9) & dest & !FILE_H)
+        } != 0;
+        if attacks { return PAWN }
+
+        attacks = unsafe { KNIGHT_MAP[pos as usize] } & opp.knight != 0;
+        if attacks { return KNIGHT }
+
+        let occ = us.pieces | opp.pieces;
+
+        let row_files = row(pos) & file(pos); // TODO: change col <-> row
+        let diagonals = diag(pos) & a_diag(pos);
+
+        let bishops = diagonals & opp.bishop;
+
+        for_all_pieces(bishops, &mut |from| {
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
+            attacks |= mvs & dest != 0;
+        });
+        if attacks { return BISHOP }
+
+        let rooks = row_files & opp.rook;
+
+        for_all_pieces(rooks, &mut |from| {
+            let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
+            attacks |= mvs & dest != 0;
+        });
+        if attacks { return ROOK }
+
+        let queens = row_files & diagonals & opp.queen;
+
+        for_all_pieces(queens, &mut |from| {
+            let mvs = unsafe {  BISHOP_MAP[from as usize].att(occ) |
+                                ROOK_MAP[from as usize].att(occ) };
+            attacks |= mvs & dest != 0;
+        });
+        if attacks { return QUEEN }
+
+        EMPTY
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
@@ -308,7 +365,7 @@ impl Board {
     }
 
     pub fn new_default() -> Board {
-        let mut def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".split(' ').collect();
-        Board::from_fen(&mut def_fen)
+        let def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        Board::from_fen(&mut def_fen.split(' ').collect())
     }
 }
