@@ -37,7 +37,7 @@ impl Hash {
 
     pub fn set_piece(&mut self, pos: usize, sq: u8) {
         if sq != EMPTY {
-            let index = pos + (sq & PIECE) as usize * 64 + ((sq & COLOR) / COLOR) as usize * 384;
+            let index = pos + ((sq & PIECE) >> 1) as usize * 64 + (sq & COLOR) as usize * 384;
             self.val ^= unsafe { piece_keys[index] };
         }
     }

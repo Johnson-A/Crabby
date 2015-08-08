@@ -40,7 +40,7 @@ impl Board {
         }
 
         let mut has_legal_move = false;
-        let enemy_king = self.prev_move().king.trailing_zeros();
+        let enemy_king = self.bb[KING | self.prev_move()].trailing_zeros();
 
         let mut moves = self.get_moves();
 
@@ -91,7 +91,7 @@ impl Board {
     }
 
     pub fn is_in_check(&self) -> bool {
-        let king_pos = self.to_move().king.trailing_zeros();
+        let king_pos = self.bb[KING | self.to_move()].trailing_zeros();
 
         // TODO: Board needs to be mutable to avoid clone here
         let mut clone = self.clone();

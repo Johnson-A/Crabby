@@ -1,15 +1,22 @@
 use std::ascii::AsciiExt;
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
-#[derive(Default, Copy, Clone)]
-pub struct BitBoard {
-    pub pawn: u64,
-    pub knight: u64,
-    pub bishop: u64,
-    pub rook: u64,
-    pub queen: u64,
-    pub king: u64,
-    pub pieces: u64
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct BitBoard(pub [u64; 14]);
+
+impl Index<u8> for BitBoard {
+    type Output = u64;
+
+    fn index<'a>(&'a self, index: u8) -> &'a u64 {
+        &self.0[index as usize]
+    }
+}
+
+impl IndexMut<u8> for BitBoard {
+    fn index_mut<'a>(&'a mut self, index: u8) -> &'a mut u64 {
+        &mut self.0[index as usize]
+    }
 }
 
 pub type Squares = [u8; 64];
@@ -19,8 +26,7 @@ pub struct Hash { pub val: u64 }
 
 #[derive(Copy)]
 pub struct Board {
-    pub w: BitBoard,
-    pub b: BitBoard,
+    pub bb: BitBoard,
     pub sqs: Squares,
     pub move_num: u32,
     pub hash: Hash,
@@ -56,20 +62,21 @@ pub enum Castle {
 }
 
 // TODO: Index Bitboard with piece type
-pub const PAWN: u8   = 0;
-pub const KNIGHT: u8 = 1;
-pub const BISHOP: u8 = 2;
-pub const ROOK: u8   = 3;
-pub const QUEEN: u8  = 4;
-pub const KING: u8   = 5;
-pub const ALL: u8    = 6;
+pub const PAWN: u8   = 0b0000;
+pub const KNIGHT: u8 = 0b0010;
+pub const BISHOP: u8 = 0b0100;
+pub const ROOK: u8   = 0b0110;
+pub const QUEEN: u8  = 0b1000;
+pub const KING: u8   = 0b1010;
+pub const ALL: u8    = 0b1100;
 pub const EMPTY: u8  = 255;
 
-pub const PIECE: u8 = 0x7;
-pub const COLOR: u8 = 0x8;
+pub const COLOR: u8 = 1;
 pub const WHITE: u8 = COLOR;
 pub const BLACK: u8 = 0;
+pub const PIECE: u8 = 0b1110;
 
+// TODO: change to array index by piece type
 pub fn piece_value(piece: u8) -> isize {
     match piece {
         PAWN   => 1,
