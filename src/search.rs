@@ -92,14 +92,6 @@ impl Board {
 
     pub fn is_in_check(&self) -> bool {
         let king_pos = self.bb[KING | self.to_move()].trailing_zeros();
-
-        // TODO: Board needs to be mutable to avoid clone here
-        let mut clone = self.clone();
-        clone.move_num += 1;
-
-        for mv in clone.get_moves() { // get opponent moves
-            if mv.to() == king_pos { return true }
-        }
-        false
+        self.attacker(king_pos, self.to_move()) != EMPTY
     }
 }

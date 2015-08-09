@@ -28,8 +28,8 @@ fn main() {
 
     let stdin = stdin();
     let mut pos = Board::new_default();
-    let mut table = Table::empty(10000000);
-    let mut depth = 8;
+    let mut table = Table::empty(10000000 * 10);
+    let mut depth = 9;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
@@ -40,7 +40,7 @@ fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 8, // new game
+            "ucinewgame" => depth = 9, // new game
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "print"      => (),
@@ -125,13 +125,30 @@ fn test_positions(path: &str) {
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
+    if unsafe { magics::KING_MAP[0] } == 0 {
+        unsafe {
+            magics::init();
+            table::init();
+        }
+    }
     // use rand::Rng;
     // unsafe { if { MAP[0] } == 0 { init(); } }
     //
     // let mut rng = rand::thread_rng();
     // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
-    let mut res = 0;
+    let board = Board::new_default();
     b.iter(|| test::black_box({
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
+
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
+        board.get_moves();
         // unsafe {
         // res |= BISHOP_MAP[0].att(c);
         // res |= BISHOP_MAP[0].att(c);
@@ -156,5 +173,4 @@ fn bench(b: &mut test::Bencher) {
         // res |= ROOK_MAP[20].att(c);
         // }
         }));
-        println!("{}", res)
 }

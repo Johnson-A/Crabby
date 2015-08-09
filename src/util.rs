@@ -16,6 +16,10 @@ pub const FILE_F: u64 = FILE_A << 5;
 pub const FILE_G: u64 = FILE_A << 6;
 pub const FILE_H: u64 = FILE_A << 7;
 
+// (rank_3, rank_8, l_file, r_file, up, left, right)
+pub const PAWN_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
+pub const PAWN_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -9, -7);
+
 pub fn reverse(mut v: u64) -> u64 {
     v = ((v >> 1)  & 0x5555555555555555) | ((v & 0x5555555555555555) << 1);
     v = ((v >> 2)  & 0x3333333333333333) | ((v & 0x3333333333333333) << 2);
@@ -42,22 +46,27 @@ pub fn bishop_attacks(piece: u64, from: u32, occ: u64) -> u64 {
     get_attacks(piece, occ, a_diag(from))
 }
 
-pub fn for_all_pieces(mut pieces: u64, do_work: &mut FnMut(u32)) {
+pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
     while pieces != 0 {
-        let from = bit_pop_pos(&mut pieces);
+        let from = bit_pop(&mut pieces);
 
         do_work(from);
     }
 }
 
-#[inline] pub fn bit_pop(x: &mut u64) -> u64 {
-    let lsb = *x & -(*x);
-    // TODO: v & (!v + 1)
-    *x ^= lsb;
-    lsb
+pub fn lsb(val: u64) -> u32 {
+    val.trailing_zeros()
 }
 
-#[inline] pub fn bit_pop_pos(x: &mut u64) -> u32 {
+// #[inline] pub fn bit_pop(x: &mut u64) -> u64 {
+//     let lsb = *x & -(*x);
+//     // TODO: v & (!v + 1)
+//     *x ^= lsb;
+//     lsb
+// }
+
+// TODO: Change to bit_pop, *b - 1 instead of ^= 1 << lsb
+#[inline] pub fn bit_pop(x: &mut u64) -> u32 {
     let lsb_pos = x.trailing_zeros();
     *x ^= 1 << lsb_pos;
     lsb_pos

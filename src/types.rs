@@ -5,6 +5,16 @@ use std::ops::{Index, IndexMut};
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct BitBoard(pub [u64; 14]);
 
+impl BitBoard {
+    pub fn set_all(&mut self) {
+        self[ALL | WHITE] = self[PAWN | WHITE] | self[KNIGHT | WHITE] | self[BISHOP | WHITE] |
+                            self[ROOK | WHITE] | self[QUEEN | WHITE]  | self[KING | WHITE];
+
+        self[ALL | BLACK] = self[PAWN | BLACK] | self[KNIGHT | BLACK] | self[BISHOP | BLACK] |
+                            self[ROOK | BLACK] | self[QUEEN | BLACK]  | self[KING | BLACK];
+    }
+}
+
 impl Index<u8> for BitBoard {
     type Output = u64;
 
@@ -68,13 +78,17 @@ pub const BISHOP: u8 = 0b0100;
 pub const ROOK: u8   = 0b0110;
 pub const QUEEN: u8  = 0b1000;
 pub const KING: u8   = 0b1010;
-pub const ALL: u8    = 0b1100;
+pub const ALL: u8    = 0b1100; // TODO: Rename to ANY?
 pub const EMPTY: u8  = 255;
 
 pub const COLOR: u8 = 1;
 pub const WHITE: u8 = COLOR;
 pub const BLACK: u8 = 0;
 pub const PIECE: u8 = 0b1110;
+
+pub fn flip(c: u8) -> u8 {
+    !c & COLOR
+}
 
 // TODO: change to array index by piece type
 pub fn piece_value(piece: u8) -> isize {

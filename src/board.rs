@@ -10,34 +10,30 @@ pub fn gen_bitboards(sqs: &Squares) -> BitBoard {
         if *piece != EMPTY { bb[*piece] |= 1 << pos }
     }
 
-    bb[ALL | WHITE] = bb[PAWN | WHITE] | bb[KNIGHT | WHITE] | bb[BISHOP | WHITE] |
-                      bb[ROOK | WHITE] | bb[QUEEN | WHITE]  | bb[KING | WHITE];
+    bb.set_all();
 
-    // TODO: Don't use | Black since Black = 0
-    bb[ALL | BLACK] = bb[PAWN | BLACK] | bb[KNIGHT | BLACK] | bb[BISHOP | BLACK] |
-                      bb[ROOK | BLACK] | bb[QUEEN | BLACK]  | bb[KING | BLACK];
     bb
 }
 
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
-        let from = ((to as i32) - diff) as u32;
+        let to = bit_pop(&mut targets);
+        let from = (to as i32 - diff) as u32;
         moves.push(Move::new(from, to, flags));
     }
 }
 
 pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
     while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
+        let to = bit_pop(&mut targets);
         moves.push(Move::new(from, to, flags));
     }
 }
 
 pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
-        let to = bit_pop_pos(&mut targets);
-        let from = ((to as i32) - diff) as u32;
+        let to = bit_pop(&mut targets);
+        let from = (to as i32 - diff) as u32;
 
         moves.push(Move::new(from, to, flags | QUEEN_PROM));
         moves.push(Move::new(from, to, flags | ROOK_PROM));
@@ -50,13 +46,17 @@ impl Board {
     /// Move the specified piece, which may not be the original src piece (when promoting)
     /// Update the board hash correspondingly
     pub fn move_piece(&mut self, src: usize, dest: usize, piece: u8) {
-        self.hash.set_piece(src, self.sqs[src]); // Remove moving piece
-        self.hash.set_piece(dest, self.sqs[dest]); // Remove destination piece
+        let (src_pc, dest_pc) = (self.sqs[src], self.sqs[dest]);
+        self.hash.set_piece(src, src_pc); // Remove moving piece
+        self.hash.set_piece(dest, dest_pc); // Remove destination piece
+        self.bb[src_pc]  ^= 1 << src;
+        if dest_pc != EMPTY { self.bb[dest_pc] ^= 1 << dest }
 
         self.sqs[src]  = EMPTY;
         self.sqs[dest] = piece;
 
         self.hash.set_piece(dest, piece); // Add src piece at dest square
+        self.bb[piece] ^= 1 << dest;
     }
 
     pub fn make_move(&mut self, mv: Move) {
@@ -64,7 +64,7 @@ impl Board {
         self.hash.flip_color(); // Change color
 
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        let color = self.color_to_move();
+        let color = self.to_move();
 
         let dest_piece = match mv.promotion() {
             QUEEN_PROM  => QUEEN  | color,
@@ -91,6 +91,7 @@ impl Board {
             let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
             self.sqs[ep_pawn] = EMPTY;
             self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]); // Remove taken pawn
+            self.bb[PAWN | (color + 1) % 2] ^= 1 << ep_pawn;
         }
 
         self.en_passant = 0;
@@ -99,31 +100,40 @@ impl Board {
             self.hash.set_ep(self.en_passant);
         }
 
-        // TODO: Update in place
-        self.bb = gen_bitboards(&self.sqs);
+        self.bb.set_all();
 
         self.move_num += 1;
     }
 
     // TODO:
     pub fn see(&self, mv: &Move) -> isize {
-        let src_piece = self.sqs[mv.from() as usize] & PIECE;
-        let dest_piece = self.sqs[mv.to() as usize] & PIECE;
-        piece_value(dest_piece) - piece_value(src_piece)
+        if mv.is_capture() {
+            let us = self.to_move();
+
+            let src_piece = self.sqs[mv.from() as usize] & PIECE;
+            let dest_piece = self.sqs[mv.to() as usize] & PIECE;
+            let defender = self.attacker(mv.to(), flip(us));
+
+            if defender == EMPTY {
+                return piece_value(dest_piece)
+            } else {
+                return piece_value(dest_piece) - piece_value(src_piece)
+            }
+        }
+        0
     }
 
-    /// Return the lowest value attacker of a given square
-    pub fn attacker(&self, pos: u32) -> u8 {
+    /// Return the lowest valued enemy attacker of a given square
+    pub fn attacker(&self, pos: u32, us: u8) -> u8 {
         let bb = &self.bb;
         let dest = 1 << pos;
-        let is_white = self.is_white();
-        let (us, opp) = (self.to_move(), self.prev_move());
+        let opp = flip(us);
 
         let l_file = if pos & 8 >= 1 { file(pos - 1) } else { 0 };
         let r_file = if pos & 8 <= 7 { file(pos + 1) } else { 0 };
         let pawns = bb[PAWN | opp] & (l_file | r_file);
 
-        let mut attacks = if !is_white { // Opponent is white
+        let mut attacks = if us == BLACK { // Opponent is white
             ((pawns << 7) & dest & !FILE_H) &
             ((pawns << 9) & dest & !FILE_A)
         } else {
@@ -137,12 +147,12 @@ impl Board {
 
         let occ = bb[ALL | us] | bb[ALL | opp];
 
-        let row_files = row(pos) & file(pos); // TODO: change col <-> row
-        let diagonals = diag(pos) & a_diag(pos);
+        let row_files = row(pos) | file(pos); // TODO: change col <-> row
+        let diagonals = diag(pos) | a_diag(pos);
 
         let bishops = diagonals & bb[BISHOP | opp];
 
-        for_all_pieces(bishops, &mut |from| {
+        for_all(bishops, &mut |from| {
             let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
             attacks |= mvs & dest != 0;
         });
@@ -150,7 +160,7 @@ impl Board {
 
         let rooks = row_files & bb[ROOK | opp];
 
-        for_all_pieces(rooks, &mut |from| {
+        for_all(rooks, &mut |from| {
             let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
             attacks |= mvs & dest != 0;
         });
@@ -158,12 +168,17 @@ impl Board {
 
         let queens = row_files & diagonals & bb[QUEEN | opp];
 
-        for_all_pieces(queens, &mut |from| {
+        for_all(queens, &mut |from| {
             let mvs = unsafe {  BISHOP_MAP[from as usize].att(occ) |
                                 ROOK_MAP[from as usize].att(occ) };
             attacks |= mvs & dest != 0;
         });
         if attacks { return QUEEN }
+
+        // TODO: once fixed
+        let from = bb[KING | us].trailing_zeros();
+        let mvs = unsafe { KING_MAP[from as usize] };
+        if mvs & dest != 0 { return KING }
 
         EMPTY
     }
@@ -209,86 +224,86 @@ impl Board {
         let bb = &self.bb;
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let is_white = self.is_white();
         let (us, opp) = (self.to_move(), self.prev_move());
-        let occ = bb[ALL | us] | bb[ALL | opp];
+        let enemies = bb[ALL | opp];
+        let occ = bb[ALL | us] | enemies;
 
-        for_all_pieces(bb[QUEEN | us], &mut |from| {
+        let (rank_3, rank_8, l_file, r_file, up, left, right) =
+            if us == WHITE { PAWN_WHITE } else { PAWN_BLACK };
+
+        for_all(bb[QUEEN | us], &mut |from| {
             let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) |
                                ROOK_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
-            add_moves_from(&mut moves, from, mvs & bb[ALL | opp], IS_CAPTURE);
+            add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
         });
 
-        for_all_pieces(bb[ROOK | us], &mut |from| {
+        for_all(bb[ROOK | us], &mut |from| {
             let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
-            add_moves_from(&mut moves, from, mvs & bb[ALL | opp], IS_CAPTURE);
+            add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
         });
 
-        for_all_pieces(bb[BISHOP | us], &mut |from| {
+        for_all(bb[BISHOP | us], &mut |from| {
             let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
-            add_moves_from(&mut moves, from, mvs & bb[ALL | opp], IS_CAPTURE);
+            add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
         });
 
-        for_all_pieces(bb[KNIGHT | us], &mut |from| {
+        for_all(bb[KNIGHT | us], &mut |from| {
             let mvs = unsafe { KNIGHT_MAP[from as usize] };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
-            add_moves_from(&mut moves, from, mvs & bb[ALL | opp], IS_CAPTURE);
+            add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
         });
 
-        for_all_pieces(bb[KING | us], &mut |from| {
+        // since the king can be taken in the quiescence search, the king bit board can be 0
+        // for a copy of board which is being used for queiscence search. for_all uses
+        // while piece != 0 so we never access KING_MAP with an invalid key. without the while != 0,
+        // the lsb is "64" causing an error
+        for_all(bb[KING | us], &mut |from| {
             let mvs = unsafe { KING_MAP[from as usize] };
             add_moves_from(&mut moves, from, mvs & !occ, 0);
-            add_moves_from(&mut moves, from, mvs & bb[ALL | opp], IS_CAPTURE);
+            add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
         });
+        // let from = lsb(bb[KING | us]);
+        // let test = unsafe { KING_MAP[from as usize] };
+        // add_moves_from(&mut moves, from, mvs & !occ, 0);
+        // add_moves_from(&mut moves, from, mvs & enemies, IS_CAPTURE);
 
-        if is_white {
-            let pushes = (bb[PAWN | us] << 8) & !occ;
-            let double_pushes = ((pushes & ROW_3) << 8) & !occ;
-            let left_attacks = (bb[PAWN | us] << 7) & (bb[ALL | opp] | self.en_passant) & !FILE_H;
-            let right_attacks = (bb[PAWN | us] << 9) & (bb[ALL | opp] | self.en_passant) & !FILE_A;
-            let l_en_passant = left_attacks & self.en_passant;
-            let r_en_passant = right_attacks & self.en_passant;
-            let prom_pushes = pushes & ROW_8;
-            let prom_l_att = left_attacks & ROW_8;
-            let prom_r_att = right_attacks & ROW_8;
+        let (pushes, double_pushes, left_attacks, right_attacks);
+        let pawns = bb[PAWN | us];
 
-            add_moves(&mut moves, pushes ^ prom_pushes, 8, 0);
-            add_moves(&mut moves, double_pushes, 16, DOUBLE_PAWN_PUSH);
-            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, 7, IS_CAPTURE);
-            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, 9, IS_CAPTURE);
-            add_moves(&mut moves, l_en_passant, 7, EN_PASSANT | IS_CAPTURE);
-            add_moves(&mut moves, r_en_passant, 9, EN_PASSANT | IS_CAPTURE);
-            add_prom_moves(&mut moves, prom_pushes, 8, 0);
-            add_prom_moves(&mut moves, prom_l_att, 7, IS_CAPTURE);
-            add_prom_moves(&mut moves, prom_r_att, 9, IS_CAPTURE);
+        if us == WHITE {
+            pushes = (pawns << up) & !occ;
+            double_pushes = ((pushes & rank_3) << up) & !occ;
+            left_attacks = (pawns << left) & (enemies | self.en_passant) & !r_file;
+            right_attacks = (pawns << right) & (enemies | self.en_passant) & !l_file;
         } else {
-            let pushes = (bb[PAWN | us] >> 8) & !occ;
-            let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
-            let left_attacks = (bb[PAWN | us] >> 7) & (bb[ALL | opp] | self.en_passant) & !FILE_A;
-            let right_attacks = (bb[PAWN | us] >> 9) & (bb[ALL | opp] | self.en_passant) & !FILE_H;
-            let l_en_passant = left_attacks & self.en_passant;
-            let r_en_passant = right_attacks & self.en_passant;
-            let prom_pushes = pushes & ROW_1;
-            let prom_l_att = left_attacks & ROW_1;
-            let prom_r_att = right_attacks & ROW_1;
-
-            add_moves(&mut moves, pushes ^ prom_pushes, -8, 0);
-            add_moves(&mut moves, double_pushes, -16, DOUBLE_PAWN_PUSH);
-            add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, -7, IS_CAPTURE);
-            add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, -9, IS_CAPTURE);
-            add_moves(&mut moves, l_en_passant, -7, EN_PASSANT | IS_CAPTURE);
-            add_moves(&mut moves, r_en_passant, -9, EN_PASSANT | IS_CAPTURE);
-            add_prom_moves(&mut moves, prom_pushes, -8, 0);
-            add_prom_moves(&mut moves, prom_l_att, -7, IS_CAPTURE);
-            add_prom_moves(&mut moves, prom_r_att, -9, IS_CAPTURE);
+            pushes = (pawns >> -up) & !occ;
+            double_pushes = ((pushes & rank_3) >> -up) & !occ;
+            left_attacks = (pawns >> -left) & (enemies | self.en_passant) & !r_file;
+            right_attacks = (pawns >> -right) & (enemies | self.en_passant) & !l_file;
         }
+        let l_en_passant = left_attacks & self.en_passant;
+        let r_en_passant = right_attacks & self.en_passant;
+        let prom_pushes = pushes & rank_8;
+        let prom_l_att = left_attacks & rank_8;
+        let prom_r_att = right_attacks & rank_8;
+
+        add_moves(&mut moves, pushes ^ prom_pushes, up, 0);
+        add_moves(&mut moves, double_pushes, up+up, DOUBLE_PAWN_PUSH);
+        add_moves(&mut moves, left_attacks ^ l_en_passant ^ prom_l_att, left, IS_CAPTURE);
+        add_moves(&mut moves, right_attacks ^ r_en_passant ^ prom_r_att, right, IS_CAPTURE);
+        add_moves(&mut moves, l_en_passant, left, EN_PASSANT | IS_CAPTURE);
+        add_moves(&mut moves, r_en_passant, right, EN_PASSANT | IS_CAPTURE);
+        add_prom_moves(&mut moves, prom_pushes, up, 0);
+        add_prom_moves(&mut moves, prom_l_att, left, IS_CAPTURE);
+        add_prom_moves(&mut moves, prom_r_att, right, IS_CAPTURE);
 
         // Move captures to the front to improve move ordering in alpha-beta search
         moves.sort_by(|a,b|
-            if self.see(a) > self.see(b) { Less } else { Greater }
+            if a.is_capture() { Less } else { Greater }
+            // if self.see(a) > self.see(b) { Less } else { Greater }
         );
 
         moves
@@ -296,10 +311,6 @@ impl Board {
 
     pub fn is_white(&self) -> bool {
         (self.move_num % 2) == 1
-    }
-
-    pub fn color_to_move(&self) -> u8 {
-        if self.is_white() { WHITE } else { BLACK }
     }
 
     pub fn to_move(&self) -> u8 {

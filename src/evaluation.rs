@@ -10,7 +10,7 @@ impl Board {
 
         let mut eval = 0;
 
-        for_all_pieces(bb[QUEEN | us], &mut |from| {
+        for_all(bb[QUEEN | us], &mut |from| {
             let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
                                ROOK_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 5 +
@@ -18,28 +18,28 @@ impl Board {
                     (att & bb[ALL | us] ).count_ones() * 8;
         });
 
-        for_all_pieces(bb[ROOK | us], &mut |from| {
+        for_all(bb[ROOK | us], &mut |from| {
             let att = unsafe { ROOK_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 15 +
                     (att & bb[ALL | opp]).count_ones() * 20 +
                     (att & bb[ALL | us] ).count_ones() * 10;
         });
 
-        for_all_pieces(bb[BISHOP | us], &mut |from| {
+        for_all(bb[BISHOP | us], &mut |from| {
             let att = unsafe { BISHOP_MAP[from as usize].att(occ) };
             eval += (att & !occ).count_ones() * 25 +
                     (att & bb[ALL | opp]).count_ones() * 30 +
                     (att & bb[ALL | us] ).count_ones() * 10;
         });
 
-        for_all_pieces(bb[KNIGHT | us], &mut |from| {
+        for_all(bb[KNIGHT | us], &mut |from| {
             let att = unsafe { KNIGHT_MAP[from as usize] };
             eval += (att & !occ).count_ones() * 30 +
                     (att & bb[ALL | opp]).count_ones() * 35 +
                     (att & bb[ALL | us] ).count_ones() * 12;
         });
 
-        for_all_pieces(bb[KING | us], &mut |from| {
+        for_all(bb[KING | us], &mut |from| {
             let att = unsafe { KING_MAP[from as usize] };
             eval += (att & !occ).count_ones() * 10 +
                     (att & bb[ALL | opp]).count_ones() * 15 +
@@ -66,10 +66,9 @@ impl Board {
 
         let mut eval = 1000*1000;
 
-        let is_white = self.is_white();
         let occ = bb[ALL | us] | bb[ALL | opp];;
 
-        if is_white {
+        if self.is_white() {
             eval -= ((bb[ALL | us] ^ (bb[KING | us] | bb[QUEEN | us])) & ROW_1).count_ones() * 50;
             eval += ((bb[ALL | opp] ^ (bb[KING | opp] | bb[QUEEN | opp])) & ROW_8).count_ones() * 50;
 
