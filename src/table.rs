@@ -126,15 +126,25 @@ impl Table {
         }
     }
 
-    // TODO: Detect cycles which cause endless recursion
-    pub fn pv(&self, board: &mut Board, pv: &mut Vec<Move>) { // TODO: pv recursive reference - consume memory
+    pub fn pv(&self, board: &Board) -> Vec<Move> {
+        let mut pv = Vec::new();
+        let mut visited = Vec::new(); // pv is small so vec will be performant
+        self.pv_cycle_track(&mut board.clone(), &mut pv, &mut visited);
+
+        pv
+    }
+
+    pub fn pv_cycle_track(&self, board: &mut Board, pv: &mut Vec<Move>, visited: &mut Vec<Hash>) { // TODO: pv recursive reference - consume memory
         let mv = self.best_move(board.hash);
 
         match mv {
             Some(m) => {
                 pv.push(m);
                 board.make_move(m);
-                self.pv(board, pv)
+                if !visited.contains(&board.hash) {
+                    visited.push(board.hash);
+                    self.pv_cycle_track(board, pv, visited);
+                }
             },
             None => ()
         }

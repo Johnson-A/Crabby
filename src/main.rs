@@ -7,15 +7,15 @@ use std::io::{stdin, BufReader};
 use std::io::prelude::*;
 use std::fs::File;
 
-use types::*;
-mod types;
 mod board;
-mod util;
 mod evaluation;
+mod magics;
 mod search;
+mod util;
 use table::Table;
 mod table;
-mod magics;
+use types::*;
+mod types;
 
 const ENGINE_NAME: &'static str = "Prototype Chess Engine";
 
@@ -29,7 +29,7 @@ fn main() {
     let stdin = stdin();
     let mut pos = Board::new_default();
     let mut table = Table::empty(10000000);
-    let mut depth = 9;
+    let mut depth = 8;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".to_string());
@@ -40,7 +40,7 @@ fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 9,
+            "ucinewgame" => depth = 8,
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "print"      => (),
@@ -58,7 +58,7 @@ fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
 
 fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
-    println!("{}", board.get_moves().iter().map(|mv| board.see(mv).to_string() + " " + &mv.to_str()).collect::<Vec<_>>().join(" "));
+
     let start = time::precise_time_s();
     let mut pos = 1;
     let mut calc_time = start;
@@ -67,8 +67,7 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
         let (score, _) = board.negamax_a_b(pos, -std::i32::MAX, std::i32::MAX, table);
         calc_time = time::precise_time_s() - start;
 
-        let mut pv = Vec::new();
-        table.pv(&mut board.clone(), &mut pv);
+        let pv = table.pv(board);
 
         println!("info depth {} score cp {} time {} pv {}",
             pos, score / 10, (calc_time * 1000.0) as u32,
@@ -76,13 +75,6 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
         pos += 1;
     }
 
-    let mut max = 0;
-    for entry in &mut table.entries {
-        if entry.depth > max {
-            max = entry.depth;
-            println!("found entry {}", max);
-        }
-    }
     println!("occ {} of {}", table.count(), table.entries.len());
     table.set_ancient();
 
@@ -96,7 +88,7 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
 fn position(params: &mut Vec<&str>) -> Board {
     let mut pos = match params.remove(0) { // ["startpos", "fen"]
         "startpos" => Board::new_default(),
-        _fen       => Board::from_fen(params) // remove the fen string while creating board
+        _fen       => Board::from_fen(params) // removes the fen string while creating board
     };
 
     if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves

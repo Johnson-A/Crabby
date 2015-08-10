@@ -49,7 +49,7 @@ impl Board {
         let (src_pc, dest_pc) = (self.sqs[src], self.sqs[dest]);
         self.hash.set_piece(src, src_pc); // Remove moving piece
         self.hash.set_piece(dest, dest_pc); // Remove destination piece
-        self.bb[src_pc]  ^= 1 << src;
+        self.bb[src_pc] ^= 1 << src;
         if dest_pc != EMPTY { self.bb[dest_pc] ^= 1 << dest }
 
         self.sqs[src]  = EMPTY;
@@ -86,12 +86,11 @@ impl Board {
         }
 
         if mv.is_en_passant() {
-            // If white takes -> remove from row below
-            // If black takes -> remove from row above
+            // If white takes -> remove from row below. If black takes -> remove from row above
             let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
-            self.sqs[ep_pawn] = EMPTY;
             self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]); // Remove taken pawn
-            self.bb[PAWN | (color + 1) % 2] ^= 1 << ep_pawn;
+            self.bb[PAWN | flip(color)] ^= 1 << ep_pawn;
+            self.sqs[ep_pawn] = EMPTY;
         }
 
         self.en_passant = 0;
@@ -113,7 +112,7 @@ impl Board {
         let src_piece = self.sqs[mv.from() as usize];
         let dest_piece = self.sqs[mv.to() as usize];
         let defender = self.attacker(mv.to(), us);
-        
+
         if defender == EMPTY {
             p_val(dest_piece) as i32
         } else {
