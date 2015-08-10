@@ -1,4 +1,5 @@
 use std::cmp::Ordering::{Less, Greater};
+use std::cmp::max;
 use types::*;
 use util::*;
 use magics::*;
@@ -104,14 +105,33 @@ impl Board {
         self.move_num += 1;
     }
 
-    // TODO:
-    pub fn see(&self, mv: &Move) -> i32 {
+    pub fn see(&mut self, pos: u32, us: u8) -> i32 {
+        let (piece, from) = self.attacker(pos, us);
+
+        if piece != EMPTY {
+            self.move_piece(from as usize, pos as usize, piece);
+            max(0, p_val(piece) as i32 - self.see(pos, flip(us)))
+        } else {
+            0
+        }
+    }
+
+    pub fn see_move(&mut self, mv: &Move) -> i32 {
+        if !mv.is_capture() { return 0 }
+        let us = self.to_move();
+        let capture = self.sqs[mv.to() as usize];
+
+        self.make_move(*mv);
+        p_val(capture) as i32 - self.see(mv.to(), us)
+    }
+
+    pub fn see_max_one(&mut self, mv: &Move) -> i32 {
         if !mv.is_capture() { return 0 }
         let us = self.to_move();
 
         let src_piece = self.sqs[mv.from() as usize];
         let dest_piece = self.sqs[mv.to() as usize];
-        let defender = self.attacker(mv.to(), us);
+        let (defender, _) = self.attacker(mv.to(), us);
 
         if defender == EMPTY {
             p_val(dest_piece) as i32
@@ -120,8 +140,8 @@ impl Board {
         }
     }
 
-    /// Return the lowest valued enemy attacker of a given square
-    pub fn attacker(&self, pos: u32, us: u8) -> u8 {
+    /// Return the lowest valued enemy attacker of a given square and its position
+    pub fn attacker(&self, pos: u32, us: u8) -> (u8, u32) {
         let bb = &self.bb;
         let dest = 1 << pos;
         let opp = flip(us);
@@ -130,54 +150,54 @@ impl Board {
         let r_file = if pos & 8 <= 7 { file(pos + 1) } else { 0 };
         let pawns = bb[PAWN | opp] & (l_file | r_file);
 
-        let mut attacks = if us == BLACK { // Opponent is white
-            ((pawns << 7) & dest & !FILE_H) &
-            ((pawns << 9) & dest & !FILE_A)
+        // TODO: improve logic like in get_moves
+        if us == BLACK { // Opponent is white
+            if (pawns << 7) & dest & !FILE_H != 0 { return (PAWN | us, pos - 7) }
+            if (pawns << 9) & dest & !FILE_A != 0 { return (PAWN | us, pos - 9) }
         } else {
-            ((bb[PAWN | us] >> 7) & dest & !FILE_A) &
-            ((bb[PAWN | us] >> 9) & dest & !FILE_H)
-        } != 0;
-        if attacks { return PAWN }
+            if (pawns >> 7) & dest & !FILE_A != 0 { return (PAWN | us, pos + 7) }
+            if (pawns >> 9) & dest & !FILE_H != 0 { return (PAWN | us, pos + 9) }
+        };
 
-        attacks = unsafe { KNIGHT_MAP[pos as usize] } & bb[KNIGHT | opp] != 0;
-        if attacks { return KNIGHT }
+        let knight = unsafe { KNIGHT_MAP[pos as usize] } & bb[KNIGHT | opp];
+        if knight != 0 { return (KNIGHT | us, lsb(knight)) }
 
         let occ = bb[ALL | us] | bb[ALL | opp];
 
-        let row_files = row(pos) | file(pos); // TODO: change col <-> row
+        let row_files = row(pos) | file(pos);
         let diagonals = diag(pos) | a_diag(pos);
 
-        let bishops = diagonals & bb[BISHOP | opp];
+        let mut bishops = diagonals & bb[BISHOP | opp];
 
-        for_all(bishops, &mut |from| {
+        while bishops != 0 {
+            let from = bit_pop(&mut bishops);
             let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) };
-            attacks |= mvs & dest != 0;
-        });
-        if attacks { return BISHOP }
+            if mvs & dest != 0 { return (BISHOP | us, from) }
+        }
 
-        let rooks = row_files & bb[ROOK | opp];
+        let mut rooks = row_files & bb[ROOK | opp];
 
-        for_all(rooks, &mut |from| {
+        while rooks != 0 {
+            let from = bit_pop(&mut rooks);
             let mvs = unsafe { ROOK_MAP[from as usize].att(occ) };
-            attacks |= mvs & dest != 0;
-        });
-        if attacks { return ROOK }
+            if mvs & dest != 0 { return (ROOK | us, from) }
+        }
 
-        let queens = (row_files | diagonals) & bb[QUEEN | opp];
+        let mut queens = (row_files | diagonals) & bb[QUEEN | opp];
 
-        for_all(queens, &mut |from| {
-            let mvs = unsafe {  BISHOP_MAP[from as usize].att(occ) |
-                                ROOK_MAP[from as usize].att(occ) };
-            attacks |= mvs & dest != 0;
-        });
-        if attacks { return QUEEN }
+        while queens != 0 {
+            let from = bit_pop(&mut queens);
+            let mvs = unsafe { BISHOP_MAP[from as usize].att(occ) |
+                               ROOK_MAP[from as usize].att(occ) };
+            if mvs & dest != 0 { return (QUEEN | us, from) }
+        }
 
         // TODO: once fixed
         // let from = bb[KING | us].trailing_zeros();
         // let mvs = unsafe { KING_MAP[from as usize] };
         // if mvs & dest != 0 { return KING }
 
-        EMPTY
+        (EMPTY, !0)
     }
 
     pub fn make_str_move(&mut self, mv: &str) {
@@ -297,13 +317,18 @@ impl Board {
         add_prom_moves(&mut moves, prom_l_att, left, IS_CAPTURE);
         add_prom_moves(&mut moves, prom_r_att, right, IS_CAPTURE);
 
-        // Move captures to the front to improve move ordering in alpha-beta search
+        moves
+    }
+
+    /// Move better SEE to the front to improve move ordering in alpha-beta search
+    pub fn sort(&self, moves: &Vec<Move>) -> Vec<(i32, Move)> {
         let mut temp: Vec<(i32, Move)> = moves.iter().map(
-            |mv| (self.see(mv), *mv)).collect();
+            |mv| (self.clone().see_move(mv), *mv)).collect();
         temp.sort_by(|a,b|
             if a.0 > b.0 { Less } else { Greater }
         );
-        temp.iter().map(|val| val.1).collect()
+
+        temp
     }
 
     pub fn is_white(&self) -> bool {

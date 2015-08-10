@@ -174,7 +174,7 @@ impl Move {
     pub fn is_double_push(&self) -> bool { self.flags() & DOUBLE_PAWN_PUSH != 0 }
     pub fn is_en_passant(&self) -> bool { self.flags() & EN_PASSANT != 0 }
 
-    pub fn to_str(&self) -> String {
+    pub fn to_string(&self) -> String {
         let (sc, sr) = from_pos(self.from());
         let (dc, dr) = from_pos(self.to());
         let mut chars = vec![sc, sr, dc, dr];
@@ -191,4 +191,10 @@ impl Move {
     }
 
     pub const NULL: Move = Move::new(0,0,0);
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }

@@ -43,8 +43,9 @@ fn main() {
             "ucinewgame" => depth = 8,
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
-            "print"      => (),
+            "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
             "moves"      => make_moves(&mut pos, &mut words),
+            "print"      => (),
             _            => (), // Ignore any other command
         }
     }
@@ -58,7 +59,9 @@ fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
 
 fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
-
+    for mv in &board.get_moves() {
+        println!("({}, {})", board.clone().see_move(mv), mv)
+    }
     let start = time::precise_time_s();
     let mut pos = 1;
     let mut calc_time = start;
@@ -71,7 +74,8 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
 
         println!("info depth {} score cp {} time {} pv {}",
             pos, score / 10, (calc_time * 1000.0) as u32,
-            pv.iter().map(|mv| mv.to_str()).collect::<Vec<_>>().join(" "));
+            pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
+
         pos += 1;
     }
 
@@ -79,7 +83,7 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     table.set_ancient();
 
     let best = table.best_move(board.hash);
-    println!("bestmove {}", best.unwrap().to_str());
+    println!("bestmove {}", best.unwrap());
 
     if calc_time < 1.0 { *depth += 1; }
     if calc_time > 20.0 && *depth > 6 { *depth -= 1; }
@@ -130,6 +134,7 @@ fn bench(b: &mut test::Bencher) {
     // let mut rng = rand::thread_rng();
     // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
     let board = Board::new_default();
+    // let mut t = board.clone();
     b.iter(|| test::black_box({
         board.get_moves();
         board.get_moves();
@@ -142,6 +147,9 @@ fn bench(b: &mut test::Bencher) {
         board.get_moves();
         board.get_moves();
         board.get_moves();
+
+        // t = board.clone();
+
         // unsafe {
         // res |= BISHOP_MAP[0].att(c);
         // res |= BISHOP_MAP[0].att(c);
@@ -166,4 +174,5 @@ fn bench(b: &mut test::Bencher) {
         // res |= ROOK_MAP[20].att(c);
         // }
         }));
+        // println!("{}", t);
 }

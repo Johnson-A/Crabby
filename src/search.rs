@@ -13,7 +13,9 @@ impl Board {
         if stand_pat >= beta { return beta }
         if stand_pat > alpha { alpha = stand_pat }
 
-        for mv in self.get_moves().into_iter().filter(|mv| mv.is_capture()) {
+        let captures = self.get_moves().into_iter().filter(|mv| mv.is_capture());
+
+        for (_, mv) in self.sort(&captures.collect()) {
             let mut new_board = self.clone();
             new_board.make_move(mv);
             let score = -new_board.q_search(depth - 1, -beta, -alpha);
@@ -42,24 +44,26 @@ impl Board {
         let mut has_legal_move = false;
         let enemy_king = self.bb[KING | self.prev_move()].trailing_zeros();
 
-        let mut moves = self.get_moves();
+        let moves = self.get_moves();
 
         for mv in &moves {
             if mv.to() == enemy_king { return (0, false) }
         }
 
+        let mut moves = self.sort(&moves);
+
         if best_move != Move::NULL {
-            let ind = moves.iter().position(|x| *x == best_move);
+            let ind = moves.iter().position(|x| x.1 == best_move);
             match ind {
                 Some(val) => {
                     moves.remove(val);
-                    moves.insert(0, best_move);
+                    moves.insert(0, (0, best_move));
                 },
                 None => println!("UHOH")
             }
         }
 
-        for mv in moves {
+        for (_, mv) in moves {
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
@@ -91,7 +95,9 @@ impl Board {
     }
 
     pub fn is_in_check(&self) -> bool {
-        let king_pos = self.bb[KING | self.to_move()].trailing_zeros();
-        self.attacker(king_pos, self.to_move()) != EMPTY
+        let us = self.to_move();
+        let king_pos = self.bb[KING | us].trailing_zeros();
+        let (pc, _) = self.attacker(king_pos, us);
+        pc != EMPTY
     }
 }
