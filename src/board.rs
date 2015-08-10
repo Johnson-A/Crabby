@@ -106,21 +106,19 @@ impl Board {
     }
 
     // TODO:
-    pub fn see(&self, mv: &Move) -> isize {
-        if mv.is_capture() {
-            let us = self.to_move();
+    pub fn see(&self, mv: &Move) -> i32 {
+        if !mv.is_capture() { return 0 }
+        let us = self.to_move();
 
-            let src_piece = self.sqs[mv.from() as usize] & PIECE;
-            let dest_piece = self.sqs[mv.to() as usize] & PIECE;
-            let defender = self.attacker(mv.to(), flip(us));
-
-            if defender == EMPTY {
-                return piece_value(dest_piece)
-            } else {
-                return piece_value(dest_piece) - piece_value(src_piece)
-            }
+        let src_piece = self.sqs[mv.from() as usize];
+        let dest_piece = self.sqs[mv.to() as usize];
+        let defender = self.attacker(mv.to(), us);
+        
+        if defender == EMPTY {
+            p_val(dest_piece) as i32
+        } else {
+            p_val(dest_piece) as i32 - p_val(src_piece) as i32
         }
-        0
     }
 
     /// Return the lowest valued enemy attacker of a given square
@@ -166,7 +164,7 @@ impl Board {
         });
         if attacks { return ROOK }
 
-        let queens = row_files & diagonals & bb[QUEEN | opp];
+        let queens = (row_files | diagonals) & bb[QUEEN | opp];
 
         for_all(queens, &mut |from| {
             let mvs = unsafe {  BISHOP_MAP[from as usize].att(occ) |
@@ -176,9 +174,9 @@ impl Board {
         if attacks { return QUEEN }
 
         // TODO: once fixed
-        let from = bb[KING | us].trailing_zeros();
-        let mvs = unsafe { KING_MAP[from as usize] };
-        if mvs & dest != 0 { return KING }
+        // let from = bb[KING | us].trailing_zeros();
+        // let mvs = unsafe { KING_MAP[from as usize] };
+        // if mvs & dest != 0 { return KING }
 
         EMPTY
     }
@@ -301,12 +299,12 @@ impl Board {
         add_prom_moves(&mut moves, prom_r_att, right, IS_CAPTURE);
 
         // Move captures to the front to improve move ordering in alpha-beta search
-        moves.sort_by(|a,b|
-            if a.is_capture() { Less } else { Greater }
-            // if self.see(a) > self.see(b) { Less } else { Greater }
+        let mut temp: Vec<(i32, Move)> = moves.iter().map(
+            |mv| (self.see(mv), *mv)).collect();
+        temp.sort_by(|a,b|
+            if a.0 > b.0 { Less } else { Greater }
         );
-
-        moves
+        temp.iter().map(|val| val.1).collect()
     }
 
     pub fn is_white(&self) -> bool {

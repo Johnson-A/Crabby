@@ -46,12 +46,12 @@ impl Board {
                     (att & bb[ALL | us] ).count_ones() * 10;
         });
 
-        let material =  (bb[PAWN   | us].count_ones() * 1000)  +
-                        (bb[KNIGHT | us].count_ones() * 3000)  +
-                        (bb[BISHOP | us].count_ones() * 3000)  +
-                        (bb[ROOK   | us].count_ones() * 5000)  +
-                        (bb[QUEEN  | us].count_ones() * 9000)  +
-                        (bb[KING   | us].count_ones() * 300000);
+        let material = (bb[PAWN   | us].count_ones() * p_val(PAWN))   +
+                       (bb[KNIGHT | us].count_ones() * p_val(KNIGHT)) +
+                       (bb[BISHOP | us].count_ones() * p_val(BISHOP)) +
+                       (bb[ROOK   | us].count_ones() * p_val(ROOK))   +
+                       (bb[QUEEN  | us].count_ones() * p_val(QUEEN))  +
+                       (bb[KING   | us].count_ones() * p_val(KING));
 
         (material + eval) as i32
     }

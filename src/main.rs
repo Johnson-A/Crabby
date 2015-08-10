@@ -28,7 +28,7 @@ fn main() {
 
     let stdin = stdin();
     let mut pos = Board::new_default();
-    let mut table = Table::empty(10000000 * 10);
+    let mut table = Table::empty(10000000);
     let mut depth = 9;
 
     for line in stdin.lock().lines() {
@@ -40,7 +40,7 @@ fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 9, // new game
+            "ucinewgame" => depth = 9,
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "print"      => (),
@@ -58,6 +58,7 @@ fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
 
 fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
+    println!("{}", board.get_moves().iter().map(|mv| board.see(mv).to_string() + " " + &mv.to_str()).collect::<Vec<_>>().join(" "));
     let start = time::precise_time_s();
     let mut pos = 1;
     let mut calc_time = start;

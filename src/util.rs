@@ -18,7 +18,7 @@ pub const FILE_H: u64 = FILE_A << 7;
 
 // (rank_3, rank_8, l_file, r_file, up, left, right)
 pub const PAWN_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
-pub const PAWN_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -9, -7);
+pub const PAWN_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
 
 pub fn reverse(mut v: u64) -> u64 {
     v = ((v >> 1)  & 0x5555555555555555) | ((v & 0x5555555555555555) << 1);

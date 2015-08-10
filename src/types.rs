@@ -90,16 +90,17 @@ pub fn flip(c: u8) -> u8 {
     !c & COLOR
 }
 
-// TODO: change to array index by piece type
-pub fn piece_value(piece: u8) -> isize {
+pub const PVALS: [u32; 12] = [1000, 1000,
+                              4126, 4126,
+                              4222, 4222,
+                              6414, 6414,
+                              12730, 12730,
+                              300000, 300000];
+
+pub fn p_val(piece: u8) -> u32 {
     match piece {
-        PAWN   => 1,
-        KNIGHT => 3,
-        BISHOP => 3,
-        ROOK   => 5,
-        QUEEN  => 9,
-        KING   => 300,
-        _      => 0
+        EMPTY => 0,
+        _     => PVALS[piece as usize]
     }
 }
 

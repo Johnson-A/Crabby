@@ -126,6 +126,7 @@ impl Table {
         }
     }
 
+    // TODO: Detect cycles which cause endless recursion
     pub fn pv(&self, board: &mut Board, pv: &mut Vec<Move>) { // TODO: pv recursive reference - consume memory
         let mv = self.best_move(board.hash);
 
