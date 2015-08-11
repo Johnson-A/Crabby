@@ -17,22 +17,22 @@ mod table;
 use types::*;
 mod types;
 
-const ENGINE_NAME: &'static str = "Prototype Chess Engine";
+const ENGINE_NAME: &'static str = "Crabby";
 
 fn main() {
     unsafe {
         magics::init();
         table::init();
     }
-    // test_positions("test_positions/positions");
+    test_positions("test_positions/positions");
 
     let stdin = stdin();
-    let mut pos = Board::new_default();
+    let mut pos = Board::start_position();
     let mut table = Table::empty(10000000);
     let mut depth = 8;
 
     for line in stdin.lock().lines() {
-        let line = line.unwrap_or("".to_string());
+        let line = line.unwrap_or("".into());
         let mut words: Vec<&str> = line.trim().split(' ').collect();
         let first_word = words.remove(0);
 
@@ -59,15 +59,15 @@ fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
 
 fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
-    for mv in &board.get_moves() {
-        println!("({}, {})", board.clone().see_move(mv), mv)
-    }
+    // for mv in &board.get_moves() {
+    //     println!("({}, {})", board.clone().see_move(mv), mv)
+    // }
     let start = time::precise_time_s();
     let mut pos = 1;
     let mut calc_time = start;
 
     while pos <= *depth {
-        let (score, _) = board.negamax_a_b(pos, -std::i32::MAX, std::i32::MAX, table);
+        let score = board.search(pos, table);
         calc_time = time::precise_time_s() - start;
 
         let pv = table.pv(board);
@@ -91,7 +91,7 @@ fn go(board: &Board, depth: &mut u8, table: &mut Table) {
 
 fn position(params: &mut Vec<&str>) -> Board {
     let mut pos = match params.remove(0) { // ["startpos", "fen"]
-        "startpos" => Board::new_default(),
+        "startpos" => Board::start_position(),
         _fen       => Board::from_fen(params) // removes the fen string while creating board
     };
 
@@ -113,17 +113,22 @@ fn test_positions(path: &str) {
         Err(_)  => panic!("Test suite {} could not be read", path)
     };
 
-    for line in file.lines() {
+    let mut table = Table::empty(10000000);
+    let start = time::precise_time_s();
+    // 443 seconds -> (158, 155) seconds
+    for line in file.lines().take(10) {
         let fen = line.unwrap();
         let board = Board::from_fen(&mut fen.split(' ').collect());
-        println!("{}", board);
+        println!("{}", fen);
+        go(&board, &mut 8, &mut table);
     }
+    println!("Time taken = {} seconds", time::precise_time_s() - start);
 }
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    if unsafe { magics::KING_MAP[0] } == 0 {
-        unsafe {
+    unsafe {
+        if magics::KING_MAP[0] == 0 {
             magics::init();
             table::init();
         }
@@ -133,7 +138,7 @@ fn bench(b: &mut test::Bencher) {
     //
     // let mut rng = rand::thread_rng();
     // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
-    let board = Board::new_default();
+    let board = Board::start_position();
     // let mut t = board.clone();
     b.iter(|| test::black_box({
         board.get_moves();

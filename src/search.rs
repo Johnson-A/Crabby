@@ -1,5 +1,18 @@
+use std::i32;
 use types::*;
 use table::*;
+
+// pub struct Searcher<'a> {
+//     pub board: Board,
+//     pub table: &'a Table,
+//     pub killers: Vec<Killer>,
+//     pub max_ply: u8,
+//     pub depth: u8,
+//     pub node_count: usize
+// }
+//
+// impl<'a> Searcher<'a> {
+// }
 
 impl Board {
     pub fn q_search(&self, depth: u8, mut alpha: i32, beta: i32) -> i32 {
@@ -13,9 +26,10 @@ impl Board {
         if stand_pat >= beta { return beta }
         if stand_pat > alpha { alpha = stand_pat }
 
-        let captures = self.get_moves().into_iter().filter(|mv| mv.is_capture());
+        let mut captures = self.get_moves();
+        captures.retain(|mv| mv.is_capture());
 
-        for (_, mv) in self.sort(&captures.collect()) {
+        for (_, mv) in self.sort(&captures) {
             let mut new_board = self.clone();
             new_board.make_move(mv);
             let score = -new_board.q_search(depth - 1, -beta, -alpha);
@@ -26,8 +40,15 @@ impl Board {
         alpha
     }
 
+    pub fn search(&self, depth: u8, table: &mut Table) -> i32 {
+        let mut killer = vec![Killer(Move::NULL, Move::NULL); depth as usize];
+        let (score, _) = self.negamax_a_b(depth, -i32::MAX, i32::MAX, table, &mut killer);
+        score
+    }
+
     // TODO: Fail soft, retain the pv
-    pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32, table: &mut Table) -> (i32, bool) {
+    pub fn negamax_a_b(&self, depth: u8, mut alpha: i32, beta: i32,
+                              table: &mut Table, killer: &mut Vec<Killer>) -> (i32, bool) {
         let (table_score, mut best_move) = table.probe(self.hash, depth, alpha, beta);
 
         match table_score {
@@ -44,35 +65,25 @@ impl Board {
         let mut has_legal_move = false;
         let enemy_king = self.bb[KING | self.prev_move()].trailing_zeros();
 
-        let moves = self.get_moves();
+        let mut moves = self.get_moves();
 
         for mv in &moves {
             if mv.to() == enemy_king { return (0, false) }
         }
 
-        let mut moves = self.sort(&moves);
-
-        if best_move != Move::NULL {
-            let ind = moves.iter().position(|x| x.1 == best_move);
-            match ind {
-                Some(val) => {
-                    moves.remove(val);
-                    moves.insert(0, (0, best_move));
-                },
-                None => println!("UHOH")
-            }
-        }
+        let moves = self.sort_with(&mut moves, best_move, &killer[(depth - 1) as usize]);
 
         for (_, mv) in moves {
             let mut new_board = self.clone();
             new_board.make_move(mv);
 
-            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, table);
+            let (mut score, is_legal) = new_board.negamax_a_b(depth - 1, -beta, -alpha, table, killer);
             score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
 
             if score >= beta {
+                if !mv.is_capture() { killer[(depth - 1) as usize].substitute(mv) }
                 table.record(self, beta, mv, depth, NodeBound::Beta);
                 return (beta, true)
             }

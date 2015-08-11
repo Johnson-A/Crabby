@@ -13,10 +13,10 @@ fn set_random(arr: &mut [u64], rng: &mut ThreadRng) {
 }
 
 pub unsafe fn init() {
-    let mut rng = thread_rng();
-    set_random(&mut piece_keys,  &mut rng);
-    set_random(&mut castle_keys, &mut rng);
-    set_random(&mut ep_keys,     &mut rng);
+    let rng = &mut thread_rng();
+    set_random(&mut piece_keys,  rng);
+    set_random(&mut castle_keys, rng);
+    set_random(&mut ep_keys,     rng);
     color_key = rng.gen();
 }
 

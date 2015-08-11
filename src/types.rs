@@ -155,7 +155,16 @@ pub const IS_CAPTURE: u32 = 1 << 5;
 pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
 pub const EN_PASSANT: u32 = 1 << 7;
 
-// TODO: Consider making move non-copyable, overhead would be lower than passing pointer
+#[derive(Copy, Clone)]
+pub struct Killer(pub Move, pub Move);
+
+impl Killer {
+    pub fn substitute(&mut self, mv: Move) {
+        self.1 = self.0;
+        self.0 = mv;
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move { data: u32 }
 

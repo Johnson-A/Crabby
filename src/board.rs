@@ -324,10 +324,38 @@ impl Board {
     pub fn sort(&self, moves: &Vec<Move>) -> Vec<(i32, Move)> {
         let mut temp: Vec<(i32, Move)> = moves.iter().map(
             |mv| (self.clone().see_move(mv), *mv)).collect();
+
         temp.sort_by(|a,b|
             if a.0 > b.0 { Less } else { Greater }
         );
+        temp
+    }
 
+    pub fn sort_with(&self, moves: &mut Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
+        let mut moved = false;
+        if best != Move::NULL {
+            let pos = moves.iter().position(|x| *x == best);
+            match pos {
+                Some(ind) => {
+                    moved = true;
+                    moves.remove(ind);
+                },
+                None => ()
+            }
+        }
+
+        let mut temp = self.sort(&moves);
+
+        let first = temp.iter().position(|x| x.0 <= 0);
+        match first {
+            Some(ind) => {
+                move_to(&mut temp, (0, killer.1), ind);
+                move_to(&mut temp, (0, killer.0), ind);
+            },
+            None => () // The killer moves are not valid
+        };
+
+        if moved { temp.insert(0, (0, best)) }
         temp
     }
 
@@ -363,7 +391,7 @@ impl Board {
         let to_move = fen.remove(0); // Player to move [b,w]
         let move_num = match to_move {
             "w" => 1,
-            _ =>   2, // Start of the move counter at an odd number
+            _ =>   2, // Start off the move counter at an even number
         };
 
         let castle_str = fen.remove(0); // Castling [KQkq]
@@ -389,8 +417,8 @@ impl Board {
         b
     }
 
-    pub fn new_default() -> Board {
-        let def_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        Board::from_fen(&mut def_fen.split(' ').collect())
+    pub fn start_position() -> Board {
+        let start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        Board::from_fen(&mut start_fen.split(' ').collect())
     }
 }

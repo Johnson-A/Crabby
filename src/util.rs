@@ -54,6 +54,17 @@ pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
     }
 }
 
+pub fn move_to<T: Eq>(moves: &mut Vec<T>, elem: T, place: usize) {
+    let pos = moves.iter().position(|x| *x == elem);
+    match pos {
+        Some(ind) => {
+            moves.remove(ind);
+            moves.insert(place, elem);
+        },
+        None => ()
+    }
+}
+
 pub fn lsb(val: u64) -> u32 {
     val.trailing_zeros()
 }
