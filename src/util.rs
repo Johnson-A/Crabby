@@ -20,6 +20,8 @@ pub const FILE_H: u64 = FILE_A << 7;
 pub const PAWN_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
 pub const PAWN_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
 
+/// Reverse the bits in a 64 bit number using a "recursive" algorithm
+/// which swaps the order of sub-elements, starting with even and odd bits
 pub fn reverse(mut v: u64) -> u64 {
     v = ((v >> 1)  & 0x5555555555555555) | ((v & 0x5555555555555555) << 1);
     v = ((v >> 2)  & 0x3333333333333333) | ((v & 0x3333333333333333) << 2);
@@ -29,6 +31,7 @@ pub fn reverse(mut v: u64) -> u64 {
         ((v >> 32) & 0x00000000FFFFFFFF) | ((v & 0x00000000FFFFFFFF) << 32)
 }
 
+/// Calculate sliding piece moves
 pub fn get_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
     let forward = pot_blockers - 2*piece;

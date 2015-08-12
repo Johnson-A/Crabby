@@ -67,18 +67,29 @@ impl fmt::Display for Board {
     }
 }
 
-pub enum Castle {
-    WKing = 1, WQueen = 2, BKing = 4, BQueen = 8
+pub fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
+    for mv_str in params {
+        board.make_str_move(mv_str);
+    }
 }
 
+pub const BK_CASTLE: u8 = 1;
+pub const WK_CASTLE: u8 = BK_CASTLE << WHITE;
+
+pub const BQ_CASTLE: u8 = 1 << 2;
+pub const WQ_CASTLE: u8 = BQ_CASTLE << WHITE;
+
+pub const KING_CASTLE: u8  = WK_CASTLE | BK_CASTLE;
+pub const QUEEN_CASTLE: u8 = WQ_CASTLE | BQ_CASTLE;
+
 // TODO: Index Bitboard with piece type
-pub const PAWN: u8   = 0b0000;
-pub const KNIGHT: u8 = 0b0010;
-pub const BISHOP: u8 = 0b0100;
-pub const ROOK: u8   = 0b0110;
-pub const QUEEN: u8  = 0b1000;
-pub const KING: u8   = 0b1010;
-pub const ALL: u8    = 0b1100; // TODO: Rename to ANY?
+pub const PAWN: u8   = 0;
+pub const KNIGHT: u8 = 1 << 1;
+pub const BISHOP: u8 = 2 << 1;
+pub const ROOK: u8   = 3 << 1;
+pub const QUEEN: u8  = 4 << 1;
+pub const KING: u8   = 5 << 1;
+pub const ALL: u8    = 6 << 1;
 pub const EMPTY: u8  = 255;
 
 pub const COLOR: u8 = 1;
@@ -148,8 +159,8 @@ pub const BISHOP_PROM: u32 = 2;
 pub const ROOK_PROM: u32   = 3;
 pub const QUEEN_PROM: u32  = 4;
 
-pub const CASTLE_KING: u32  = 1 << 3;
-pub const CASTLE_QUEEN: u32 = 1 << 4;
+pub const CASTLES_KING: u32  = 1 << 3;
+pub const CASTLES_QUEEN: u32 = 1 << 4;
 
 pub const IS_CAPTURE: u32 = 1 << 5;
 pub const DOUBLE_PAWN_PUSH: u32 = 1 << 6;
@@ -177,8 +188,8 @@ impl Move {
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
     pub fn flags(&self) -> u32 { self.data >> 12 }
     pub fn promotion(&self) -> u32 { self.flags() & 0x7 }
-    pub fn king_castle(&self) -> bool { self.flags() & CASTLE_KING != 0 }
-    pub fn queen_castle(&self) -> bool { self.flags() & CASTLE_QUEEN != 0 }
+    pub fn king_castle(&self) -> bool { self.flags() & CASTLES_KING != 0 }
+    pub fn queen_castle(&self) -> bool { self.flags() & CASTLES_QUEEN != 0 }
     pub fn is_capture(&self) -> bool { self.flags() & IS_CAPTURE != 0 }
     pub fn is_double_push(&self) -> bool { self.flags() & DOUBLE_PAWN_PUSH != 0 }
     pub fn is_en_passant(&self) -> bool { self.flags() & EN_PASSANT != 0 }

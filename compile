@@ -1,3 +1,4 @@
-cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=haswell
+cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=haswell -g
+RUST_BACKTRACE=1 ./chess
 # use target-cpu=help to find more info
 # -g flag for debug info

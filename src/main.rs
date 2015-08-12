@@ -1,3 +1,4 @@
+//! This is the Crabby chess engine
 #![feature(slice_patterns, convert, negate_unsigned, append, test, associated_consts, const_fn)]
 extern crate test;
 extern crate time;
@@ -7,24 +8,25 @@ use std::io::{stdin, BufReader};
 use std::io::prelude::*;
 use std::fs::File;
 
-mod board;
-mod evaluation;
-mod magics;
-mod search;
-mod util;
+pub mod board;
+pub mod evaluation;
+pub mod magics;
+pub mod search;
+pub mod table;
+pub mod types;
+pub mod util;
+
 use table::Table;
-mod table;
 use types::*;
-mod types;
+use search::Searcher;
 
 const ENGINE_NAME: &'static str = "Crabby";
 
-fn main() {
+pub fn main() {
     unsafe {
         magics::init();
         table::init();
     }
-    test_positions("test_positions/positions");
 
     let stdin = stdin();
     let mut pos = Board::start_position();
@@ -45,40 +47,31 @@ fn main() {
             "go"         => go(&pos, &mut depth, &mut table),
             "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
             "moves"      => make_moves(&mut pos, &mut words),
+            "perft"      => perft(&pos, &mut words),
+            "test"       => test_positions("test_positions/positions"),
             "print"      => (),
             _            => (), // Ignore any other command
         }
     }
 }
 
-fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
-    for mv_str in params {
-        board.make_str_move(mv_str);
-    }
+pub fn perft(board: &Board, params: &mut Vec<&str>) {
+    let d = if params.len() >= 1 {
+        params.remove(0).parse::<u8>().unwrap_or(5)
+    } else { 5 };
+
+    println!("total = {}\n", board.perft(d, true));
 }
 
-fn go(board: &Board, depth: &mut u8, table: &mut Table) {
+pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
-    // for mv in &board.get_moves() {
-    //     println!("({}, {})", board.clone().see_move(mv), mv)
-    // }
-    let start = time::precise_time_s();
-    let mut pos = 1;
-    let mut calc_time = start;
-
-    while pos <= *depth {
-        let score = board.search(pos, table);
-        calc_time = time::precise_time_s() - start;
-
-        let pv = table.pv(board);
-
-        println!("info depth {} score cp {} time {} pv {}",
-            pos, score / 10, (calc_time * 1000.0) as u32,
-            pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
-
-        pos += 1;
+    for mv in &board.get_moves() {
+        println!("({}, {})", board.see_move(mv), mv)
     }
-
+    let calc_time = {
+        let mut search = Searcher::new(*depth, board, table);
+        search.id()
+    };
     println!("occ {} of {}", table.count(), table.entries.len());
     table.set_ancient();
 
@@ -110,12 +103,12 @@ fn uci() {
 fn test_positions(path: &str) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
-        Err(_)  => panic!("Test suite {} could not be read", path)
+        Err(e)  => panic!("Test suite {} could not be read. {:?}", path, e)
     };
 
     let mut table = Table::empty(10000000);
     let start = time::precise_time_s();
-    // 443 seconds -> (158, 155) seconds
+    // 443 seconds -> (150) seconds
     for line in file.lines().take(10) {
         let fen = line.unwrap();
         let board = Board::from_fen(&mut fen.split(' ').collect());
@@ -139,7 +132,6 @@ fn bench(b: &mut test::Bencher) {
     // let mut rng = rand::thread_rng();
     // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
     let board = Board::start_position();
-    // let mut t = board.clone();
     b.iter(|| test::black_box({
         board.get_moves();
         board.get_moves();
@@ -152,8 +144,6 @@ fn bench(b: &mut test::Bencher) {
         board.get_moves();
         board.get_moves();
         board.get_moves();
-
-        // t = board.clone();
 
         // unsafe {
         // res |= BISHOP_MAP[0].att(c);

@@ -44,10 +44,29 @@ pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags:
 }
 
 impl Board {
+    pub fn perft(&self, depth: u8, print: bool) -> usize {
+        let enemy_king = self.bb[KING | self.prev_move()].trailing_zeros();
+        if self.attacker(enemy_king, self.prev_move()).0 != EMPTY { return 0 }
+
+        if depth == 0 { return 1 }
+
+        let mut count = 0;
+        for mv in self.get_moves() {
+            let mut new_board = *self;
+            new_board.make_move(mv);
+
+            let n = new_board.perft(depth - 1, false);
+            if print && n > 0 { println!("{}: {}", mv, n) }
+            count += n;
+        }
+        count
+    }
+
     /// Move the specified piece, which may not be the original src piece (when promoting)
     /// Update the board hash correspondingly
     pub fn move_piece(&mut self, src: usize, dest: usize, piece: u8) {
         let (src_pc, dest_pc) = (self.sqs[src], self.sqs[dest]);
+
         self.hash.set_piece(src, src_pc); // Remove moving piece
         self.hash.set_piece(dest, dest_pc); // Remove destination piece
         self.bb[src_pc] ^= 1 << src;
@@ -77,13 +96,13 @@ impl Board {
         self.move_piece(src, dest, dest_piece);
 
         if mv.king_castle() {
-            let color_offset = if color == WHITE { 0 } else { 56 };
-            self.move_piece(7 + color_offset, 5 + color_offset, ROOK | color);
+            let offset = Board::color_offset(color);
+            self.move_piece(7 + offset, 5 + offset, ROOK | color);
         }
 
         if mv.queen_castle() {
-            let color_offset = if color == WHITE { 0 } else { 56 };
-            self.move_piece(color_offset, 3 + color_offset, ROOK | color);
+            let offset = Board::color_offset(color);
+            self.move_piece(offset, 3 + offset, ROOK | color);
         }
 
         if mv.is_en_passant() {
@@ -100,9 +119,82 @@ impl Board {
             self.hash.set_ep(self.en_passant);
         }
 
+        // TODO: clean up this logic
+        if  self.castling & (BK_CASTLE << color) != 0 &&
+           (src == Board::color_offset(color) + 4 ||
+            src == Board::color_offset(color) + 7) {
+                let castle = BK_CASTLE << color;
+                self.castling ^= castle;
+                self.hash.set_castling(castle);
+        }
+
+        if  self.castling & (BK_CASTLE << flip(color)) != 0 &&
+            dest == Board::color_offset(flip(color)) + 7 {
+                let castle = BK_CASTLE << flip(color);
+                self.castling ^= castle;
+                self.hash.set_castling(castle);
+        }
+
+        if  self.castling & (BQ_CASTLE << color) != 0 &&
+           (src == Board::color_offset(color) + 4 ||
+            src == Board::color_offset(color)) {
+                let castle = BQ_CASTLE << color;
+                self.castling ^= castle;
+                self.hash.set_castling(castle);
+        }
+
+        if  self.castling & (BQ_CASTLE << flip(color)) != 0 &&
+            dest == Board::color_offset(flip(color)) {
+                let castle = BQ_CASTLE << flip(color);
+                self.castling ^= castle;
+                self.hash.set_castling(castle);
+        }
+
         self.bb.set_all();
 
         self.move_num += 1;
+    }
+
+    /// Get the appropriate offset for castling depending on color to move
+    pub fn color_offset(us: u8) -> usize {
+        if us == WHITE { 0 } else { 56 }
+    }
+
+    pub fn make_str_move(&mut self, mv: &str) {
+        let moves: Vec<char> = mv.chars().collect();
+
+        match moves.as_slice() {
+            [sc, sr, dc, dr, promotion..] => {
+                let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
+
+                let mut flags = match promotion {
+                    ['q'] => QUEEN_PROM,
+                    ['r'] => ROOK_PROM,
+                    ['b'] => BISHOP_PROM,
+                    ['n'] => KNIGHT_PROM,
+                    _ => 0
+                };
+
+                flags |= match mv {
+                    "e1g1" if self.castling & WK_CASTLE != 0 => CASTLES_KING,
+                    "e8g8" if self.castling & BK_CASTLE != 0 => CASTLES_KING,
+                    "e1c1" if self.castling & WQ_CASTLE != 0 => CASTLES_QUEEN,
+                    "e8c8" if self.castling & BQ_CASTLE != 0 => CASTLES_QUEEN,
+                    _ => 0
+                };
+
+                if self.sqs[src as usize] & PIECE == PAWN {
+                    let is_double = if src > dest { src-dest } else { dest-src } == 16;
+                    if is_double { flags |= DOUBLE_PAWN_PUSH };
+
+                    let is_en_passant = dest == self.en_passant.trailing_zeros();
+                    if is_en_passant { flags |= EN_PASSANT };
+                }
+
+                self.make_move(Move::new(src, dest, flags));
+            },
+            _ => panic!("Malformed move {}", mv)
+        }
     }
 
     pub fn see(&mut self, pos: u32, us: u8) -> i32 {
@@ -116,13 +208,14 @@ impl Board {
         }
     }
 
-    pub fn see_move(&mut self, mv: &Move) -> i32 {
+    pub fn see_move(&self, mv: &Move) -> i32 {
         if !mv.is_capture() { return 0 }
         let us = self.to_move();
         let capture = self.sqs[mv.to() as usize];
+        let mut clone  = *self;
 
-        self.make_move(*mv);
-        p_val(capture) as i32 - self.see(mv.to(), us)
+        clone.make_move(*mv);
+        p_val(capture) as i32 - clone.see(mv.to(), us)
     }
 
     pub fn see_max_one(&mut self, mv: &Move) -> i32 {
@@ -146,17 +239,17 @@ impl Board {
         let dest = 1 << pos;
         let opp = flip(us);
 
-        let l_file = if pos & 8 >= 1 { file(pos - 1) } else { 0 };
-        let r_file = if pos & 8 <= 7 { file(pos + 1) } else { 0 };
+        let l_file = if pos % 8 > 0 { file(pos - 1) } else { 0 };
+        let r_file = if pos % 8 < 7 { file(pos + 1) } else { 0 };
         let pawns = bb[PAWN | opp] & (l_file | r_file);
 
         // TODO: improve logic like in get_moves
         if us == BLACK { // Opponent is white
-            if (pawns << 7) & dest & !FILE_H != 0 { return (PAWN | us, pos - 7) }
-            if (pawns << 9) & dest & !FILE_A != 0 { return (PAWN | us, pos - 9) }
+            if (pawns << 7) & dest != 0 { return (PAWN | us, pos - 7) }
+            if (pawns << 9) & dest != 0 { return (PAWN | us, pos - 9) }
         } else {
-            if (pawns >> 7) & dest & !FILE_A != 0 { return (PAWN | us, pos + 7) }
-            if (pawns >> 9) & dest & !FILE_H != 0 { return (PAWN | us, pos + 9) }
+            if (pawns >> 7) & dest != 0 { return (PAWN | us, pos + 7) }
+            if (pawns >> 9) & dest != 0 { return (PAWN | us, pos + 9) }
         };
 
         let knight = unsafe { KNIGHT_MAP[pos as usize] } & bb[KNIGHT | opp];
@@ -192,49 +285,10 @@ impl Board {
             if mvs & dest != 0 { return (QUEEN | us, from) }
         }
 
-        // TODO: once fixed
-        // let from = bb[KING | us].trailing_zeros();
-        // let mvs = unsafe { KING_MAP[from as usize] };
-        // if mvs & dest != 0 { return KING }
+        let king = unsafe { KING_MAP[pos as usize] } & bb[KING | opp];
+        if king != 0 { return (KING | us, lsb(king)) }
 
         (EMPTY, !0)
-    }
-
-    pub fn make_str_move(&mut self, mv: &str) {
-        let moves: Vec<char> = mv.chars().collect();
-
-        match moves.as_slice() {
-            [sc, sr, dc, dr, promotion..] => {
-                let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
-
-                let mut flags = match promotion {
-                    ['q'] => QUEEN_PROM,
-                    ['r'] => ROOK_PROM,
-                    ['b'] => BISHOP_PROM,
-                    ['n'] => KNIGHT_PROM,
-                    _ => 0
-                };
-
-                flags |= match mv {
-                    "e1g1" if self.castling & Castle::WKing as u8 != 0 => CASTLE_KING,
-                    "e8g8" if self.castling & Castle::BKing as u8 != 0 => CASTLE_KING,
-                    "e1c1" if self.castling & Castle::WQueen as u8 != 0 => CASTLE_QUEEN,
-                    "e8c8" if self.castling & Castle::BQueen as u8 != 0 => CASTLE_QUEEN,
-                    _ => 0
-                };
-
-                if self.sqs[src as usize] & PIECE == PAWN {
-                    let is_double = if src > dest { src-dest } else { dest-src } == 16;
-                    if is_double { flags |= DOUBLE_PAWN_PUSH };
-
-                    let is_en_passant = dest == self.en_passant.trailing_zeros();
-                    if is_en_passant { flags |= EN_PASSANT };
-                }
-
-                self.make_move(Move::new(src, dest, flags));
-            },
-            _ => panic!("Malformed move {}", mv)
-        }
     }
 
     pub fn get_moves(&self) -> Vec<Move> {
@@ -317,13 +371,38 @@ impl Board {
         add_prom_moves(&mut moves, prom_l_att, left, IS_CAPTURE);
         add_prom_moves(&mut moves, prom_r_att, right, IS_CAPTURE);
 
+        // TODO: change lsb -> usize, attacker(usize)
+        // TODO: test hash table in perft
+        if self.castling & (BK_CASTLE << us) != 0 {
+            let offset = Board::color_offset(us);
+            if  self.sqs[offset + 5] == EMPTY &&
+                self.sqs[offset + 6] == EMPTY &&
+                self.attacker(offset as u32 + 5, us).0 == EMPTY &&
+                self.attacker(offset as u32 + 6, us).0 == EMPTY &&
+                self.attacker(offset as u32 + 4, us).0 == EMPTY {
+                    add_moves(&mut moves, 1 << (offset + 6), 2, CASTLES_KING);
+                }
+        }
+
+        if self.castling & (BQ_CASTLE << us) != 0 {
+            let offset = Board::color_offset(us);
+            if  self.sqs[offset + 3] == EMPTY &&
+                self.sqs[offset + 2] == EMPTY &&
+                self.sqs[offset + 1] == EMPTY &&
+                self.attacker(offset as u32 + 3, us).0 == EMPTY &&
+                self.attacker(offset as u32 + 2, us).0 == EMPTY &&
+                self.attacker(offset as u32 + 4, us).0 == EMPTY {
+                    add_moves(&mut moves, 1 << (offset + 2), -2, CASTLES_QUEEN);
+                }
+        }
+
         moves
     }
 
     /// Move better SEE to the front to improve move ordering in alpha-beta search
     pub fn sort(&self, moves: &Vec<Move>) -> Vec<(i32, Move)> {
         let mut temp: Vec<(i32, Move)> = moves.iter().map(
-            |mv| (self.clone().see_move(mv), *mv)).collect();
+            |mv| (self.see_move(mv), *mv)).collect();
 
         temp.sort_by(|a,b|
             if a.0 > b.0 { Less } else { Greater }
@@ -332,6 +411,7 @@ impl Board {
     }
 
     pub fn sort_with(&self, moves: &mut Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
+        // TODO: sort after changing the score for best and killers to be very high
         let mut moved = false;
         if best != Move::NULL {
             let pos = moves.iter().position(|x| *x == best);
@@ -357,6 +437,12 @@ impl Board {
 
         if moved { temp.insert(0, (0, best)) }
         temp
+    }
+
+    pub fn is_in_check(&self) -> bool {
+        let us = self.to_move();
+        let king_pos = self.bb[KING | us].trailing_zeros();
+        self.attacker(king_pos, us).0 != EMPTY
     }
 
     pub fn is_white(&self) -> bool {
@@ -396,10 +482,10 @@ impl Board {
 
         let castle_str = fen.remove(0); // Castling [KQkq]
         let mut castling = 0;
-        if castle_str.contains('K') { castling |= Castle::WKing as u8  };
-        if castle_str.contains('Q') { castling |= Castle::WQueen as u8 };
-        if castle_str.contains('k') { castling |= Castle::BKing as u8  };
-        if castle_str.contains('q') { castling |= Castle::BQueen as u8 };
+        if castle_str.contains('K') { castling |= WK_CASTLE };
+        if castle_str.contains('Q') { castling |= WQ_CASTLE };
+        if castle_str.contains('k') { castling |= BK_CASTLE };
+        if castle_str.contains('q') { castling |= BQ_CASTLE };
 
         let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
         let en_passant = match ep_sq.as_slice() {
