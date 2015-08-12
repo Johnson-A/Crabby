@@ -48,7 +48,7 @@ pub fn main() {
             "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
             "moves"      => make_moves(&mut pos, &mut words),
             "perft"      => perft(&pos, &mut words),
-            "test"       => test_positions("test_positions/positions"),
+            "test"       => test_positions("test_positions/positions", &mut table),
             "print"      => (),
             _            => (), // Ignore any other command
         }
@@ -100,20 +100,19 @@ fn uci() {
     println!("uciok");
 }
 
-fn test_positions(path: &str) {
+fn test_positions(path: &str, table: &mut Table) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
         Err(e)  => panic!("Test suite {} could not be read. {:?}", path, e)
     };
 
-    let mut table = Table::empty(10000000);
     let start = time::precise_time_s();
     // 443 seconds -> (150) seconds
     for line in file.lines().take(10) {
         let fen = line.unwrap();
         let board = Board::from_fen(&mut fen.split(' ').collect());
         println!("{}", fen);
-        go(&board, &mut 8, &mut table);
+        go(&board, &mut 8, table);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }
