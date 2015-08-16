@@ -11,36 +11,35 @@ impl Board {
         let mut eval = 0;
 
         for_all(bb[QUEEN | us], &mut |from| {
-            let att = unsafe { BISHOP_MAP[from as usize].att(occ) |
-                               ROOK_MAP[from as usize].att(occ) };
+            let att = queen_moves(from, occ);
             eval += (att & !occ).count_ones() * 5 +
                     (att & bb[ALL | opp]).count_ones() * 15 +
                     (att & bb[ALL | us] ).count_ones() * 8;
         });
 
         for_all(bb[ROOK | us], &mut |from| {
-            let att = unsafe { ROOK_MAP[from as usize].att(occ) };
+            let att = rook_moves(from, occ);
             eval += (att & !occ).count_ones() * 15 +
                     (att & bb[ALL | opp]).count_ones() * 20 +
                     (att & bb[ALL | us] ).count_ones() * 10;
         });
 
         for_all(bb[BISHOP | us], &mut |from| {
-            let att = unsafe { BISHOP_MAP[from as usize].att(occ) };
+            let att = bishop_moves(from, occ);
             eval += (att & !occ).count_ones() * 25 +
                     (att & bb[ALL | opp]).count_ones() * 30 +
                     (att & bb[ALL | us] ).count_ones() * 10;
         });
 
         for_all(bb[KNIGHT | us], &mut |from| {
-            let att = unsafe { KNIGHT_MAP[from as usize] };
+            let att = knight_moves(from);
             eval += (att & !occ).count_ones() * 30 +
                     (att & bb[ALL | opp]).count_ones() * 35 +
                     (att & bb[ALL | us] ).count_ones() * 12;
         });
 
         for_all(bb[KING | us], &mut |from| {
-            let att = unsafe { KING_MAP[from as usize] };
+            let att = king_moves(from);
             eval += (att & !occ).count_ones() * 10 +
                     (att & bb[ALL | opp]).count_ones() * 15 +
                     (att & bb[ALL | us] ).count_ones() * 10;

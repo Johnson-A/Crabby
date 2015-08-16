@@ -1,4 +1,5 @@
 use rand::{Rng, ThreadRng, thread_rng};
+use std::collections::HashSet;
 use types::*;
 
 static mut piece_keys: [u64; 64*6*2] = [0; 64*6*2];
@@ -110,8 +111,8 @@ impl Table {
     pub fn best_move(&self, hash: Hash) -> Option<Move> {
         let entry = &self.entries[self.index(hash)];
 
-        if !entry.is_empty() && entry.hash == hash {
-            return if entry.best_move == Move::NULL { None } else { Some(entry.best_move) }
+        if !entry.is_empty() && entry.hash == hash && entry.best_move != Move::NULL {
+            return Some(entry.best_move)
         }
         None
     }
@@ -128,21 +129,20 @@ impl Table {
 
     pub fn pv(&self, board: &Board) -> Vec<Move> {
         let mut pv = Vec::new();
-        let mut visited = Vec::new(); // pv is small so vec will be performant
+        let mut visited = HashSet::new();
         self.pv_cycle_track(&mut board.clone(), &mut pv, &mut visited);
 
         pv
     }
 
-    pub fn pv_cycle_track(&self, board: &mut Board, pv: &mut Vec<Move>, visited: &mut Vec<Hash>) { // TODO: pv recursive reference - consume memory
+    pub fn pv_cycle_track(&self, board: &mut Board, pv: &mut Vec<Move>, visited: &mut HashSet<Hash>) {
         let mv = self.best_move(board.hash);
 
         match mv {
             Some(m) => {
                 pv.push(m);
-                board.make_move(m);
-                if !visited.contains(&board.hash) {
-                    visited.push(board.hash);
+                if visited.insert(board.hash) {
+                    board.make_move(m);
                     self.pv_cycle_track(board, pv, visited);
                 }
             },

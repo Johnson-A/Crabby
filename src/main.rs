@@ -16,8 +16,8 @@ pub mod table;
 pub mod types;
 pub mod util;
 
-use table::Table;
 use types::*;
+use table::Table;
 use search::Searcher;
 
 const ENGINE_NAME: &'static str = "Crabby";
@@ -42,53 +42,54 @@ pub fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => depth = 8,
+            "ucinewgame" => { depth = 8; pos = Board::start_position() },
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
             "moves"      => make_moves(&mut pos, &mut words),
             "perft"      => perft(&pos, &mut words),
-            "test"       => test_positions("test_positions/positions", &mut table),
+            "testperf"   => test_positions("test_positions/positions", &mut |b| go(&b, &mut 8, &mut table)),
+            "testmove"   => test_positions("test_positions/perftsuite.epd", &mut |b| println!("{}", b.perft(6, true))),
             "print"      => (),
-            _            => (), // Ignore any other command
+            _            => println!("Unknown command: {}", first_word)
         }
     }
 }
 
 pub fn perft(board: &Board, params: &mut Vec<&str>) {
-    let d = if params.len() >= 1 {
-        params.remove(0).parse::<u8>().unwrap_or(5)
-    } else { 5 };
+    let d = match params.first() {
+        Some(&val) => val.parse::<u8>().unwrap_or(1),
+        None       => 5
+    };
 
     println!("total = {}\n", board.perft(d, true));
 }
 
+/// Start searching the current position up to the specified depth
 pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("Searching\n{}", board);
     for mv in &board.get_moves() {
         println!("({}, {})", board.see_move(mv), mv)
     }
-    let calc_time = {
-        let mut search = Searcher::new(*depth, board, table);
-        search.id()
-    };
+    let calc_time = Searcher::new(*depth, board, table).id();
+
     println!("occ {} of {}", table.count(), table.entries.len());
     table.set_ancient();
 
     let best = table.best_move(board.hash);
     println!("bestmove {}", best.unwrap());
 
-    if calc_time < 1.0 { *depth += 1; }
-    if calc_time > 20.0 && *depth > 6 { *depth -= 1; }
+    if calc_time < 1.0 { *depth += 1 }
+    if calc_time > 20.0 && *depth > 6 { *depth -= 1 }
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
     let mut pos = match params.remove(0) { // ["startpos", "fen"]
         "startpos" => Board::start_position(),
-        _fen       => Board::from_fen(params) // removes the fen string while creating board
+        _fen       => Board::from_fen(params)
     };
 
-    if params.len() > 0 { params.remove(0); } // Remove "moves" string if there are moves
+    if !params.is_empty() { params.remove(0); } // Remove "moves" string if there are moves
     make_moves(&mut pos, params);
 
     pos
@@ -100,19 +101,19 @@ fn uci() {
     println!("uciok");
 }
 
-fn test_positions(path: &str, table: &mut Table) {
+fn test_positions(path: &str, work: &mut FnMut(Board)) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
-        Err(e)  => panic!("Test suite {} could not be read. {:?}", path, e)
+        Err(e)   => panic!("Test suite {} could not be read. {:?}", path, e)
     };
 
     let start = time::precise_time_s();
-    // 443 seconds -> (150) seconds
+    // 110 s
     for line in file.lines().take(10) {
         let fen = line.unwrap();
         let board = Board::from_fen(&mut fen.split(' ').collect());
         println!("{}", fen);
-        go(&board, &mut 8, table);
+        work(board);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }

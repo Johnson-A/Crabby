@@ -7,6 +7,27 @@ pub static mut BISHOP_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0
 pub static mut ROOK_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
 pub static mut MAP: [u64; 107648] = [0; 107648];
 
+pub fn knight_moves(from: u32) -> u64 {
+    unsafe { KNIGHT_MAP[from as usize] }
+}
+
+pub fn king_moves(from: u32) -> u64 {
+    unsafe { KING_MAP[from as usize] }
+}
+
+pub fn bishop_moves(from: u32, occ: u64) -> u64 {
+    unsafe { BISHOP_MAP[from as usize].att(occ) }
+}
+
+pub fn rook_moves(from: u32, occ: u64) -> u64 {
+    unsafe { ROOK_MAP[from as usize].att(occ) }
+}
+
+pub fn queen_moves(from: u32, occ: u64) -> u64 {
+    unsafe { BISHOP_MAP[from as usize].att(occ) |
+               ROOK_MAP[from as usize].att(occ) }
+}
+
 pub unsafe fn init() {
     let mut table = Vec::new();
     king_map_init();

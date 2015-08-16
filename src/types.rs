@@ -31,7 +31,7 @@ impl IndexMut<u8> for BitBoard {
 
 pub type Squares = [u8; 64];
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Hash { pub val: u64 }
 
 #[derive(Copy)]
