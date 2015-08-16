@@ -7,8 +7,8 @@ use magics::*;
 pub fn gen_bitboards(sqs: &Squares) -> BitBoard {
     let mut bb = BitBoard([0; 14]);
 
-    for (pos, piece) in sqs.iter().enumerate() {
-        if *piece != EMPTY { bb[*piece] |= 1 << pos }
+    for (pos, &piece) in sqs.iter().enumerate() {
+        if piece != EMPTY { bb[piece] |= 1 << pos }
     }
 
     bb.set_all();
