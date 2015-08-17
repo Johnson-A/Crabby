@@ -2,6 +2,7 @@ use std::i32;
 use time;
 use types::*;
 use table::*;
+use util::lsb;
 
 pub struct Searcher<'a> {
     pub board: &'a Board,
@@ -64,8 +65,8 @@ impl<'a> Searcher<'a> {
             return (score, true)
         }
 
-        if allow_null && depth >= 3 && !board.is_in_check() {
-            let r = if depth > 6 { 3 } else { 2 };
+        if allow_null && depth >= 4 && !board.is_in_check() {
+            let r = if depth > 7 { 3 } else { 2 };
             let mut new_board = *board;
             new_board.move_num += 1;
             new_board.hash.flip_color();
@@ -80,11 +81,39 @@ impl<'a> Searcher<'a> {
         let moves = board.sort_with(&mut board.get_moves(), best_move,
                                     &self.killers[(self.cur_depth - depth) as usize]);
 
+        let mut moves_searched = 0;
         for (_, mv) in moves {
             let mut new_board = *board;
             new_board.make_move(mv);
 
-            let (mut score, is_legal) = self.negamax_a_b(&new_board, depth - 1, -beta, -alpha, true);
+            let new_depth = if moves_searched >= 4 && depth >= 3 &&
+                               !mv.is_capture() &&
+                               !new_board.is_in_check() {
+                depth - 2
+            } else {
+                depth - 1
+            };
+            let (mut score, is_legal) = self.negamax_a_b(&new_board, new_depth, -beta, -alpha, true);
+
+            // let (mut score, is_legal) = if moves_searched == 0 {
+            //     self.negamax_a_b(&new_board, depth - 1, -beta, -alpha, true)
+            // } else {
+            //     let new_depth = if moves_searched >= 4 && depth >= 3 &&
+            //                        !mv.is_capture() &&
+            //                        mv.to() != lsb(new_board.bb[KING | new_board.to_move()]){
+            //         depth - 2
+            //     } else {
+            //         depth - 1
+            //     };
+            //     let (s, l) = self.negamax_a_b(&new_board, new_depth, -(alpha + 1), -alpha, true);
+            //     if -s > alpha && -s < beta {
+            //         self.negamax_a_b(&new_board, depth - 1, -beta, s, true)
+            //     } else {
+            //         (s,l)
+            //     }
+            // };
+
+            // let (mut score, is_legal) = self.negamax_a_b(&new_board, depth - 1, -beta, -alpha, true);
             score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
@@ -98,6 +127,7 @@ impl<'a> Searcher<'a> {
                 best_move = mv;
                 alpha = score;
             }
+            moves_searched += 1;
         }
 
         if !has_legal_move {
@@ -110,6 +140,10 @@ impl<'a> Searcher<'a> {
 
         self.table.record(board, alpha, best_move, depth, NodeBound::Alpha);
         (alpha, true)
+    }
+
+    pub fn zw_search() {
+        // TODO
     }
 
     pub fn pv_search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32) -> (i32, bool) {

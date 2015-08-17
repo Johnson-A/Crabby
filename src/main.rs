@@ -31,7 +31,7 @@ pub fn main() {
     let stdin = stdin();
     let mut pos = Board::start_position();
     let mut table = Table::empty(10000000 * 2);
-    let mut depth = 9;
+    let mut depth = 11;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -42,13 +42,13 @@ pub fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => { depth = 9; pos = Board::start_position() },
+            "ucinewgame" => { depth = 11; pos = Board::start_position() },
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
             "moves"      => make_moves(&mut pos, &mut words),
             "perft"      => perft(&pos, &mut words),
-            "testperf"   => test_positions("test_positions/positions", &mut |b| go(&b, &mut 8, &mut table)),
+            "testperf"   => test_positions("test_positions/positions", &mut |b| go(&b, &mut 12, &mut table)),
             "testmove"   => test_positions("test_positions/perftsuite.epd", &mut |b| println!("{}", b.perft(6, true))),
             "print"      => (),
             _            => println!("Unknown command: {}", first_word)
@@ -79,7 +79,7 @@ pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     let best = table.best_move(board.hash);
     println!("bestmove {}", best.unwrap());
 
-    if calc_time < 1.0 { *depth += 1 }
+    if calc_time < 3.0 { *depth += 1 }
     if calc_time > 30.0 && *depth > 6 { *depth -= 1 }
 }
 

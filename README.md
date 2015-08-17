@@ -6,6 +6,8 @@ I would greatly appreciate all feedback on my progress for both!
 * Nega-Max alpha beta pruning
 * Iterative deepening
 * Quiescence Search
+* Null move pruning
+* Late Move Reduction
 * Killer move heuristic
 * Static exchange evaluation
 * Transposition Table with Zobrist hashing
@@ -13,10 +15,10 @@ I would greatly appreciate all feedback on my progress for both!
 * Magic move generation
 
 # Planned
-* Null move pruning
 * Aspiration window
-* PVS/Negascout or MTD(f)
+* PVS/Negascout or MTD(f) - improvements
 * Piece-square evaluation
+* Evaluation - improvements
 
 # Extended UCI Commands
 * ponder - search infinitely
