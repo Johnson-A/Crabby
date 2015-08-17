@@ -30,8 +30,8 @@ pub fn main() {
 
     let stdin = stdin();
     let mut pos = Board::start_position();
-    let mut table = Table::empty(10000000);
-    let mut depth = 8;
+    let mut table = Table::empty(10000000 * 2);
+    let mut depth = 9;
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -42,7 +42,7 @@ pub fn main() {
             "uci"        => uci(),
             "setoption"  => (),
             "isready"    => println!("readyok"),
-            "ucinewgame" => { depth = 8; pos = Board::start_position() },
+            "ucinewgame" => { depth = 9; pos = Board::start_position() },
             "position"   => pos = position(&mut words),
             "go"         => go(&pos, &mut depth, &mut table),
             "ponder"     => go(&pos, &mut 255, &mut table), // TODO: implement stop signal
@@ -80,7 +80,7 @@ pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     println!("bestmove {}", best.unwrap());
 
     if calc_time < 1.0 { *depth += 1 }
-    if calc_time > 20.0 && *depth > 6 { *depth -= 1 }
+    if calc_time > 30.0 && *depth > 6 { *depth -= 1 }
 }
 
 fn position(params: &mut Vec<&str>) -> Board {
