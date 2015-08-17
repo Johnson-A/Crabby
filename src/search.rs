@@ -129,8 +129,8 @@ impl<'a> Searcher<'a> {
 
             let (mut score, is_legal) = if !first {
                 let (s, l) = self.pv_search(&new_board, depth - 1, -(alpha + 1), -alpha);
-                if s > alpha && s < beta {
-                    self.pv_search(&new_board, depth - 1, -beta, -s)
+                if -s > alpha && -s < beta {
+                    self.pv_search(&new_board, depth - 1, -beta, s)
                 } else {
                     (s, l)
                 }
