@@ -383,31 +383,26 @@ impl Board {
     }
 
     pub fn sort_with(&self, moves: &mut Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
-        // TODO: sort after changing the score for best and killers to be very high
-        let mut moved = false;
-        if best != Move::NULL {
-            let pos = moves.iter().position(|x| *x == best);
-            match pos {
-                Some(ind) => {
-                    moved = true;
-                    moves.remove(ind);
-                },
-                None => ()
+        let mut temp: Vec<(i32, Move)> = moves.iter().map(
+            |mv| (self.see_move(mv), *mv)).collect();
+
+        // Give the largest value to best to move it to the front
+        // Give killer moves values just above zero to put them ahead of
+        // all non-captures and behind all positive see moves
+        for &mut (ref mut see, mv) in &mut temp {
+            if mv == best {
+                *see = 10000000;
+            } else if mv == killer.0 {
+                *see = 2;
+            } else if mv == killer.1 {
+                *see = 1;
             }
         }
 
-        let mut temp = self.sort(&moves);
+        temp.sort_by(|a,b|
+            if a.0 > b.0 { Less } else { Greater }
+        );
 
-        let first = temp.iter().position(|x| x.0 <= 0);
-        match first {
-            Some(ind) => {
-                move_to(&mut temp, (0, killer.1), ind);
-                move_to(&mut temp, (0, killer.0), ind);
-            },
-            None => () // The killer moves are not valid
-        };
-
-        if moved { temp.insert(0, (0, best)) }
         temp
     }
 

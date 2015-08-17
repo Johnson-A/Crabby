@@ -1,6 +1,7 @@
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use util::lsb;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct BitBoard(pub [u64; 14]);
@@ -60,10 +61,10 @@ impl fmt::Display for Board {
         let output: String = characters.into_iter().collect();
         write!(f, "--------\n{}--------\n\
                   Move # {}\n\
-                  en passant {}\n\
-                  castling {}\n\
+                  en passant {:?}\n\
+                  castling {:b}\n\
                   hash {}\n",
-                  output, self.move_num, self.en_passant, self.castling, self.hash.val)
+                  output, self.move_num, from_pos(lsb(self.en_passant)), self.castling, self.hash.val)
     }
 }
 

@@ -130,7 +130,7 @@ impl<'a> Searcher<'a> {
             let (mut score, is_legal) = if !first {
                 let (s, l) = self.pv_search(&new_board, depth - 1, -(alpha + 1), -alpha);
                 if s > alpha && s < beta {
-                    self.pv_search(&new_board, depth - 1, -beta, s)
+                    self.pv_search(&new_board, depth - 1, -beta, -s)
                 } else {
                     (s, l)
                 }
@@ -138,14 +138,14 @@ impl<'a> Searcher<'a> {
                 first = false;
                 self.pv_search(&new_board, depth - 1, -beta, -alpha)
             };
-            // let (mut score, is_legal) = self.negamax_a_b(&new_board, depth - 1, -beta, -alpha);
+
             score *= -1;
 
             if is_legal { has_legal_move = true; } else { continue }
 
             if score >= beta {
                 if !mv.is_capture() { self.killers[(self.cur_depth - depth) as usize].substitute(mv) }
-                self.table.record(board, score, mv, depth, NodeBound::Beta); // score or beta?
+                self.table.record(board, score, mv, depth, NodeBound::Beta);
                 return (score, true)
             }
             if score > alpha {
@@ -171,13 +171,10 @@ impl Board {
     pub fn q_search(&self, depth: u8, mut alpha: i32, beta: i32) -> i32 {
         if self.player_in_check(self.prev_move()) { return 10000000 }
         // TODO: remove depth so all takes are searched
-        // TODO: Check for king attacks and break for that branch to avoid illegal moves
         // TODO: When no legal moves possible, return draw to avoid stalemate
         // TODO: Three move repition
-        // TODO: Add illegal move detection in queiscence which might otherwise cause subtle bugs
         let stand_pat = self.evaluate();
-        if depth == 0 { return stand_pat }
-        if stand_pat >= beta { return beta }
+        if depth == 0 || stand_pat >= beta { return stand_pat }
         if stand_pat > alpha { alpha = stand_pat }
 
         let mut captures = self.get_moves();
@@ -188,7 +185,7 @@ impl Board {
             new_board.make_move(mv);
             let score = -new_board.q_search(depth - 1, -beta, -alpha);
 
-            if score >= beta { return beta }
+            if score >= beta { return score }
             if score > alpha { alpha = score; }
         }
         alpha
