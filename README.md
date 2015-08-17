@@ -32,7 +32,7 @@ $ cargo build --release
 ```
 Alternatively, as specified in the file *compile*, to make use of cpu features
 ```sh
-$ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=haswell
+$ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 ```
 # Terms
 Crabby is licensed under the **GNU General Public License** (GPLv2)
