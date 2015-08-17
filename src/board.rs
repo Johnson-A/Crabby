@@ -188,7 +188,7 @@ impl Board {
                     let is_double = if src > dest { src-dest } else { dest-src } == 16;
                     if is_double { flags |= DOUBLE_PAWN_PUSH };
 
-                    let is_en_passant = dest == self.en_passant.trailing_zeros();
+                    let is_en_passant = dest == lsb(self.en_passant);
                     if is_en_passant { flags |= EN_PASSANT };
                 }
 
@@ -407,7 +407,7 @@ impl Board {
     }
 
     pub fn player_in_check(&self, us: u8) -> bool {
-        let king_pos = self.bb[KING | us].trailing_zeros();
+        let king_pos = lsb(self.bb[KING | us]);
         self.attacker(king_pos, us).0 != EMPTY
     }
 
@@ -458,7 +458,7 @@ impl Board {
         if castle_str.contains('q') { castling |= BQ_CASTLE };
 
         let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
-        let en_passant = match ep_sq.as_slice() {
+        let en_passant = match ep_sq.as_ref() {
             [sc, sr] => 1 << to_pos(sc, sr),
             _ => 0
         };

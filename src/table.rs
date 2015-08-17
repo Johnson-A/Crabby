@@ -1,6 +1,7 @@
 use rand::{Rng, ThreadRng, thread_rng};
 use std::collections::HashSet;
 use types::*;
+use util::lsb;
 
 static mut piece_keys: [u64; 64*6*2] = [0; 64*6*2];
 static mut castle_keys: [u64; 16] = [0; 16];
@@ -48,7 +49,7 @@ impl Hash {
     }
 
     pub fn set_ep(&mut self, en_passant: u64) {
-        let file = en_passant.trailing_zeros() % 8;
+        let file = lsb(en_passant) % 8;
         self.val ^= unsafe { ep_keys[file as usize] };
     }
 
@@ -121,7 +122,7 @@ impl Table {
         let ind = self.index(board.hash);
         let entry = &mut self.entries[ind];
 
-        if entry.is_empty() || entry.depth < depth || entry.ancient {
+        if entry.is_empty() || entry.depth <= depth || entry.ancient {
             *entry = Entry { hash: board.hash, score: score, best_move: best_move,
                              depth: depth, bound: bound, ancient: false };
         }
@@ -141,8 +142,9 @@ impl Table {
         match mv {
             Some(m) => {
                 pv.push(m);
+                board.make_move(m);
+
                 if visited.insert(board.hash) {
-                    board.make_move(m);
                     self.pv_cycle_track(board, pv, visited);
                 }
             },

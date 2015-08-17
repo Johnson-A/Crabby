@@ -72,6 +72,11 @@ pub fn lsb(val: u64) -> u32 {
     val.trailing_zeros()
 }
 
+pub fn count(val: u64) -> u32 {
+    val.count_ones()
+}
+
+// ![feature(negate_unsigned)]
 // #[inline] pub fn bit_pop(x: &mut u64) -> u64 {
 //     let lsb = *x & -(*x);
 //     // TODO: v & (!v + 1)
@@ -81,7 +86,7 @@ pub fn lsb(val: u64) -> u32 {
 
 // TODO: Change to bit_pop, *b - 1 instead of ^= 1 << lsb
 #[inline] pub fn bit_pop(x: &mut u64) -> u32 {
-    let lsb_pos = x.trailing_zeros();
+    let lsb_pos = lsb(*x);
     *x ^= 1 << lsb_pos;
     lsb_pos
 }

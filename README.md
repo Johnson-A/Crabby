@@ -19,6 +19,8 @@ I would greatly appreciate all feedback on my progress for both!
 * PVS/Negascout or MTD(f) - improvements
 * Piece-square evaluation
 * Evaluation - improvements
+* Improve Principal variation extraction
+* Three fold repetition
 
 # Extended UCI Commands
 * ponder - search infinitely
@@ -32,9 +34,9 @@ I will hopefully remove many of these in the future as they become stable.
 ```sh
 $ cargo build --release
 ```
-Alternatively, as specified in the file *compile*, to make use of cpu features
+Alternatively, as specified in the file [compile](compile), to make use of CPU features
 ```sh
 $ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 ```
 # Terms
-Crabby is licensed under the **GNU General Public License** (GPLv2)
+Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in [LICENSE](LICENSE)

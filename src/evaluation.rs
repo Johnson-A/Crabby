@@ -3,6 +3,12 @@ use util::*;
 use magics::*;
 
 impl Board {
+    // Attack map by square
+    // Piece Values by Square
+    // King safety
+    // Doubled pawns
+    // Attacks defends - who owns more squares
+    // Space advantage
     pub fn get_evals(&self, us: u8, opp: u8) -> i32 {
         // TODO: remove king material? With legal move checking, and mate and stalemate now added - qsearch still
         let bb = &self.bb;
