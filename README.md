@@ -20,7 +20,6 @@ I would greatly appreciate all feedback on my progress for both!
 * Piece-square evaluation
 * Evaluation - improvements
 * Improve Principal variation extraction
-* Three fold repetition
 
 # Extended UCI Commands
 * ponder - search infinitely

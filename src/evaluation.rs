@@ -9,6 +9,7 @@ impl Board {
     // Doubled pawns
     // Attacks defends - who owns more squares
     // Space advantage
+    // Simplify when ahead
     pub fn get_evals(&self, us: u8, opp: u8) -> i32 {
         // TODO: remove king material? With legal move checking, and mate and stalemate now added - qsearch still
         let bb = &self.bb;

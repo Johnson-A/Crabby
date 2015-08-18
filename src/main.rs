@@ -73,12 +73,6 @@ pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     }
     let calc_time = Searcher::new(*depth, board, table).id();
 
-    println!("occ {} of {}", table.count(), table.entries.len());
-    table.set_ancient();
-
-    let best = table.best_move(board.hash);
-    println!("bestmove {}", best.unwrap());
-
     if calc_time < 3.0 { *depth += 1 }
     if calc_time > 30.0 && *depth > 6 { *depth -= 1 }
 }
