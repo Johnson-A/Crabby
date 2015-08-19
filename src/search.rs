@@ -1,9 +1,16 @@
 use std::i32;
+use std::cmp::{min, max};
 use time;
 use types::*;
 use table::*;
 
 pub const INFINITY: i32 = i32::MAX;
+pub const VALUE_MATE: i32 = 1000000000;
+
+#[derive(PartialEq, Eq)]
+pub enum NT {
+    Root, PV, NonPV
+}
 
 pub struct Searcher<'a> {
     pub board: &'a Board,
@@ -30,13 +37,15 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    pub fn id(&mut self) -> f64 {
+    /// Search up to max_ply and return an estimate for a good search depth next move
+    pub fn id(&mut self) -> u8 {
+        // TODO: keep track of all ply, self.ply = self.move_num
         let start = time::precise_time_s();
-        let mut calc_time = start;
+        let mut calc_time = 0.0;
         let mut depth = 1;
 
-        while depth <= self.max_ply {
-            let score = self.search(self.board, depth, -INFINITY, INFINITY, true);
+        while (calc_time < 5.0 && depth <= self.max_ply) || self.max_ply == 255 {
+            let score = self.search(self.board, depth, -INFINITY, INFINITY, NT::Root);
 
             calc_time = time::precise_time_s() - start;
             let pv = self.table.pv(self.board);
@@ -53,13 +62,16 @@ impl<'a> Searcher<'a> {
 
         let best = self.table.best_move(self.board.hash);
         println!("bestmove {}", best.unwrap());
-
-        calc_time
+        depth
     }
 
-    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32, allow_null: bool) -> i32 {
+    // TODO: wrap self.ply += 1 /* search */ self.ply -= 1
+    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32,
+                             nt: NT) -> i32 {
         self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }
+
+        let is_pv = nt == NT::Root || nt == NT::PV;
 
         let (table_score, mut best_move) = self.table.probe(board.hash, depth, alpha, beta);
 
@@ -73,15 +85,33 @@ impl<'a> Searcher<'a> {
             return score
         }
 
-        if allow_null && depth >= 4 && !board.is_in_check() && beta < INFINITY {
-            let r = if depth > 7 { 3 } else { 2 };
+        let eval = board.evaluate();
+
+        if    !is_pv
+           && depth >= 2
+           && eval >= beta
+           && !board.is_in_check()
+        {
+            // Testing value from stockfish
+            let r = (823 + 67 * (depth as i32)) / 256 + min((eval - beta) / p_val(PAWN) as i32, 3);
+
             let mut new_board = *board;
-            new_board.move_num += 1;
-            new_board.hash.flip_color();
-            new_board.hash.set_ep(new_board.en_passant);
-            new_board.en_passant = 0;
-            let s = -self.search(&new_board, depth - r - 1, -beta, 1-beta, false);
-            if s >= beta { return beta }
+            new_board.do_null_move();
+
+            let d = if r as u8 >= depth { 0 } else { depth - r as u8 };
+            self.ply += 1;
+            let s = -self.search(&new_board, d, -beta, 1-beta, NT::NonPV);
+            self.ply -= 1;
+
+            if s >= beta {
+                if s >= VALUE_MATE - 1000 { return beta }
+
+                if depth < 12 { return s }
+                self.ply += 1;
+                let v = self.search(&board, d, beta - 1, beta, NT::NonPV);
+                self.ply -= 1;
+                if v >= beta { return s }
+            }
         }
 
         let moves = board.sort_with(&mut board.get_moves(), best_move,
@@ -110,26 +140,32 @@ impl<'a> Searcher<'a> {
             let score = match is_rep {
                 true => 0,
                 false if moves_searched == 0 =>
-                    -self.search(&new_board, depth - 1, -beta, -alpha, true),
+                    -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV), // TODO: Null move in PVS?
 
                 _ => {
-                    let lmr = moves_searched >= 4 && depth >= 3 &&
-                              !mv.is_capture() &&
-                              !new_board.is_in_check();
+                    // moves_searched > 0
+                    let lmr =  depth >= 3
+                            && moves_searched >= 2
+                            && !mv.is_capture()
+                            && mv.promotion() == 0
+                            && mv != self.killers[self.ply].0
+                            && mv != self.killers[self.ply].1
+                            && !new_board.is_in_check();
 
                     let new_depth = depth - if lmr { 2 } else { 1 };
 
-                    let s = -self.search(&new_board, new_depth, -(alpha+1), -alpha, true);
+                    let s = -self.search(&new_board, new_depth, -(alpha+1), -alpha, NT::NonPV);
 
-                    if s > alpha { // && s < beta
-                        -self.search(&new_board, new_depth, -beta, -s, true)
-                    } else { s }
+                    if s > alpha { // && s < beta - fail hard
+                        -self.search(&new_board, new_depth, -beta, -s, NT::NonPV)
+                    } else {
+                        s
+                    }
                 }
             };
             self.ply -= 1;
             // table >= depth
 
-            if score  > 1000000000 + 1000 { println!("depth {} s {} {} {}", depth, score, INFINITY, -INFINITY) }
             if score != -INFINITY { moves_searched += 1 } else { continue }
 
             if score >= beta {
@@ -145,7 +181,7 @@ impl<'a> Searcher<'a> {
 
         if moves_searched == 0 {
             if board.is_in_check() {
-                return -1000000000
+                return -VALUE_MATE + self.ply as i32
             } else {
                 return 0
             }

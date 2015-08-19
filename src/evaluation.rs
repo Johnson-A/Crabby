@@ -67,14 +67,14 @@ impl Board {
         // TODO: doubled pawns
         // TODO: Center squares and pawns
         let bb = &self.bb;
-        let opp = self.prev_move();
         let us = self.to_move(); // Node player
+        let opp = self.prev_move();
 
         let mut eval = 1000*1000;
 
         let occ = bb[ALL | us] | bb[ALL | opp];;
 
-        if self.is_white() {
+        if us == WHITE {
             eval -= ((bb[ALL | us] ^ (bb[KING | us] | bb[QUEEN | us])) & ROW_1).count_ones() * 50;
             eval += ((bb[ALL | opp] ^ (bb[KING | opp] | bb[QUEEN | opp])) & ROW_8).count_ones() * 50;
 

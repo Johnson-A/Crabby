@@ -71,10 +71,7 @@ pub fn go(board: &Board, depth: &mut u8, table: &mut Table) {
     for mv in &board.get_moves() {
         println!("({}, {})", board.see_move(mv), mv)
     }
-    let calc_time = Searcher::new(*depth, board, table).id();
-
-    if calc_time < 3.0 { *depth += 1 }
-    if calc_time > 30.0 && *depth > 6 { *depth -= 1 }
+    *depth = Searcher::new(*depth, board, table).id();
 }
 
 fn position(params: &mut Vec<&str>) -> Board {

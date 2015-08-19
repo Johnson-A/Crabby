@@ -61,6 +61,13 @@ impl Board {
         count
     }
 
+    pub fn do_null_move(&mut self) {
+        self.move_num += 1;
+        self.hash.flip_color();
+        self.hash.set_ep(self.en_passant);
+        self.en_passant = 0;
+    }
+
     /// Move the specified piece, which may not be the original src piece (when promoting)
     /// Update the board hash correspondingly
     pub fn move_piece(&mut self, src: usize, dest: usize, piece: u8) {

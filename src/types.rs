@@ -61,10 +61,10 @@ impl fmt::Display for Board {
         let output: String = characters.into_iter().collect();
         write!(f, "--------\n{}--------\n\
                   Move # {}\n\
-                  en passant {:?}\n\
-                  castling {:b}\n\
+                  en passant {}\n\
+                  castling {:4b}\n\
                   hash {}\n",
-                  output, self.move_num, from_pos(lsb(self.en_passant)), self.castling, self.hash.val)
+                  output, self.move_num, lsb(self.en_passant), self.castling, self.hash.val)
     }
 }
 
