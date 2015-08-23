@@ -87,12 +87,20 @@ impl Board {
         self.bb[piece] ^= 1 << dest;
     }
 
-    pub fn make_move(&mut self, mv: Move) {
-        self.hash.set_ep(self.en_passant); // Remove enpessant
-        self.hash.flip_color(); // Change color
+    /// Toggle the state of one individual castling option
+    pub fn set_castle(&mut self, castle: u8) {
+        self.hash.set_castling(self.castling); // Remove castling state
+        self.castling ^= castle;
+        self.hash.set_castling(self.castling); // Add new state to hash
+    }
 
+    pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
         let color = self.to_move();
+        let opp = flip(color);
+        let offset = Board::color_offset(color);
+
+        self.do_null_move();
 
         let dest_piece = match mv.promotion() {
             QUEEN_PROM  => QUEEN  | color,
@@ -104,12 +112,10 @@ impl Board {
         self.move_piece(src, dest, dest_piece);
 
         if mv.king_castle() {
-            let offset = Board::color_offset(color);
             self.move_piece(7 + offset, 5 + offset, ROOK | color);
         }
 
         if mv.queen_castle() {
-            let offset = Board::color_offset(color);
             self.move_piece(offset, 3 + offset, ROOK | color);
         }
 
@@ -117,50 +123,36 @@ impl Board {
             // If white takes -> remove from row below. If black takes -> remove from row above
             let ep_pawn = if color == WHITE { dest - 8 } else { dest + 8 };
             self.hash.set_piece(ep_pawn, self.sqs[ep_pawn]); // Remove taken pawn
-            self.bb[PAWN | flip(color)] ^= 1 << ep_pawn;
+            self.bb[PAWN | opp] ^= 1 << ep_pawn;
             self.sqs[ep_pawn] = EMPTY;
         }
 
-        self.en_passant = 0;
         if mv.is_double_push() {
             self.en_passant = 1 << ((src + dest) / 2);
             self.hash.set_ep(self.en_passant);
         }
 
-        // TODO: clean up this logic
         if  self.castling & (BK_CASTLE << color) != 0 &&
-           (src == Board::color_offset(color) + 4 ||
-            src == Board::color_offset(color) + 7) {
-                let castle = BK_CASTLE << color;
-                self.castling ^= castle;
-                self.hash.set_castling(castle);
+            (src == offset + 4 || src == offset + 7) {
+                self.set_castle(BK_CASTLE << color);
         }
 
-        if  self.castling & (BK_CASTLE << flip(color)) != 0 &&
-            dest == Board::color_offset(flip(color)) + 7 {
-                let castle = BK_CASTLE << flip(color);
-                self.castling ^= castle;
-                self.hash.set_castling(castle);
+        if  self.castling & (BK_CASTLE << opp) != 0 &&
+            dest == Board::color_offset(opp) + 7 {
+                self.set_castle(BK_CASTLE << opp);
         }
 
         if  self.castling & (BQ_CASTLE << color) != 0 &&
-           (src == Board::color_offset(color) + 4 ||
-            src == Board::color_offset(color)) {
-                let castle = BQ_CASTLE << color;
-                self.castling ^= castle;
-                self.hash.set_castling(castle);
+            (src == offset + 4 || src == offset) {
+                self.set_castle(BQ_CASTLE << color);
         }
 
-        if  self.castling & (BQ_CASTLE << flip(color)) != 0 &&
-            dest == Board::color_offset(flip(color)) {
-                let castle = BQ_CASTLE << flip(color);
-                self.castling ^= castle;
-                self.hash.set_castling(castle);
+        if  self.castling & (BQ_CASTLE << opp) != 0 &&
+            dest == Board::color_offset(opp) {
+                self.set_castle(BQ_CASTLE << opp);
         }
 
         self.bb.set_all();
-
-        self.move_num += 1;
     }
 
     /// Get the appropriate offset for castling depending on color to move
@@ -168,7 +160,7 @@ impl Board {
         if us == WHITE { 0 } else { 56 }
     }
 
-    pub fn make_str_move(&mut self, mv: &str) {
+    pub fn move_from_str(&mut self, mv: &str) -> Move {
         let moves: Vec<char> = mv.chars().collect();
 
         match moves.as_slice() {
@@ -199,7 +191,7 @@ impl Board {
                     if is_en_passant { flags |= EN_PASSANT };
                 }
 
-                self.make_move(Move::new(src, dest, flags));
+                Move::new(src, dest, flags)
             },
             _ => panic!("Malformed move {}", mv)
         }
@@ -416,6 +408,17 @@ impl Board {
     pub fn player_in_check(&self, us: u8) -> bool {
         let king_pos = lsb(self.bb[KING | us]);
         self.attacker(king_pos, us).0 != EMPTY
+    }
+
+    pub fn is_irreversible(&self, mv: Move) -> bool {
+           mv.is_capture()
+        || self.sqs[mv.from() as usize] & PIECE == PAWN
+        || mv.king_castle()
+        || mv.queen_castle()
+    }
+
+    pub fn ply(&self) -> usize {
+        (self.move_num - 1) as usize
     }
 
     pub fn is_in_check(&self) -> bool {

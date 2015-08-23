@@ -26,8 +26,8 @@ impl Hash {
     pub fn init(board: &Board) -> Hash {
         let mut hash = Hash { val: 0 };
 
-        for (i, sq) in board.sqs.iter().enumerate() {
-            hash.set_piece(i, *sq);
+        for (i, &sq) in board.sqs.iter().enumerate() {
+            hash.set_piece(i, sq);
         }
 
         hash.set_castling(board.castling);
@@ -49,8 +49,10 @@ impl Hash {
     }
 
     pub fn set_ep(&mut self, en_passant: u64) {
-        let file = lsb(en_passant) % 8;
-        self.val ^= unsafe { ep_keys[file as usize] };
+        if en_passant != 0 {
+            let file = lsb(en_passant) % 8;
+            self.val ^= unsafe { ep_keys[file as usize] };
+        }
     }
 
     pub fn flip_color(&mut self) {

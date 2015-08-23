@@ -12,46 +12,79 @@ pub enum NT {
     Root, PV, NonPV
 }
 
-pub struct Searcher<'a> {
-    pub board: &'a Board,
-    pub table: &'a mut Table,
-    pub rep: Vec<Hash>,
+pub struct Searcher {
+    pub root: Board,
+    pub table: Table,
     pub killers: Vec<Killer>,
-    pub max_ply: u8,
+    pub rep: Vec<Hash>,
+    pub max_depth: usize,
     pub ply: usize,
     pub node_count: usize,
-    pub q_count: usize
+    pub irreversible: usize
 }
 
-impl<'a> Searcher<'a> {
-    pub fn new(max: u8, board: &'a Board, table: &'a mut Table) -> Searcher<'a> {
+impl Searcher {
+    pub fn new_start() -> Searcher {
+        let start = Board::start_position();
+        Searcher::new(12, start, 10000000 * 2, vec![start.hash])
+    }
+
+    pub fn new(depth: usize, board: Board, table_size: usize, mut history: Vec<Hash>) -> Searcher {
+        history.append(&mut vec![Hash { val: 0 }; depth]);
+
         Searcher {
-            board: board,
-            table: table,
-            rep: vec![Hash { val: 0 }; max as usize],
-            killers: vec![Killer(Move::NULL, Move::NULL); max as usize],
-            max_ply: max,
+            root: board,
+            table: Table::empty(table_size),
+            killers: vec![Killer(Move::NULL, Move::NULL); depth],
+            rep: history,
+            max_depth: depth,
             ply: 0,
             node_count: 0,
-            q_count: 0
+            irreversible: 0
         }
     }
 
+    pub fn position(&mut self, params: &mut Vec<&str>) {
+        self.root = match params.remove(0) { // ["startpos", "fen"]
+            "startpos" => Board::start_position(),
+            _fen       => Board::from_fen(params)
+        };
+
+        if !params.is_empty() { params.remove(0); } // Remove "moves" string if there are moves
+
+        self.rep = Vec::new();
+        self.rep.push(self.root.hash);
+
+        for mv_str in params {
+            let mv = self.root.move_from_str(mv_str);
+            if self.root.is_irreversible(mv) {
+                self.irreversible = self.root.ply() + 1; // or self.rep.len() + 1
+            }
+            self.root.make_move(mv);
+            self.rep.push(self.root.hash);
+        }
+
+        self.rep.append(&mut vec![Hash { val: 0 }; self.max_depth]);
+        self.killers = vec![Killer(Move::NULL, Move::NULL); self.max_depth];
+        self.node_count = 0;
+    }
+
     /// Search up to max_ply and return an estimate for a good search depth next move
-    pub fn id(&mut self) -> u8 {
-        // TODO: keep track of all ply, self.ply = self.move_num
+    pub fn id(&mut self) {
+        println!("Searching\n{}", self.root);
         let start = time::precise_time_s();
         let mut calc_time = 0.0;
         let mut depth = 1;
 
-        while (calc_time < 5.0 && depth <= self.max_ply) || self.max_ply == 255 {
-            let score = self.search(self.board, depth, -INFINITY, INFINITY, NT::Root);
+        while calc_time < 6.5 && depth <= self.max_depth {
+            let root = self.root; // Needed due to lexical borrowing, for now
+            let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
             calc_time = time::precise_time_s() - start;
-            let pv = self.table.pv(self.board);
+            let pv = self.table.pv(&self.root);
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
-                depth, score / 10, (calc_time * 1000.0) as u32, self.node_count + self.q_count,
+                depth, score / 10, (calc_time * 1000.0) as u32, self.node_count,
                 pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
 
             depth += 1;
@@ -60,9 +93,10 @@ impl<'a> Searcher<'a> {
         println!("occ {} of {}", self.table.count(), self.table.entries.len());
         self.table.set_ancient();
 
-        let best = self.table.best_move(self.board.hash);
+        let best = self.table.best_move(self.root.hash);
         println!("bestmove {}", best.unwrap());
-        depth
+
+        self.max_depth = depth;
     }
 
     // TODO: wrap self.ply += 1 /* search */ self.ply -= 1
@@ -85,16 +119,14 @@ impl<'a> Searcher<'a> {
             return score
         }
 
-        let eval = board.evaluate();
-
         if    !is_pv
            && depth >= 2
-           && eval >= beta
+        //    && eval >= beta
            && !board.is_in_check()
         {
+            let eval = board.evaluate();
             // Testing value from stockfish
-            let r = (823 + 67 * (depth as i32)) / 256 + min((eval - beta) / p_val(PAWN) as i32, 3);
-
+            let r = 1 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
             let mut new_board = *board;
             new_board.do_null_move();
 
@@ -123,20 +155,22 @@ impl<'a> Searcher<'a> {
             let mut new_board = *board;
             new_board.make_move(mv);
 
-            self.rep[self.ply] = new_board.hash;
+            // TODO: update irreversible, full three move and fifty move repition
+            self.ply += 1;
+            let mut pos_ply = self.ply + self.root.ply();
+            self.rep[pos_ply] = new_board.hash;
 
-            let mut rep_search = self.ply;
             let mut is_rep = false;
+            let last_index = max(2, self.irreversible);
 
-            while rep_search >= 2 {
-                rep_search -= 2;
-                if self.rep[rep_search] == new_board.hash {
+            while pos_ply >= last_index {
+                pos_ply -= 2;
+                if self.rep[pos_ply] == new_board.hash {
                     is_rep = true;
                     break
                 }
             }
 
-            self.ply += 1;
             let score = match is_rep {
                 true => 0,
                 false if moves_searched == 0 =>
@@ -192,7 +226,7 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn q_search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32) -> i32 {
-        self.q_count += 1;
+        self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }
         // TODO: remove depth so all takes are searched
         // TODO: When no legal moves possible, return draw to avoid stalemate

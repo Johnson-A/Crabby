@@ -7,6 +7,7 @@ use util::lsb;
 pub struct BitBoard(pub [u64; 14]);
 
 impl BitBoard {
+    /// Populate the bitboard entries for occupancy
     pub fn set_all(&mut self) {
         self[ALL | WHITE] = self[PAWN | WHITE] | self[KNIGHT | WHITE] | self[BISHOP | WHITE] |
                             self[ROOK | WHITE] | self[QUEEN | WHITE]  | self[KING | WHITE];
@@ -68,12 +69,6 @@ impl fmt::Display for Board {
     }
 }
 
-pub fn make_moves(board: &mut Board, params: &mut Vec<&str>) {
-    for mv_str in params {
-        board.make_str_move(mv_str);
-    }
-}
-
 pub const BK_CASTLE: u8 = 1;
 pub const WK_CASTLE: u8 = BK_CASTLE << WHITE;
 
@@ -83,7 +78,6 @@ pub const WQ_CASTLE: u8 = BQ_CASTLE << WHITE;
 pub const KING_CASTLE: u8  = WK_CASTLE | BK_CASTLE;
 pub const QUEEN_CASTLE: u8 = WQ_CASTLE | BQ_CASTLE;
 
-// TODO: Index Bitboard with piece type
 pub const PAWN: u8   = 0;
 pub const KNIGHT: u8 = 1 << 1;
 pub const BISHOP: u8 = 2 << 1;

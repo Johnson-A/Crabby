@@ -5,6 +5,7 @@ I would greatly appreciate all feedback on my progress for both!
 # Features
 * Nega-Max alpha beta pruning
 * Iterative deepening
+* PVS
 * Quiescence Search
 * Null move pruning
 * Late Move Reduction
@@ -20,12 +21,12 @@ I would greatly appreciate all feedback on my progress for both!
 * Piece-square evaluation
 * Evaluation - improvements
 * Improve Principal variation extraction
+* 50 move rule
 
 # Extended UCI Commands
-* ponder - search infinitely
 * perft x - run perft to a depth x
-* testperf - Search to a given depth in many positions to test performance
 * testmove - Run perft on many positions to validate move generation
+* testperf - Search to a given depth in many positions to test performance
 
 # Compiling
 Many experimental features are currently used in Crabby, which will require a nightly version of the rust compiler.
