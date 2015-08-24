@@ -1,4 +1,4 @@
-use rand::{Rng, ThreadRng, thread_rng};
+use rand::{Rng, SeedableRng, StdRng};
 use std::collections::HashSet;
 use types::*;
 use util::lsb;
@@ -8,14 +8,15 @@ static mut castle_keys: [u64; 16] = [0; 16];
 static mut ep_keys: [u64; 8] = [0; 8];
 static mut color_key: u64 = 0;
 
-fn set_random(arr: &mut [u64], rng: &mut ThreadRng) {
+fn set_random(arr: &mut [u64], rng: &mut StdRng) {
     for elem in arr.iter_mut() {
         *elem = rng.gen();
     }
 }
 
 pub unsafe fn init() {
-    let rng = &mut thread_rng();
+    let seed: &[usize] = &[0];
+    let rng = &mut SeedableRng::from_seed(seed);
     set_random(&mut piece_keys,  rng);
     set_random(&mut castle_keys, rng);
     set_random(&mut ep_keys,     rng);
