@@ -42,7 +42,7 @@ pub fn main() {
             "ucinewgame" => searcher = Searcher::new_start(),
             "position"   => searcher.position(&mut words),
             "go"         => searcher.id(),
-            "perft"      => perft(&searcher, &mut words),
+            "perft"      => perft(&searcher.root, &mut words),
             "testperf"   => test_positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
             "testmove"   => test_positions("testing/positions/perftsuite.epd", &mut searcher,
                                             &mut |s| println!("{}", s.root.perft(6, true))),
@@ -52,13 +52,13 @@ pub fn main() {
     }
 }
 
-pub fn perft(searcher: &Searcher, params: &mut Vec<&str>) {
+pub fn perft(board: &Board, params: &mut Vec<&str>) {
     let d = match params.first() {
         Some(&val) => val.parse::<u8>().unwrap_or(1),
         None       => 5
     };
 
-    println!("total = {}\n", searcher.root.perft(d, true));
+    println!("total = {}\n", board.perft(d, true));
 }
 
 fn uci() {

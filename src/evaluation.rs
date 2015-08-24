@@ -10,8 +10,8 @@ impl Board {
     // Attacks defends - who owns more squares
     // Space advantage
     // Simplify when ahead
+    // Center squares
     pub fn get_evals(&self, us: u8, opp: u8) -> i32 {
-        // TODO: remove king material? With legal move checking, and mate and stalemate now added - qsearch still
         let bb = &self.bb;
         let occ = bb[ALL | us] | bb[ALL | opp];
 
@@ -63,9 +63,6 @@ impl Board {
     }
 
     pub fn evaluate(&self) -> i32 {
-        // TODO: Don't trade if material down or in worse position
-        // TODO: doubled pawns
-        // TODO: Center squares and pawns
         let bb = &self.bb;
         let us = self.to_move(); // Node player
         let opp = self.prev_move();

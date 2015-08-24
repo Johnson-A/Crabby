@@ -235,8 +235,6 @@ impl Board {
 
     /// Return the lowest valued enemy attacker of a given square and its position
     pub fn attacker(&self, pos: u32, us: u8) -> (u8, u32) {
-        // TODO: return num of attackers?
-        // TODO: safe function calls for moves
         let bb = &self.bb;
         let opp = flip(us);
 
@@ -342,29 +340,27 @@ impl Board {
         add_prom_moves(&mut moves, prom_l_att, left, IS_CAPTURE);
         add_prom_moves(&mut moves, prom_r_att, right, IS_CAPTURE);
 
-        // TODO: change lsb -> usize, attacker(usize)
-        // TODO: test hash table in perft
-        if self.castling & (BK_CASTLE << us) != 0 {
-            let offset = Board::color_offset(us);
-            if  self.sqs[offset + 5] == EMPTY &&
-                self.sqs[offset + 6] == EMPTY &&
-                self.attacker(offset as u32 + 5, us).0 == EMPTY &&
-                self.attacker(offset as u32 + 6, us).0 == EMPTY &&
-                self.attacker(offset as u32 + 4, us).0 == EMPTY {
-                    add_moves(&mut moves, 1 << (offset + 6), 2, CASTLES_KING);
-                }
+        let offset = Board::color_offset(us);
+
+        if    self.castling & (BK_CASTLE << us) != 0
+           && self.sqs[offset + 5] == EMPTY
+           && self.sqs[offset + 6] == EMPTY
+           && self.attacker(offset as u32 + 5, us).0 == EMPTY
+           && self.attacker(offset as u32 + 6, us).0 == EMPTY
+           && self.attacker(offset as u32 + 4, us).0 == EMPTY
+        {
+            add_moves(&mut moves, 1 << (offset + 6), 2, CASTLES_KING);
         }
 
-        if self.castling & (BQ_CASTLE << us) != 0 {
-            let offset = Board::color_offset(us);
-            if  self.sqs[offset + 3] == EMPTY &&
-                self.sqs[offset + 2] == EMPTY &&
-                self.sqs[offset + 1] == EMPTY &&
-                self.attacker(offset as u32 + 3, us).0 == EMPTY &&
-                self.attacker(offset as u32 + 2, us).0 == EMPTY &&
-                self.attacker(offset as u32 + 4, us).0 == EMPTY {
-                    add_moves(&mut moves, 1 << (offset + 2), -2, CASTLES_QUEEN);
-                }
+        if    self.castling & (BQ_CASTLE << us) != 0
+           && self.sqs[offset + 3] == EMPTY
+           && self.sqs[offset + 2] == EMPTY
+           && self.sqs[offset + 1] == EMPTY
+           && self.attacker(offset as u32 + 3, us).0 == EMPTY
+           && self.attacker(offset as u32 + 2, us).0 == EMPTY
+           && self.attacker(offset as u32 + 4, us).0 == EMPTY
+        {
+            add_moves(&mut moves, 1 << (offset + 2), -2, CASTLES_QUEEN);
         }
 
         moves

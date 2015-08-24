@@ -58,18 +58,18 @@ impl Searcher {
         for mv_str in params {
             let mv = self.root.move_from_str(mv_str);
             if self.root.is_irreversible(mv) {
-                self.irreversible = self.root.ply() + 1; // or self.rep.len() + 1
+                self.irreversible = self.root.ply() + 1;
             }
             self.root.make_move(mv);
             self.rep.push(self.root.hash);
         }
 
-        self.rep.append(&mut vec![Hash { val: 0 }; self.max_depth]);
+        self.rep.extend(vec![Hash { val: 0 }; self.max_depth]);
         self.killers = vec![Killer(Move::NULL, Move::NULL); self.max_depth];
         self.node_count = 0;
     }
 
-    /// Search up to max_ply and return an estimate for a good search depth next move
+    /// Search up to max_ply and get an estimate for a good search depth next move
     pub fn id(&mut self) {
         println!("Searching\n{}", self.root);
         let start = time::precise_time_s();
@@ -77,7 +77,7 @@ impl Searcher {
         let mut depth = 1;
 
         while calc_time < 6.5 && depth <= self.max_depth {
-            let root = self.root; // Needed due to lexical borrowing, for now
+            let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
             calc_time = time::precise_time_s() - start;
@@ -174,8 +174,7 @@ impl Searcher {
             let score = match is_rep {
                 true => 0,
                 false if moves_searched == 0 =>
-                    -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV), // TODO: Null move in PVS?
-
+                    -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV),
                 _ => {
                     // moves_searched > 0
                     let lmr =  depth >= 3
@@ -225,12 +224,10 @@ impl Searcher {
         alpha
     }
 
+    // TODO: remove depth so all takes are searched
     pub fn q_search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32) -> i32 {
         self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }
-        // TODO: remove depth so all takes are searched
-        // TODO: When no legal moves possible, return draw to avoid stalemate
-        // TODO: Three move repition
         let stand_pat = board.evaluate();
         if depth == 0 || stand_pat >= beta { return stand_pat }
         if stand_pat > alpha { alpha = stand_pat }

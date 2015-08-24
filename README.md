@@ -39,4 +39,4 @@ Alternatively, as specified in the file [compile](compile), to make use of CPU f
 $ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 ```
 # Terms
-Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in [LICENSE](LICENSE)
+Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in the [LICENSE](LICENSE)
