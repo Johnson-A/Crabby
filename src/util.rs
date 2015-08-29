@@ -17,10 +17,10 @@ pub const FILE_G: u64 = FILE_A << 6;
 pub const FILE_H: u64 = FILE_A << 7;
 
 // (rank_3, rank_8, l_file, r_file, up, left, right)
-pub const PAWN_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
-pub const PAWN_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
+pub const PAWN_INFO_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
+pub const PAWN_INFO_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
 
-/// Reverse the bits in a 64 bit number using a "recursive" algorithm
+/// Reverse the bits in a 64 bit number using a recursive algorithm
 /// which swaps the order of sub-elements, starting with even and odd bits
 pub fn reverse(mut v: u64) -> u64 {
     v = ((v >> 1)  & 0x5555555555555555) | ((v & 0x5555555555555555) << 1);

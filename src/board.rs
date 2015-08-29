@@ -279,7 +279,7 @@ impl Board {
         let occ = bb[ALL | us] | enemies;
 
         let (rank_3, rank_8, l_file, r_file, up, left, right) =
-            if us == WHITE { PAWN_WHITE } else { PAWN_BLACK };
+            if us == WHITE { PAWN_INFO_WHITE } else { PAWN_INFO_BLACK };
 
         for_all(bb[QUEEN | us], &mut |from| {
             let mvs = queen_moves(from, occ);
