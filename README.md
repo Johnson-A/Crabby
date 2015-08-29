@@ -3,6 +3,21 @@ Crabby is an original UCI chess engine written in the [rust programming language
 as an experiment to learn a new language and explore chess programming.
 I would greatly appreciate all feedback on my progress for both!
 
+# Building
+**Crabby currently requires a nightly version of the rust compiler**
+
+```sh
+git clone https://github.com/Johnson-A/Crabby.git
+cd Crabby
+cargo build --release
+./target/release/crabby
+```
+Alternatively, as specified in the file [compile](compile), to make use of certain CPU features
+
+```sh
+cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
+```
+
 # Features
 * Nega-Max alpha beta pruning
 * Iterative deepening
@@ -18,6 +33,7 @@ I would greatly appreciate all feedback on my progress for both!
 
 # Planned
 * Aspiration window
+* Time manager
 * PVS/Negascout or MTD(f) -> improvements
 * Piece-square evaluation
 * Evaluation -> improvements
@@ -28,17 +44,6 @@ I would greatly appreciate all feedback on my progress for both!
 * perft x - run perft to a depth x
 * testmove - Run perft on many positions to validate move generation
 * testperf - Search to a given depth in many positions to test performance
-
-# Compiling
-Many experimental features are currently used in Crabby, which will require a nightly version of the rust compiler.
-I will hopefully be able to remove many of these in the future as they become stable.
-```sh
-$ cargo build --release
-```
-Alternatively, as specified in the file [compile](compile), to make use of CPU features
-```sh
-$ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
-```
 
 # Terms
 Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in the [LICENSE](LICENSE)
