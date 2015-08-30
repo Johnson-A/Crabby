@@ -54,22 +54,33 @@ impl Clone for Board { fn clone(&self) -> Self { *self } }
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut characters = Vec::with_capacity(64+8);
+        let mut characters = Vec::with_capacity(64*2 + 8*2);
 
         for r in (0..8).rev() {
+            characters.push('|');
             for c in 0..8 {
                 characters.push(to_char(self.sqs[r*8 + c]));
+                characters.push('|');
             }
             characters.push('\n');
         }
 
-        let output: String = characters.into_iter().collect();
-        write!(f, "--------\n{}--------\n\
+        let board: String = characters.into_iter().collect();
+        let ep_str: String = match self.en_passant {
+            0 => "None".into(),
+            _ => {
+                let (c, r) = from_pos(lsb(self.en_passant));
+                vec![c, r].into_iter().collect()
+            }
+        };
+
+        write!(f, "-----------------\n\
+                  {}\
+                  -----------------\n\
                   Move # {}\n\
                   en passant {}\n\
-                  castling {:04b}\n\
-                  hash {}\n",
-                  output, self.ply + 1, lsb(self.en_passant), self.castling, self.hash.val)
+                  castling {:04b}\n",
+                  board, self.ply + 1, ep_str, self.castling)
     }
 }
 
