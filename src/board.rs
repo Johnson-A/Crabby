@@ -433,8 +433,8 @@ impl Board {
         ((self.move_num + 1) % 2) as u8
     }
 
-    pub fn from_fen(fen: &mut Vec<&str>) -> Board {
-        let fen_board = fen.remove(0);
+    pub fn from_fen(fen: &mut Params) -> Board {
+        let fen_board = fen.next().expect("Missing fen board");
         let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
 
         let mut sqs = [EMPTY; 64];
@@ -450,30 +450,23 @@ impl Board {
             }
         }
 
-        let to_move = fen.remove(0); // Player to move [b,w]
-        let move_num = match to_move {
+        let move_num = match fen.next().expect("[w, b]") {
             "w" => 1,
             _   => 2, // Start off the move counter at an even number
         };
 
-        let castle_str = fen.remove(0); // Castling [KQkq]
+        let castle_str = fen.next().expect("Castling [KQkq]");
         let mut castling = 0;
         if castle_str.contains('K') { castling |= WK_CASTLE };
         if castle_str.contains('Q') { castling |= WQ_CASTLE };
         if castle_str.contains('k') { castling |= BK_CASTLE };
         if castle_str.contains('q') { castling |= BQ_CASTLE };
 
-        let ep_sq: Vec<char> = fen.remove(0).chars().collect(); // en passant target square
+        let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
         let en_passant = match ep_sq.as_ref() {
             [sc, sr] => 1 << to_pos(sc, sr),
             _ => 0
         };
-
-        // Remove half move and full move
-        while let Some(&val) = fen.first() {
-            if val == "moves" { break }
-            fen.remove(0);
-        }
 
         let mut b = Board { bb: gen_bitboards(&sqs), sqs: sqs, move_num: move_num, hash: Hash { val: 0 },
                             castling: castling, en_passant: en_passant };
@@ -484,6 +477,6 @@ impl Board {
 
     pub fn start_position() -> Board {
         let start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        Board::from_fen(&mut start_fen.split(' ').collect())
+        Board::from_fen(&mut start_fen.split_whitespace())
     }
 }

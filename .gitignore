@@ -16,7 +16,7 @@ target
 # Ignore any callgrind output, notes, or symlink
 callgrind*
 notes
-chess
+crabby
 
 # Ignore
 results/

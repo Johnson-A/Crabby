@@ -32,29 +32,30 @@ pub fn main() {
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
-        let mut words: Vec<&str> = line.trim().split(' ').collect();
-        let first_word = words.remove(0);
+        let mut params = line.split_whitespace();
 
-        match first_word {
-            "uci"        => uci(),
-            "setoption"  => (),
-            "isready"    => println!("readyok"),
-            "ucinewgame" => searcher = Searcher::new_start(),
-            "position"   => searcher.position(&mut words),
-            "go"         => searcher.id(),
-            "perft"      => perft(&searcher.root, &mut words),
-            "testperf"   => test_positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
-            "testmove"   => test_positions("testing/positions/perftsuite.epd", &mut searcher,
-                                            &mut |s| println!("{}", s.root.perft(6, true))),
-            "print"      => (),
-            _            => println!("Unknown command: {}", first_word)
+        if let Some(first_word) = params.next() {
+            match first_word {
+                "uci"        => uci(),
+                "setoption"  => (),
+                "isready"    => println!("readyok"),
+                "ucinewgame" => searcher = Searcher::new_start(),
+                "position"   => searcher.position(&mut params),
+                "go"         => searcher.go(&mut params),
+                "perft"      => perft(&searcher.root, &mut params),
+                "testperf"   => test_positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
+                "testmove"   => test_positions("testing/positions/perftsuite.epd", &mut searcher,
+                                                &mut |s| println!("{}", s.root.perft(6, true))),
+                "print"      => (),
+                _            => println!("Unknown command: {}", first_word)
+            }
         }
     }
 }
 
-pub fn perft(board: &Board, params: &mut Vec<&str>) {
-    let d = match params.first() {
-        Some(&val) => val.parse::<u8>().unwrap_or(1),
+pub fn perft(board: &Board, params: &mut Params) {
+    let d = match params.next() {
+        Some(val) => val.parse::<u8>().unwrap_or(1),
         None       => 5
     };
 
@@ -77,8 +78,9 @@ fn test_positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut 
 
     for line in file.lines().take(10) {
         let fen = line.unwrap();
-        searcher.root = Board::from_fen(&mut fen.split(' ').collect());
         println!("{}", fen);
+
+        searcher.position(&mut fen.split_whitespace());
         do_work(searcher);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);

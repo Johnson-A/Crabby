@@ -44,13 +44,16 @@ impl Searcher {
         }
     }
 
-    pub fn position(&mut self, params: &mut Vec<&str>) {
-        self.root = match params.remove(0) { // ["startpos", "fen"]
+    pub fn position(&mut self, params: &mut Params) {
+        self.root = match params.next().expect("[startpos, fen]") {
             "startpos" => Board::start_position(),
             _fen       => Board::from_fen(params)
         };
 
-        if !params.is_empty() { params.remove(0); } // Remove "moves" string if there are moves
+        // Remove half move, full move, and other words until there are moves
+        while let Some(val) = params.next() {
+            if val == "moves" { break }
+        }
 
         self.rep = Vec::new();
         self.rep.push(self.root.hash);
@@ -69,6 +72,28 @@ impl Searcher {
         self.node_count = 0;
     }
 
+    pub fn go(&mut self, params: &mut Params) {
+        while let Some(p) = params.next() {
+            match p {
+                "searchmoves" => (),
+                "ponder" => (),
+                "wtime" => (),
+                "btime" => (),
+                "winc" => (),
+                "binc" => (),
+                "movestogo" => (),
+                "depth" => (),
+                "nodes" => (),
+                "mate" => (),
+                "movetime" => (),
+                "infinite" => (),
+                _ => ()
+            }
+        }
+
+        self.id();
+    }
+
     /// Search up to max_ply and get an estimate for a good search depth next move
     pub fn id(&mut self) {
         println!("Searching\n{}", self.root);
@@ -76,7 +101,7 @@ impl Searcher {
         let mut calc_time = 0.0;
         let mut depth = 1;
 
-        while calc_time < 6.5 && depth <= self.max_depth {
+        while calc_time < 7.5 && depth <= self.max_depth {
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 

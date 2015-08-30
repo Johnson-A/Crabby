@@ -1,10 +1,10 @@
 cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
-# RUST_BACKTRACE=1 ./chess
+# RUST_BACKTRACE=1 ./crabby
 # use target-cpu=help to find more info
 # -g flag for debug info
 
 # To run a cutechess-cli session
-cutechess-cli -fcp cmd=/home/alex/Dropbox/workspace/rust/chess/target/release/chess proto=uci \
+cutechess-cli -fcp cmd=/home/alex/Dropbox/workspace/rust/chess/target/release/crabby proto=uci \
 -scp cmd=fairymax proto=xboard \
--both tc=40/300 timemargin=10000000 book=/home/alex/Desktop/ecoe.pgn bookdepth=3 -games 10 -repeat \
+-both tc=40/300 timemargin=10000000 book=/home/alex/Desktop/ecoe.pgn bookdepth=3 -games 100 -repeat \
 -concurrency 4 -pgnout /home/alex/Dropbox/workspace/rust/chess/results/games.pgn

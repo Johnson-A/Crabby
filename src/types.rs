@@ -2,6 +2,9 @@ use std::ascii::AsciiExt;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 use util::lsb;
+use std::str::SplitWhitespace;
+
+pub type Params<'a> = SplitWhitespace<'a>;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct BitBoard(pub [u64; 14]);
