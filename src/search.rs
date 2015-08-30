@@ -148,7 +148,6 @@ impl Searcher {
            && !board.is_in_check()
         {
             let eval = board.evaluate();
-            // Testing value from stockfish
             let r = 1 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
             let mut new_board = *board;
             new_board.do_null_move();

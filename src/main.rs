@@ -1,5 +1,5 @@
 //! This is the Crabby chess engine
-#![feature(slice_patterns, convert, test, associated_consts, const_fn)]
+#![feature(slice_patterns, convert, test, associated_consts)]
 extern crate test;
 extern crate time;
 extern crate rand;

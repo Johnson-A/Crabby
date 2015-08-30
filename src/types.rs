@@ -190,7 +190,7 @@ impl Killer {
 pub struct Move { data: u32 }
 
 impl Move {
-    pub const fn new(from: u32, to: u32, flags: u32) -> Move {
+    pub fn new(from: u32, to: u32, flags: u32) -> Move {
         Move { data: from | to << 6 | flags << 12 }
     }
 
@@ -220,7 +220,7 @@ impl Move {
         chars.into_iter().collect::<String>()
     }
 
-    pub const NULL: Move = Move::new(0,0,0);
+    pub const NULL: Move = Move { data: 0 };
 }
 
 impl fmt::Display for Move {
