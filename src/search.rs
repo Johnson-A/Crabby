@@ -26,15 +26,13 @@ pub struct Searcher {
 impl Searcher {
     pub fn new_start() -> Searcher {
         let start = Board::start_position();
-        Searcher::new(12, start, 10000000 * 2, vec![start.hash])
-    }
-
-    pub fn new(depth: usize, board: Board, table_size: usize, mut history: Vec<Hash>) -> Searcher {
-        history.append(&mut vec![Hash { val: 0 }; depth]);
+        let depth = 12;
+        let mut history = vec![start.hash];
+        history.extend(vec![Hash { val: 0 }; depth]);
 
         Searcher {
-            root: board,
-            table: Table::empty(table_size),
+            root: start,
+            table: Table::empty(10000000 * 2 * 2),
             killers: vec![Killer(Move::NULL, Move::NULL); depth],
             rep: history,
             max_depth: depth,
@@ -101,7 +99,7 @@ impl Searcher {
         let mut calc_time = 0.0;
         let mut depth = 1;
 
-        while calc_time < 7.5 && depth <= self.max_depth {
+        while calc_time < 10.0 && depth <= self.max_depth {
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
