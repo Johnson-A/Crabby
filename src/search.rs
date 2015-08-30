@@ -119,7 +119,7 @@ impl Searcher {
         self.table.set_ancient();
 
         let best = self.table.best_move(self.root.hash);
-        println!("bestmove {}", best.unwrap());
+        println!("bestmove {}", best.expect("Error: No move found"));
 
         self.max_depth = depth;
     }

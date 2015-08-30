@@ -163,37 +163,36 @@ impl Board {
     pub fn move_from_str(&mut self, mv: &str) -> Move {
         let moves: Vec<char> = mv.chars().collect();
 
-        match moves.as_slice() {
-            [sc, sr, dc, dr, promotion..] => {
-                let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
+        if let [sc, sr, dc, dr, promotion..] = moves.as_slice() {
+            let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
 
-                let mut flags = match promotion {
-                    ['q'] => QUEEN_PROM,
-                    ['r'] => ROOK_PROM,
-                    ['b'] => BISHOP_PROM,
-                    ['n'] => KNIGHT_PROM,
-                    _ => 0
-                };
+            let mut flags = match promotion {
+                ['q'] => QUEEN_PROM,
+                ['r'] => ROOK_PROM,
+                ['b'] => BISHOP_PROM,
+                ['n'] => KNIGHT_PROM,
+                _ => 0
+            };
 
-                flags |= match mv {
-                    "e1g1" if self.castling & WK_CASTLE != 0 => CASTLES_KING,
-                    "e8g8" if self.castling & BK_CASTLE != 0 => CASTLES_KING,
-                    "e1c1" if self.castling & WQ_CASTLE != 0 => CASTLES_QUEEN,
-                    "e8c8" if self.castling & BQ_CASTLE != 0 => CASTLES_QUEEN,
-                    _ => 0
-                };
+            flags |= match mv {
+                "e1g1" if self.castling & WK_CASTLE != 0 => CASTLES_KING,
+                "e8g8" if self.castling & BK_CASTLE != 0 => CASTLES_KING,
+                "e1c1" if self.castling & WQ_CASTLE != 0 => CASTLES_QUEEN,
+                "e8c8" if self.castling & BQ_CASTLE != 0 => CASTLES_QUEEN,
+                _ => 0
+            };
 
-                if self.sqs[src as usize] & PIECE == PAWN {
-                    let is_double = if src > dest { src-dest } else { dest-src } == 16;
-                    if is_double { flags |= DOUBLE_PAWN_PUSH };
+            if self.sqs[src as usize] & PIECE == PAWN {
+                let is_double = if src > dest { src-dest } else { dest-src } == 16;
+                if is_double { flags |= DOUBLE_PAWN_PUSH };
 
-                    let is_en_passant = dest == lsb(self.en_passant);
-                    if is_en_passant { flags |= EN_PASSANT };
-                }
+                let is_en_passant = dest == lsb(self.en_passant);
+                if is_en_passant { flags |= EN_PASSANT };
+            }
 
-                Move::new(src, dest, flags)
-            },
-            _ => panic!("Malformed move {}", mv)
+            Move::new(src, dest, flags)
+        } else {
+            panic!("Malformed move {}", mv)
         }
     }
 

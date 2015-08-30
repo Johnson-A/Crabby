@@ -103,12 +103,20 @@ pub const MAIN_DIAG: u64 = 0x8040201008040201;
 
 pub fn diag(from: u32) -> u64 {
     let diag_index = ((from / 8) - (from % 8)) & 15;
-    if diag_index <= 7 {MAIN_DIAG << 8*diag_index} else {MAIN_DIAG >> 8*(16 - diag_index)}
+    if diag_index <= 7 {
+        MAIN_DIAG << 8 * diag_index
+    } else {
+        MAIN_DIAG >> 8 * (16 - diag_index)
+    }
 }
 
 pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
 
 pub fn a_diag(from: u32) -> u64 {
     let diag_index = ((from / 8) + (from % 8)) ^ 7;
-    if diag_index <= 7 {MAIN_ANTI_DIAG >> 8*diag_index} else {MAIN_ANTI_DIAG << 8*(16-diag_index)}
+    if diag_index <= 7 {
+        MAIN_ANTI_DIAG >> 8 * diag_index
+    } else {
+        MAIN_ANTI_DIAG << 8 * (16 - diag_index)
+    }
 }

@@ -1,5 +1,6 @@
 //! This is the Crabby chess engine
-#![feature(slice_patterns, convert, append, test, associated_consts, const_fn)]
+#![feature(plugin, slice_patterns, convert, append, test, associated_consts, const_fn)]
+#![plugin(clippy)]
 extern crate test;
 extern crate time;
 extern crate rand;
