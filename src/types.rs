@@ -67,7 +67,7 @@ impl fmt::Display for Board {
         write!(f, "--------\n{}--------\n\
                   Move # {}\n\
                   en passant {}\n\
-                  castling {:4b}\n\
+                  castling {:04b}\n\
                   hash {}\n",
                   output, self.ply + 1, lsb(self.en_passant), self.castling, self.hash.val)
     }
@@ -97,7 +97,7 @@ pub const BLACK: u8 = 0;
 pub const PIECE: u8 = 0b1110;
 
 pub fn flip(c: u8) -> u8 {
-    !c & COLOR
+    c ^ WHITE
 }
 
 pub const PVALS: [u32; 12] = [1000, 1000,
