@@ -142,7 +142,7 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -
 
             *entry = SMagic { offset: offset, mask: mask, magic: magic, shift: shift };
             offset += size;
-            table.append(&mut attacks);
+            table.extend(attacks);
             break // If we've reached this point, all from 0..size have been verified
         }
     }

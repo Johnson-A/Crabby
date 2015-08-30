@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use test;
 use types::*;
 use magics;
