@@ -6,7 +6,6 @@ authors = ["Alex Johnson"]
 [dependencies]
 time = "*"
 rand = "*"
-clippy = "*"
 
 [profile.release]
 opt-level = 3

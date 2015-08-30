@@ -1,6 +1,5 @@
 //! This is the Crabby chess engine
-#![feature(plugin, slice_patterns, convert, append, test, associated_consts, const_fn)]
-// #![plugin(clippy)]
+#![feature(slice_patterns, convert, append, test, associated_consts, const_fn)]
 extern crate test;
 extern crate time;
 extern crate rand;
@@ -16,6 +15,7 @@ pub mod search;
 pub mod table;
 pub mod types;
 pub mod util;
+pub mod bench;
 
 use types::*;
 use search::Searcher;
@@ -85,58 +85,4 @@ fn test_positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut 
         do_work(searcher);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
-}
-
-#[bench]
-fn bench(b: &mut test::Bencher) {
-    unsafe {
-        if magics::KING_MAP[0] == 0 {
-            magics::init();
-            table::init();
-        }
-    }
-    // use rand::Rng;
-    // unsafe { if { MAP[0] } == 0 { init(); } }
-    //
-    // let mut rng = rand::thread_rng();
-    // let c: u64 = rng.gen::<u64>() & rng.gen::<u64>();
-    let board = Board::start_position();
-    b.iter(|| test::black_box({
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-        board.get_moves();
-
-        // unsafe {
-        // res |= BISHOP_MAP[0].att(c);
-        // res |= BISHOP_MAP[0].att(c);
-        // res |= BISHOP_MAP[10].att(c);
-        // res |= BISHOP_MAP[20].att(c);
-        // res |= BISHOP_MAP[10].att(c);
-        // res |= BISHOP_MAP[20].att(c);
-        // res |= BISHOP_MAP[30].att(c);
-        // res |= BISHOP_MAP[1].att(c);
-        // res |= BISHOP_MAP[40].att(c);
-        // res |= BISHOP_MAP[20].att(c);
-        //
-        // res |= ROOK_MAP[0].att(c);
-        // res |= ROOK_MAP[0].att(c);
-        // res |= ROOK_MAP[10].att(c);
-        // res |= ROOK_MAP[20].att(c);
-        // res |= ROOK_MAP[10].att(c);
-        // res |= ROOK_MAP[20].att(c);
-        // res |= ROOK_MAP[30].att(c);
-        // res |= ROOK_MAP[1].att(c);
-        // res |= ROOK_MAP[40].att(c);
-        // res |= ROOK_MAP[20].att(c);
-        // }
-        }));
-        // println!("{}", t);
 }
