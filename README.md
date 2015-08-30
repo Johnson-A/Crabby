@@ -1,6 +1,7 @@
 # Overview
-Crabby is an original UCI chess engine written in the [rust programming language](https://www.rust-lang.org/)
-as an experiment to learn a new language and explore chess programming.
+Crabby is an original UCI chess engine written in the [rust programming language](https://www.rust-lang.org/).
+Crabby gets its name from the rust mascot Ferris the crab.
+This project is an experiment to learn a new language and explore chess programming.
 I would greatly appreciate all feedback on my progress for both!
 
 # Building

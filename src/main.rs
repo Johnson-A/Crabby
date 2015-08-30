@@ -1,6 +1,6 @@
 //! This is the Crabby chess engine
 #![feature(plugin, slice_patterns, convert, append, test, associated_consts, const_fn)]
-#![plugin(clippy)]
+// #![plugin(clippy)]
 extern crate test;
 extern crate time;
 extern crate rand;
@@ -78,7 +78,7 @@ fn test_positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut 
     let start = time::precise_time_s();
 
     for line in file.lines().take(10) {
-        let fen = line.unwrap();
+        let fen = String::from("fen ") + &line.unwrap();
         println!("{}", fen);
 
         searcher.position(&mut fen.split_whitespace());

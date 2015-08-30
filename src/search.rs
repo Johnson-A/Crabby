@@ -61,7 +61,7 @@ impl Searcher {
         for mv_str in params {
             let mv = self.root.move_from_str(mv_str);
             if self.root.is_irreversible(mv) {
-                self.irreversible = self.root.ply() + 1;
+                self.irreversible = self.root.ply + 1;
             }
             self.root.make_move(mv);
             self.rep.push(self.root.hash);
@@ -182,7 +182,7 @@ impl Searcher {
 
             // TODO: update irreversible, full three move and fifty move repition
             self.ply += 1;
-            let mut pos_ply = self.ply + self.root.ply();
+            let mut pos_ply = self.ply + self.root.ply;
             self.rep[pos_ply] = new_board.hash;
 
             let mut is_rep = false;

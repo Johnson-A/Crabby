@@ -43,7 +43,8 @@ pub struct Hash { pub val: u64 }
 pub struct Board {
     pub bb: BitBoard,
     pub sqs: Squares,
-    pub move_num: u32,
+    pub ply: usize,
+    pub to_move: u8,
     pub hash: Hash,
     pub castling: u8,
     pub en_passant: u64
@@ -68,7 +69,7 @@ impl fmt::Display for Board {
                   en passant {}\n\
                   castling {:4b}\n\
                   hash {}\n",
-                  output, self.move_num, lsb(self.en_passant), self.castling, self.hash.val)
+                  output, self.ply + 1, lsb(self.en_passant), self.castling, self.hash.val)
     }
 }
 

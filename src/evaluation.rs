@@ -72,7 +72,7 @@ impl Board {
     /// Return a static evaluation relative to the player to move in milli-pawns
     pub fn evaluate(&self) -> i32 {
         let bb = &self.bb;
-        let us = self.to_move(); // Node player
+        let us = self.to_move; // Node player
         let opp = self.prev_move();
 
         let mut attacked_by = BitBoard([0; 14]);

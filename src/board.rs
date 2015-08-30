@@ -62,7 +62,8 @@ impl Board {
     }
 
     pub fn do_null_move(&mut self) {
-        self.move_num += 1;
+        self.ply += 1;
+        self.to_move = flip(self.to_move);
         self.hash.flip_color();
         self.hash.set_ep(self.en_passant);
         self.en_passant = 0;
@@ -96,7 +97,7 @@ impl Board {
 
     pub fn make_move(&mut self, mv: Move) {
         let (src, dest) = (mv.from() as usize, mv.to() as usize);
-        let color = self.to_move();
+        let color = self.to_move;
         let opp = flip(color);
         let offset = Board::color_offset(color);
 
@@ -214,12 +215,12 @@ impl Board {
         let mut clone  = *self;
 
         clone.make_move(*mv);
-        p_val(captured) as i32 - clone.see(mv.to(), self.to_move())
+        p_val(captured) as i32 - clone.see(mv.to(), self.to_move)
     }
 
     pub fn see_max_one(&mut self, mv: &Move) -> i32 {
         if !mv.is_capture() { return 0 }
-        let us = self.to_move();
+        let us = self.to_move;
 
         let src_piece = self.sqs[mv.from() as usize];
         let dest_piece = self.sqs[mv.to() as usize];
@@ -273,7 +274,7 @@ impl Board {
         let bb = &self.bb;
         let mut moves: Vec<Move> = Vec::with_capacity(64);
 
-        let (us, opp) = (self.to_move(), self.prev_move());
+        let (us, opp) = (self.to_move, self.prev_move());
         let enemies = bb[ALL | opp];
         let occ = bb[ALL | us] | enemies;
 
@@ -412,24 +413,16 @@ impl Board {
         || mv.queen_castle()
     }
 
-    pub fn ply(&self) -> usize {
-        (self.move_num - 1) as usize
-    }
-
     pub fn is_in_check(&self) -> bool {
-        self.player_in_check(self.to_move())
+        self.player_in_check(self.to_move)
     }
 
     pub fn is_white(&self) -> bool {
-        (self.move_num % 2) == 1
-    }
-
-    pub fn to_move(&self) -> u8 {
-        (self.move_num % 2) as u8
+        self.to_move == WHITE
     }
 
     pub fn prev_move(&self) -> u8 {
-        ((self.move_num + 1) % 2) as u8
+        flip(self.to_move)
     }
 
     pub fn from_fen(fen: &mut Params) -> Board {
@@ -449,9 +442,9 @@ impl Board {
             }
         }
 
-        let move_num = match fen.next().expect("[w, b]") {
-            "w" => 1,
-            _   => 2, // Start off the move counter at an even number
+        let to_move = match fen.next().expect("[w, b]") {
+            "w" => WHITE,
+            _   => BLACK,
         };
 
         let castle_str = fen.next().expect("Castling [KQkq]");
@@ -467,8 +460,8 @@ impl Board {
             _ => 0
         };
 
-        let mut b = Board { bb: gen_bitboards(&sqs), sqs: sqs, move_num: move_num, hash: Hash { val: 0 },
-                            castling: castling, en_passant: en_passant };
+        let mut b = Board { bb: gen_bitboards(&sqs), sqs: sqs, ply: 0, to_move: to_move,
+                            hash: Hash { val: 0 }, castling: castling, en_passant: en_passant };
 
         b.hash = Hash::init(&b);
         b
