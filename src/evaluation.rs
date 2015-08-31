@@ -137,11 +137,11 @@ impl Board {
 
         attacked_by.set_all();
 
-        eval -= count(attacked_by[ALL | opp] & king_moves(lsb(bb[KING | us]))) * 30;
-        eval -= count(attacked_by[ALL | opp] & (1 << lsb(bb[KING | us]))) * 50;
+        eval -= count(attacked_by[ALL | opp] & king_moves(lsb(bb[KING | us]))) * 40;
+        eval -= count(attacked_by[ALL | opp] & (1 << lsb(bb[KING | us]))) * 60;
 
-        eval += count(attacked_by[ALL | us] & king_moves(lsb(bb[KING | opp]))) * 30;
-        eval += count(attacked_by[ALL | us] & (1 << lsb(bb[KING | opp]))) * 50;
+        eval += count(attacked_by[ALL | us] & king_moves(lsb(bb[KING | opp]))) * 40;
+        eval += count(attacked_by[ALL | us] & (1 << lsb(bb[KING | opp]))) * 60;
 
         let controlled = (attacked_by[PAWN | us] & !attacked_by[PAWN | opp]) |
                          (attacked_by[ALL | us] & !attacked_by[ALL | opp]);

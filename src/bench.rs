@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+#![cfg(test)]
 use test;
 use types::*;
 use magics;

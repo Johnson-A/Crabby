@@ -99,7 +99,7 @@ impl Searcher {
         let mut calc_time = 0.0;
         let mut depth = 1;
 
-        while calc_time < 10.0 && depth <= self.max_depth {
+        while calc_time < 6.5 && depth <= self.max_depth {
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
@@ -148,7 +148,7 @@ impl Searcher {
            && !board.is_in_check()
         {
             let eval = board.evaluate();
-            let r = 1 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
+            let r = 2 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
             let mut new_board = *board;
             new_board.do_null_move();
 
