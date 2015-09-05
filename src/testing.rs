@@ -20,9 +20,7 @@ pub fn move_gen(b: &mut Bencher) {
     check_init();
     let board = Board::start_position();
 
-    b.iter(|| {
-        board.get_moves();
-    });
+    b.iter(|| board.get_moves());
 }
 
 // #[bench]

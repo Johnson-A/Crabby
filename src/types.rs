@@ -107,6 +107,9 @@ pub const WHITE: u8 = COLOR;
 pub const BLACK: u8 = 0;
 pub const PIECE: u8 = 0b1110;
 
+pub const I_WHITE: usize = WHITE as usize;
+pub const I_BLACK: usize = BLACK as usize;
+
 pub fn flip(c: u8) -> u8 {
     c ^ WHITE
 }

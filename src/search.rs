@@ -1,6 +1,6 @@
 use std::i32;
 use std::cmp::{min, max};
-use time;
+use timer::Timer;
 use types::*;
 use table::*;
 
@@ -17,7 +17,6 @@ pub struct Searcher {
     pub table: Table,
     pub killers: Vec<Killer>,
     pub rep: Vec<Hash>,
-    pub max_depth: usize,
     pub ply: usize,
     pub node_count: usize,
     pub irreversible: usize
@@ -26,20 +25,21 @@ pub struct Searcher {
 impl Searcher {
     pub fn new_start() -> Searcher {
         let start = Board::start_position();
-        let depth = 12;
-        let mut history = vec![start.hash];
-        history.extend(vec![Hash { val: 0 }; depth]);
 
         Searcher {
             root: start,
             table: Table::empty(10000000 * 2 * 2),
-            killers: vec![Killer(Move::NULL, Move::NULL); depth],
-            rep: history,
-            max_depth: depth,
+            killers: vec![Killer(Move::NULL, Move::NULL)],
+            rep: vec![start.hash],
             ply: 0,
             node_count: 0,
             irreversible: 0
         }
+    }
+
+    pub fn extend(&mut self) {
+        self.killers.push(Killer(Move::NULL, Move::NULL));
+        self.rep.push(Hash { val: 0 });
     }
 
     pub fn position(&mut self, params: &mut Params) {
@@ -53,8 +53,9 @@ impl Searcher {
             if val == "moves" { break }
         }
 
-        self.rep = Vec::new();
-        self.rep.push(self.root.hash);
+        self.rep = vec![self.root.hash];
+        self.killers = vec![Killer(Move::NULL, Move::NULL)];
+        self.node_count = 0;
 
         for mv_str in params {
             let mv = self.root.move_from_str(mv_str);
@@ -64,50 +65,24 @@ impl Searcher {
             self.root.make_move(mv);
             self.rep.push(self.root.hash);
         }
-
-        self.rep.extend(vec![Hash { val: 0 }; self.max_depth]);
-        self.killers = vec![Killer(Move::NULL, Move::NULL); self.max_depth];
-        self.node_count = 0;
-    }
-
-    pub fn go(&mut self, params: &mut Params) {
-        while let Some(p) = params.next() {
-            match p {
-                "searchmoves" => (),
-                "ponder" => (),
-                "wtime" => (),
-                "btime" => (),
-                "winc" => (),
-                "binc" => (),
-                "movestogo" => (),
-                "depth" => (),
-                "nodes" => (),
-                "mate" => (),
-                "movetime" => (),
-                "infinite" => (),
-                _ => ()
-            }
-        }
-
-        self.id();
     }
 
     /// Search up to max_ply and get an estimate for a good search depth next move
-    pub fn id(&mut self) {
+    pub fn go(&mut self, mut timer: Timer) {
         println!("Searching\n{}", self.root);
-        let start = time::precise_time_s();
-        let mut calc_time = 0.0;
+        timer.start(self.root.to_move);
         let mut depth = 1;
 
-        while calc_time < 6.5 && depth <= self.max_depth {
+        while timer.should_search(depth) {
+            self.extend();
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
-            calc_time = time::precise_time_s() - start;
+            timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
-                depth, score / 10, (calc_time * 1000.0) as u32, self.node_count,
+                depth, score / 10, (timer.elapsed() * 1000.0) as u32, self.node_count,
                 pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
 
             depth += 1;
@@ -118,8 +93,6 @@ impl Searcher {
 
         let best = self.table.best_move(self.root.hash);
         println!("bestmove {}", best.expect("Error: No move found"));
-
-        self.max_depth = depth;
     }
 
     // TODO: wrap self.ply += 1 /* search */ self.ply -= 1
@@ -200,7 +173,7 @@ impl Searcher {
                 _ => {
                     // moves_searched > 0
                     let lmr =  depth >= 3
-                            && moves_searched >= 2
+                            && moves_searched >= 4
                             && !mv.is_capture()
                             && mv.promotion() == 0
                             && mv != self.killers[self.ply].0

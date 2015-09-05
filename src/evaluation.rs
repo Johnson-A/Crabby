@@ -146,12 +146,12 @@ impl Board {
         let controlled = (attacked_by[PAWN | us] & !attacked_by[PAWN | opp]) |
                          (attacked_by[ALL | us] & !attacked_by[ALL | opp]);
 
-        eval += count(controlled) * 20;
+        eval += count(controlled) * 12;
 
         let no_control = (attacked_by[PAWN | opp] & !attacked_by[PAWN | us]) |
                          (attacked_by[ALL | opp] & !attacked_by[ALL | us]);
 
-        eval -= count(no_control) * 20;
+        eval -= count(no_control) * 12;
 
         let real_eval = (eval as i32) - 1000*1000;
 

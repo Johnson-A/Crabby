@@ -4,9 +4,11 @@ use std::fs::File;
 use time;
 
 use types::*;
+use util::parse_or;
 use magics;
 use table;
 use search::Searcher;
+use timer::Timer;
 
 const ENGINE_NAME: &'static str = "Crabby";
 
@@ -25,9 +27,9 @@ pub fn main_loop() {
                 "isready"    => println!("readyok"),
                 "ucinewgame" => searcher = Searcher::new_start(),
                 "position"   => searcher.position(&mut params),
-                "go"         => searcher.go(&mut params),
+                "go"         => searcher.go(Timer::new(&mut params)),
                 "perft"      => perft(&searcher.root, &mut params),
-                "testperf"   => positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
+                // "testperf"   => positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
                 "testmove"   => positions("testing/positions/perftsuite.epd", &mut searcher,
                                                 &mut |s| println!("{}", s.root.perft(6, true))),
                 "print"      => (),
@@ -38,10 +40,7 @@ pub fn main_loop() {
 }
 
 pub fn perft(board: &Board, params: &mut Params) {
-    let d = match params.next() {
-        Some(val) => val.parse::<u8>().unwrap_or(1),
-        None      => 5
-    };
+    let d = parse_or(params.next(), 5);
 
     println!("total = {}\n", board.perft(d, true));
 }

@@ -1,3 +1,5 @@
+use core::str::FromStr;
+
 pub const ROW_1: u64 = 0x00000000000000FF;
 pub const ROW_2: u64 = ROW_1 << 8;
 pub const ROW_3: u64 = ROW_1 << 8 * 2;
@@ -31,7 +33,7 @@ pub fn reverse(mut v: u64) -> u64 {
         ((v >> 32) & 0x00000000FFFFFFFF) | ((v & 0x00000000FFFFFFFF) << 32)
 }
 
-/// Calculate sliding piece moves
+/// Calculate sliding piece moves for a given occupancy and mask
 pub fn get_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
     let forward = pot_blockers - 2*piece;
@@ -66,6 +68,20 @@ pub fn move_to<T: Eq>(moves: &mut Vec<T>, elem: T, place: usize) {
         },
         None => ()
     }
+}
+
+pub fn parse_or_fail<T: FromStr>(p: Option<&str>) -> T {
+    p.and_then(|t| t.parse().ok()).expect(&*format!("Could not parse {:?}", p))
+}
+
+pub fn parse_or<T: FromStr>(p: Option<&str>, def: T) -> T {
+    p.and_then(|t| t.parse().ok()).unwrap_or(def)
+}
+
+pub fn try_parse<T: FromStr>(p: Option<&str>) -> Result<T, String> {
+    p.ok_or("Value is None".into()).and_then(|t| t.parse().map_err(|_|
+        format!("{} cannot be parsed", t)
+    ))
 }
 
 pub fn lsb(val: u64) -> u32 {
