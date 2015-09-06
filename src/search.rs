@@ -150,23 +150,9 @@ impl Searcher {
             let mut new_board = *board;
             new_board.make_move(mv);
 
-            // TODO: update irreversible, full three move and fifty move repition
             self.ply += 1;
-            let mut pos_ply = self.ply + self.root.ply;
-            self.rep[pos_ply] = new_board.hash;
 
-            let mut is_rep = false;
-            let last_index = max(2, self.irreversible);
-
-            while pos_ply >= last_index {
-                pos_ply -= 2;
-                if self.rep[pos_ply] == new_board.hash {
-                    is_rep = true;
-                    break
-                }
-            }
-
-            let score = if is_rep {
+            let score = if self.is_repeated(new_board.hash) {
                 0
             } else if moves_searched == 0 {
                 -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
@@ -215,6 +201,22 @@ impl Searcher {
 
         self.table.record(board, alpha, best_move, depth, NodeBound::Alpha);
         alpha
+    }
+
+    // TODO: update irreversible, full three move and fifty move repition
+    pub fn is_repeated(&mut self, hash: Hash) -> bool {
+        let mut pos_ply = self.ply + self.root.ply;
+        self.rep[pos_ply] = hash;
+
+        let last_index = max(2, self.irreversible);
+
+        while pos_ply >= last_index {
+            pos_ply -= 2;
+            if self.rep[pos_ply] == hash {
+                return true
+            }
+        }
+        false
     }
 
     // TODO: remove depth so all takes are searched
