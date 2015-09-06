@@ -166,29 +166,27 @@ impl Searcher {
                 }
             }
 
-            let score = match is_rep {
-                true => 0,
-                false if moves_searched == 0 =>
-                    -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV),
-                _ => {
-                    // moves_searched > 0
-                    let lmr =  depth >= 3
-                            && moves_searched >= 4
-                            && !mv.is_capture()
-                            && mv.promotion() == 0
-                            && mv != self.killers[self.ply].0
-                            && mv != self.killers[self.ply].1
-                            && !new_board.is_in_check();
+            let score = if is_rep {
+                0
+            } else if moves_searched == 0 {
+                -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
+            } else {
+                let lmr =  depth >= 3
+                        && moves_searched >= 4
+                        && !mv.is_capture()
+                        && mv.promotion() == 0
+                        && mv != self.killers[self.ply].0
+                        && mv != self.killers[self.ply].1
+                        && !new_board.is_in_check();
 
-                    let new_depth = depth - if lmr { 2 } else { 1 };
+                let new_depth = depth - if lmr { 2 } else { 1 };
 
-                    let s = -self.search(&new_board, new_depth, -(alpha+1), -alpha, NT::NonPV);
+                let s = -self.search(&new_board, new_depth, -(alpha+1), -alpha, NT::NonPV);
 
-                    if s > alpha { // && s < beta - fail hard
-                        -self.search(&new_board, new_depth, -beta, -s, NT::NonPV)
-                    } else {
-                        s
-                    }
+                if s > alpha { // && s < beta - fail hard
+                    -self.search(&new_board, new_depth, -beta, -s, NT::NonPV)
+                } else {
+                    s
                 }
             };
             self.ply -= 1;
