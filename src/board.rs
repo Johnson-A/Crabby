@@ -164,14 +164,20 @@ impl Board {
     pub fn move_from_str(&mut self, mv: &str) -> Move {
         let moves: Vec<char> = mv.chars().collect();
 
-        if let [sc, sr, dc, dr, promotion..] = &moves[..] {
+        if moves.len() >=4 {
+            let sc = moves[0];
+            let sr = moves[1];
+            let dc = moves[2];
+            let dr = moves[3];
+            let promotion = &moves[4..];
+
             let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
 
-            let mut flags = match promotion {
-                ['q'] => QUEEN_PROM,
-                ['r'] => ROOK_PROM,
-                ['b'] => BISHOP_PROM,
-                ['n'] => KNIGHT_PROM,
+            let mut flags = match promotion[0] {
+                'q' => QUEEN_PROM,
+                'r' => ROOK_PROM,
+                'b' => BISHOP_PROM,
+                'n' => KNIGHT_PROM,
                 _ => 0
             };
 
@@ -455,9 +461,10 @@ impl Board {
         if castle_str.contains('q') { castling |= BQ_CASTLE };
 
         let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
-        let en_passant = match ep_sq.as_ref() {
-            [sc, sr] => 1 << to_pos(sc, sr),
-            _ => 0
+        let en_passant = if ep_sq.len() == 2 {
+            1 << to_pos(ep_sq[0], ep_sq[1])
+        } else {
+            0
         };
 
         let mut b = Board { bb: gen_bitboards(&sqs), sqs: sqs, ply: 0, to_move: to_move,
