@@ -164,7 +164,7 @@ impl Board {
     pub fn move_from_str(&mut self, mv: &str) -> Move {
         let moves: Vec<char> = mv.chars().collect();
 
-        if let [sc, sr, dc, dr, promotion..] = moves.as_slice() {
+        if let [sc, sr, dc, dr, promotion..] = &moves[..] {
             let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
 
             let mut flags = match promotion {

@@ -1,4 +1,4 @@
-#![feature(slice_patterns, convert, core, test, associated_consts)]
+#![feature(slice_patterns, core, test, associated_consts)]
 extern crate core;
 extern crate test;
 extern crate time;
