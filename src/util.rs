@@ -1,4 +1,4 @@
-use core::str::FromStr;
+use std::str::FromStr;
 
 pub const ROW_1: u64 = 0x00000000000000FF;
 pub const ROW_2: u64 = ROW_1 << 8;
