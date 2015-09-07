@@ -1,4 +1,4 @@
-#![feature(slice_patterns, test, associated_consts)]
+#![feature(test, associated_consts)]
 extern crate test;
 extern crate time;
 extern crate rand;
