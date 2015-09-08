@@ -122,7 +122,7 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -
         }
 
         'outer: loop {
-            let mut magic: u64;
+            let mut magic;
             loop {
                 magic = rng.gen::<u64>() & rng.gen::<u64>() & rng.gen::<u64>();
                 if ((magic * mask) >> 56).count_ones() >= 6 { break }

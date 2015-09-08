@@ -455,7 +455,7 @@ impl Board {
         if castle_str.contains('q') { castling |= BQ_CASTLE };
 
         let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
-        let en_passant = match ep_sq.as_ref() {
+        let en_passant = match &ep_sq[..] {
             [sc, sr] => 1 << to_pos(sc, sr),
             _ => 0
         };
