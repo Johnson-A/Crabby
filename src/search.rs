@@ -157,23 +157,26 @@ impl Searcher {
             } else if moves_searched == 0 {
                 -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
             } else {
-                let lmr =  depth >= 3
-                        && moves_searched >= 4
-                        && !mv.is_capture()
-                        && mv.promotion() == 0
-                        && mv != self.killers[self.ply].0
-                        && mv != self.killers[self.ply].1
-                        && !new_board.is_in_check();
+                let mut s = alpha + 1;
 
-                let new_depth = depth - if lmr { 2 } else { 1 };
-
-                let s = -self.search(&new_board, new_depth, -(alpha+1), -alpha, NT::NonPV);
-
-                if s > alpha { // && s < beta - fail hard
-                    -self.search(&new_board, new_depth, -beta, -s, NT::NonPV)
-                } else {
-                    s
+                if    depth >= 3
+                   && moves_searched >= 4
+                   && !mv.is_capture()
+                   && mv.promotion() == 0
+                   && mv != self.killers[self.ply].0
+                   && mv != self.killers[self.ply].1
+                   && !new_board.is_in_check()
+                {
+                    s = -self.search(&new_board, depth - 2, -(alpha+1), -alpha, NT::NonPV);
                 }
+
+                if s > alpha {
+                    s = -self.search(&new_board, depth - 1, -(alpha+1), -alpha, NT::NonPV);
+                    if s > alpha && s < beta {
+                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV)
+                    }
+                }
+                s
             };
             self.ply -= 1;
             // table >= depth
