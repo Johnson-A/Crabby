@@ -28,7 +28,7 @@ impl Searcher {
 
         Searcher {
             root: start,
-            table: Table::empty(10000000 * 2 * 2),
+            table: Table::empty(10000000 * 5),
             killers: vec![Killer(Move::NULL, Move::NULL)],
             rep: vec![start.hash],
             ply: 0,
@@ -88,8 +88,7 @@ impl Searcher {
             depth += 1;
         }
 
-        println!("occ {} of {}", self.table.count(), self.table.entries.len());
-        self.table.set_ancient();
+        println!("occ {} of {}", self.table.set_ancient(), self.table.num_elems());
 
         let best = self.table.best_move(self.root.hash);
         println!("bestmove {}", best.expect("Error: No move found"));

@@ -1,5 +1,6 @@
 use rand::{Rng, SeedableRng, StdRng};
 use std::collections::HashSet;
+use std::mem;
 use types::*;
 use util::lsb;
 
@@ -56,19 +57,20 @@ impl Hash {
     pub fn flip_color(&mut self) {
         self.val ^= unsafe { color_key };
     }
+
+    pub fn sub(&self) -> u16 {
+        (self.val >> 48) as u16
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum NodeBound { Exact, Alpha, Beta }
+pub enum NodeBound { Exact = 0, Alpha = 1, Beta = 2 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Entry {
-    pub hash: Hash,
     pub score: i32,
     pub best_move: Move,
-    pub depth: u8,
-    pub bound: NodeBound,
-    pub ancient: bool
+    pub info: u32
 }
 
 impl Entry {
@@ -76,29 +78,59 @@ impl Entry {
         *self == Entry::NULL
     }
 
-    const NULL: Entry = Entry { hash: Hash { val: 0 }, score: 0, best_move: Move::NULL,
-                                depth: 0, bound: NodeBound::Exact, ancient: false };
+    pub fn depth(&self) -> u8 {
+        self.info as u8
+    }
+
+    pub fn ancient(&self) -> bool {
+        self.info & (1 << 8) != 0
+    }
+
+    pub fn bound(&self) -> NodeBound {
+        unsafe { mem::transmute(((self.info >> 9) & 0b11) as u8) }
+    }
+
+    pub fn compare(&self, hash: &Hash) -> bool {
+        (self.info >> 16) as u16 == hash.sub()
+    }
+
+    const NULL: Entry = Entry { score: !0, best_move: Move::NULL, info: !0 };
 }
 
 pub struct Table {
-    pub entries: Vec<Entry>
+    pub units: Vec<Unit>
 }
+
+pub struct Unit {
+    entries: [Entry; UNIT_SIZE]
+}
+
+impl Clone for Unit { fn clone(&self) -> Self { Unit { entries: self.entries } } }
+
+pub const UNIT_SIZE: usize = 0xFFFF + 1;
 
 impl Table {
     pub fn empty(size: usize) -> Self {
-        Table { entries: vec![Entry::NULL; size] }
+        Table { units: vec![Unit { entries: [Entry::NULL; UNIT_SIZE] }; size / UNIT_SIZE] }
     }
 
-    pub fn index(&self, hash: Hash) -> usize {
-        hash.val as usize % self.entries.len()
+    pub fn entry(&self, hash: Hash) -> &Entry {
+        let unit = &self.units[hash.val as usize % self.units.len()];
+        &unit.entries[hash.val as usize % UNIT_SIZE]
+    }
+
+    pub fn mut_entry(&mut self, hash: Hash) -> &mut Entry {
+        let num_units = self.units.len();
+        let unit = &mut self.units[hash.val as usize % num_units];
+        &mut unit.entries[hash.val as usize % UNIT_SIZE]
     }
 
     pub fn probe(&self, hash: Hash, depth: u8, alpha: i32, beta: i32) -> (Option<i32>, Move) {
-        let entry = &self.entries[self.index(hash)];
+        let entry = self.entry(hash);
 
-        if !entry.is_empty() && entry.hash == hash {
-            if  entry.depth > depth &&
-                match entry.bound {
+        if !entry.is_empty() && entry.compare(&hash) {
+            if  entry.depth() > depth &&
+                match entry.bound() {
                     NodeBound::Alpha => alpha >= entry.score,
                     NodeBound::Beta  => beta  <= entry.score,
                     NodeBound::Exact => true }
@@ -110,21 +142,19 @@ impl Table {
     }
 
     pub fn best_move(&self, hash: Hash) -> Option<Move> {
-        let entry = &self.entries[self.index(hash)];
+        let entry = self.entry(hash);
 
-        if !entry.is_empty() && entry.hash == hash && entry.best_move != Move::NULL {
+        if !entry.is_empty() && entry.compare(&hash) && entry.best_move != Move::NULL {
             return Some(entry.best_move)
         }
         None
     }
 
     pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: NodeBound) {
-        let ind = self.index(board.hash);
-        let entry = &mut self.entries[ind];
-
-        if entry.is_empty() || entry.depth <= depth || entry.ancient {
-            *entry = Entry { hash: board.hash, score: score, best_move: best_move,
-                             depth: depth, bound: bound, ancient: false };
+        let entry = self.mut_entry(board.hash);
+        let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
+        if entry.is_empty() || entry.depth() <= depth || entry.ancient() {
+            *entry = Entry { score: score, best_move: best_move, info: info };
         }
     }
 
@@ -152,13 +182,20 @@ impl Table {
         }
     }
 
-    pub fn count(&self) -> usize {
-        self.entries.iter().fold(0, |acc, e| if !e.is_empty() { acc + 1 } else { acc })
+    pub fn num_elems(&self) -> usize {
+        self.units.len() * UNIT_SIZE
     }
 
-    pub fn set_ancient(&mut self) {
-        for entry in &mut self.entries {
-            if !entry.is_empty() { entry.ancient = true }
+    pub fn set_ancient(&mut self) -> usize {
+        let mut num = 0;
+        for unit in &mut self.units {
+            for entry in unit.entries.iter_mut() {
+                if !entry.is_empty() {
+                    num += 1;
+                    entry.info |= 1 << 8;
+                }
+            }
         }
+        num
     }
 }

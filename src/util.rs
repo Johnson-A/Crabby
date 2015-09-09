@@ -36,8 +36,8 @@ pub fn reverse(mut v: u64) -> u64 {
 /// Calculate sliding piece moves for a given occupancy and mask
 pub fn get_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
-    let forward = pot_blockers - 2*piece;
-    let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
+    let forward = pot_blockers.wrapping_sub(piece.wrapping_mul(2));
+    let rev = reverse(reverse(pot_blockers).wrapping_sub(reverse(piece).wrapping_mul(2)));
     (forward ^ rev) & mask
 }
 
