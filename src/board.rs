@@ -460,11 +460,8 @@ impl Board {
             _ => 0
         };
 
-        let mut b = Board { bb: gen_bitboards(&sqs), sqs: sqs, ply: 0, to_move: to_move,
-                            hash: Hash { val: 0 }, castling: castling, en_passant: en_passant };
-
-        b.hash = Hash::init(&b);
-        b
+        Hash::init(Board { bb: gen_bitboards(&sqs), sqs: sqs, ply: 0, to_move: to_move,
+                   hash: Hash { val: 0 }, castling: castling, en_passant: en_passant })
     }
 
     pub fn start_position() -> Board {
