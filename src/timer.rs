@@ -91,6 +91,6 @@ impl Timer {
         let alloc_time = (1.0 - self.safety) * self.settings.time(self.side) / self.settings.moves_to_go as f64
                          + self.settings.inc(self.side);
 
-        alloc_time - self.times[depth-1] > estimate * 0.3
+        alloc_time - self.times[depth-1] > estimate * 0.3 || alloc_time / 1.5 > self.elapsed()
     }
 }

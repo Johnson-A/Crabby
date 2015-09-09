@@ -100,7 +100,7 @@ impl Table {
         let entry = &self.entries[self.index(hash)];
 
         if !entry.is_empty() && entry.hash == hash {
-            if  entry.depth >= depth &&
+            if  entry.depth > depth &&
                 match entry.bound {
                     NodeBound::Alpha => alpha >= entry.score,
                     NodeBound::Beta  => beta  <= entry.score,

@@ -127,7 +127,7 @@ impl Searcher {
 
             let d = if r as u8 >= depth { 0 } else { depth - r as u8 };
             self.ply += 1;
-            let s = -self.search(&new_board, d, -beta, 1-beta, NT::NonPV);
+            let s = -self.search(&new_board, d, -beta, -beta+1, NT::NonPV);
             self.ply -= 1;
 
             if s >= beta {
@@ -160,7 +160,7 @@ impl Searcher {
                 let mut s = alpha + 1;
 
                 if    depth >= 3
-                   && moves_searched >= 4
+                //    && moves_searched >= 4
                    && !mv.is_capture()
                    && mv.promotion() == 0
                    && mv != self.killers[self.ply].0
