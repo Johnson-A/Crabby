@@ -121,7 +121,7 @@ impl Searcher {
            && !board.is_in_check()
         {
             let eval = board.evaluate();
-            let r = 2 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
+            let r = 3 + depth as i32 / 4 + min(max(eval - beta, 0) / p_val(PAWN) as i32, 3);
             let mut new_board = *board;
             new_board.do_null_move();
 
@@ -133,7 +133,7 @@ impl Searcher {
             if s >= beta {
                 if s >= VALUE_MATE - 1000 { return beta }
 
-                if depth < 12 { return s }
+                if depth < 14 { return s }
                 self.ply += 1;
                 let v = self.search(&board, d, beta - 1, beta, NT::NonPV);
                 self.ply -= 1;
@@ -167,7 +167,8 @@ impl Searcher {
                    && mv != self.killers[self.ply].1
                    && !new_board.is_in_check()
                 {
-                    s = -self.search(&new_board, depth - 2, -(alpha+1), -alpha, NT::NonPV);
+                    let d = if depth > 8 { depth - 3 } else { depth - 2 };
+                    s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
                 }
 
                 if s > alpha {
