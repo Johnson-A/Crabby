@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::num::Wrapping;
 
 pub const ROW_1: u64 = 0x00000000000000FF;
 pub const ROW_2: u64 = ROW_1 << 8;
@@ -37,8 +36,8 @@ pub fn reverse(mut v: u64) -> u64 {
 /// Calculate sliding piece moves for a given occupancy and mask
 pub fn get_attacks(piece: u64, occ: u64, mask: u64) -> u64 {
     let pot_blockers = occ & mask;
-    let forward = (Wrapping(pot_blockers) - Wrapping(2)*Wrapping(piece)).0;
-    let rev = reverse((Wrapping(reverse(pot_blockers)) - Wrapping(2)*Wrapping(reverse(piece))).0);
+    let forward = pot_blockers - 2*piece;
+    let rev = reverse(reverse(pot_blockers) - 2*reverse(piece));
     (forward ^ rev) & mask
 }
 
