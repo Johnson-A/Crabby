@@ -24,18 +24,15 @@ pub unsafe fn init() {
 }
 
 impl Hash {
-    pub fn init(board: &Board) -> Hash {
-        let mut hash = Hash { val: 0 };
-
+    pub fn init(mut board: Board) -> Board {
         for (i, &sq) in board.sqs.iter().enumerate() {
-            hash.set_piece(i, sq);
+            board.hash.set_piece(i, sq);
         }
 
-        hash.set_castling(board.castling);
-        hash.set_ep(board.en_passant);
-        if board.is_white() { hash.flip_color() };
-
-        hash
+        board.hash.set_castling(board.castling);
+        board.hash.set_ep(board.en_passant);
+        if board.is_white() { board.hash.flip_color() };
+        board
     }
 
     pub fn set_piece(&mut self, pos: usize, sq: u8) {
