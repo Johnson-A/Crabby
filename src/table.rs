@@ -104,7 +104,7 @@ impl Entry {
     }
 
     pub fn score(&self) -> u8 {
-        self.depth() - self.age()
+        if self.age() >= self.depth() { 0 } else { self.depth() - self.age() }
     }
 
     pub fn compare(&self, hash: &Hash) -> bool {
