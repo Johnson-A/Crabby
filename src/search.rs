@@ -134,7 +134,7 @@ impl Searcher {
 
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
-            self.table.record(board, score, Move::NULL, depth, NodeBound::Exact);
+            self.table.record(board, score, Move::NULL, depth, NodeBound::Exact, is_pv);
             return score
         }
 
@@ -206,7 +206,7 @@ impl Searcher {
 
             if score >= beta {
                 if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                self.table.record(board, score, mv, depth, NodeBound::Beta);
+                self.table.record(board, score, mv, depth, NodeBound::Beta, is_pv);
                 return score
             }
             if score > alpha {
@@ -223,7 +223,7 @@ impl Searcher {
             }
         }
 
-        self.table.record(board, alpha, best_move, depth, NodeBound::Alpha);
+        self.table.record(board, alpha, best_move, depth, NodeBound::Alpha, is_pv);
         alpha
     }
 

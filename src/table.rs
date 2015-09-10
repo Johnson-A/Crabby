@@ -89,12 +89,22 @@ impl Entry {
         self.info as u8
     }
 
-    pub fn ancient(&self) -> bool {
-        self.info & (1 << 8) != 0
+    pub fn bound(&self) -> NodeBound {
+        unsafe { mem::transmute(((self.info >> 8) & 0b11) as u8) }
     }
 
-    pub fn bound(&self) -> NodeBound {
-        unsafe { mem::transmute(((self.info >> 9) & 0b11) as u8) }
+    pub fn age(&self) -> u8 {
+        ((self.info >> 10) & 0b11_1111) as u8
+    }
+
+    pub fn increment_age(&mut self) {
+        let age = self.age();
+        self.info ^= self.info & 0b1111_1100_0000_0000;
+        self.info |= (age as u32 + 1) << 10;
+    }
+
+    pub fn score(&self) -> u8 {
+        self.depth() - self.age()
     }
 
     pub fn compare(&self, hash: &Hash) -> bool {
@@ -161,10 +171,11 @@ impl Table {
         None
     }
 
-    pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: NodeBound) {
+    pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: NodeBound, is_pv: bool) {
         let entry = self.mut_entry(board.hash);
-        let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
-        if entry.is_empty() || entry.depth() <= depth || entry.ancient() {
+        let info = depth as u32 | (bound as u32) << 8 | (board.hash.sub() as u32) << 16;
+
+        if entry.is_empty() || entry.score() <= depth || (is_pv && depth >= entry.depth()) {
             *entry = Entry { score: score, best_move: best_move, info: info };
         }
     }
@@ -202,7 +213,7 @@ impl Table {
             for entry in unit.entries.iter_mut() {
                 if !entry.is_empty() {
                     num += 1;
-                    entry.info |= 1 << 8;
+                    entry.increment_age();
                 }
             }
         }
