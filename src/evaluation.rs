@@ -174,16 +174,6 @@ impl Board {
         eval += self.eval_space(us, &mut attacked_by);
         eval -= self.eval_space(opp, &mut attacked_by);
 
-        let controlled = (attacked_by[PAWN | us] & !attacked_by[PAWN | opp]) |
-                         (attacked_by[ALL | us] & !attacked_by[ALL | opp]);
-
-        eval += count(controlled) * 12;
-
-        let no_control = (attacked_by[PAWN | opp] & !attacked_by[PAWN | us]) |
-                         (attacked_by[ALL | opp] & !attacked_by[ALL | us]);
-
-        eval -= count(no_control) * 12;
-
         let real_eval = (eval as i32) - 1000*1000;
 
         real_eval + diff
