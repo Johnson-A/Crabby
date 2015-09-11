@@ -233,9 +233,6 @@ impl Searcher {
         if depth == 0 || stand_pat >= beta { return stand_pat }
         if stand_pat > alpha { alpha = stand_pat }
 
-        // let captures = board.get_moves();
-        // captures.retain(|mv| mv.is_capture());
-
         for (_, mv) in board.qsort(&board.get_moves()) {
             let mut new_board = *board;
             new_board.make_move(mv);

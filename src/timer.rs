@@ -40,8 +40,6 @@ pub struct Timer {
     pub stop: bool
 }
 
-unsafe impl Sync for Timer {}
-
 impl Timer {
     pub fn new() -> Timer {
         Timer {
