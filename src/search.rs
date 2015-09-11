@@ -166,7 +166,8 @@ impl Searcher {
                    && mv != self.killers[self.ply].1
                    && !new_board.is_in_check()
                 {
-                    let d = if depth > 8 { depth - 3 } else { depth - 2 };
+                    // let d = if depth > 8 { depth - 3 } else { depth - 2 };
+                    let d = depth - depth / 5 - 2;
                     s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
                 }
 
@@ -230,10 +231,10 @@ impl Searcher {
         if depth == 0 || stand_pat >= beta { return stand_pat }
         if stand_pat > alpha { alpha = stand_pat }
 
-        let mut captures = board.get_moves();
-        captures.retain(|mv| mv.is_capture());
+        // let captures = board.get_moves();
+        // captures.retain(|mv| mv.is_capture());
 
-        for (_, mv) in board.sort(&captures) {
+        for (_, mv) in board.qsort(&board.get_moves()) {
             let mut new_board = *board;
             new_board.make_move(mv);
             let score = -self.q_search(&new_board, depth - 1, -beta, -alpha);
