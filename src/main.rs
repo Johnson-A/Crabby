@@ -3,6 +3,8 @@ extern crate test;
 extern crate time;
 extern crate rand;
 
+#[macro_use]
+pub mod util;
 pub mod board;
 pub mod evaluation;
 pub mod magics;
@@ -12,9 +14,7 @@ pub mod testing;
 pub mod timer;
 pub mod types;
 pub mod uci;
-pub mod util;
 
 pub fn main() {
-    uci::init();
     uci::main_loop();
 }

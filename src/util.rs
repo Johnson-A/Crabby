@@ -22,6 +22,10 @@ pub const FILE_H: u64 = FILE_A << 7;
 pub const PAWN_INFO_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
 pub const PAWN_INFO_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
 
+macro_rules! lock {
+    ($e:expr) => ($e.lock().unwrap());
+}
+
 /// Reverse the bits in a 64 bit number using a recursive algorithm
 /// which swaps the order of sub-elements, starting with even and odd bits
 pub fn reverse(mut v: u64) -> u64 {
@@ -70,7 +74,7 @@ pub fn move_to<T: Eq>(moves: &mut Vec<T>, elem: T, place: usize) {
     }
 }
 
-pub fn parse_or_fail<T: FromStr>(p: Option<&str>) -> T {
+pub fn parse<T: FromStr>(p: Option<&str>) -> T {
     p.and_then(|t| t.parse().ok()).expect(&*format!("Could not parse {:?}", p))
 }
 

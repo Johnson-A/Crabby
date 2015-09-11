@@ -1,6 +1,8 @@
 use std::io::prelude::*;
 use std::io::{stdin, BufReader};
 use std::fs::File;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use time;
 
 use types::*;
@@ -13,8 +15,10 @@ use timer::Timer;
 const ENGINE_NAME: &'static str = "Crabby";
 
 pub fn main_loop() {
+    let mut init_proc = Some(thread::spawn(|| init()));
     let stdin = stdin();
-    let mut searcher = Searcher::new_start();
+    let searcher = Arc::new(Mutex::new(Searcher::new_start()));
+    let timer = Arc::new(Mutex::new(Timer::new()));
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -25,14 +29,28 @@ pub fn main_loop() {
                 "uci"        => uci(),
                 "setoption"  => (),
                 "isready"    => println!("readyok"),
-                "ucinewgame" => searcher = Searcher::new_start(),
-                "position"   => searcher.position(&mut params),
-                "go"         => searcher.go(Timer::new(&mut params)),
-                "perft"      => perft(&searcher.root, &mut params),
+                "ucinewgame" => *lock!(searcher) = Searcher::new_start(),
+                "position"   => lock!(searcher).position(&mut params),
+                "go"         => {
+                    match init_proc.take() {
+                        Some(f) => f.join().is_ok(),
+                        None => false
+                    };
+                    let searcher = searcher.clone();
+                    *lock!(timer) = Timer::parse(Timer::new(), &mut params);
+                    let timer = timer.clone();
+
+                    thread::spawn(move || {
+                        lock!(searcher).go(timer);
+                    });
+                },
+                "perft"      => perft(&lock!(searcher).root, &mut params),
                 // "testperf"   => positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
-                "testmove"   => positions("testing/positions/perftsuite.epd", &mut searcher,
+                "testmove"   => positions("testing/positions/perftsuite.epd", &mut lock!(searcher),
                                                 &mut |s| println!("{}", s.root.perft(6, true))),
                 "print"      => (),
+                "stop"       => lock!(timer).stop = true,
+                "quit"       => return,
                 _            => println!("Unknown command: {}", first_word)
             }
         }

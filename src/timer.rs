@@ -21,24 +21,6 @@ impl TimeSettings {
         }
     }
 
-    pub fn fill(params: &mut Params) -> TimeSettings {
-        let mut s = TimeSettings::new();
-
-        while let Some(p) = params.next() {
-            match p {
-                "wtime" => s.times_for[I_WHITE] = parse_or_fail(params.next()),
-                "btime" => s.times_for[I_BLACK] = parse_or_fail(params.next()),
-                "winc"  => s.inc_for[I_WHITE]   = parse_or_fail(params.next()),
-                "binc"  => s.inc_for[I_BLACK]   = parse_or_fail(params.next()),
-                "movestogo" => s.moves_to_go    = parse_or_fail(params.next()),
-                "ponder"   => s.ponder = true,
-                "infinite" => s.infinite = true,
-                _ => ()
-            }
-        }
-        s
-    }
-
     pub fn time(&self, side: usize) -> f64 {
         self.times_for[side] / 1000.0
     }
@@ -54,19 +36,39 @@ pub struct Timer {
     times: Vec<f64>,
     side: usize,
     safety: f64,
-    init: f64
+    init: f64,
+    pub stop: bool
 }
 
+unsafe impl Sync for Timer {}
+
 impl Timer {
-    pub fn new(params: &mut Params) -> Timer {
+    pub fn new() -> Timer {
         Timer {
-            settings: TimeSettings::fill(params),
+            settings: TimeSettings::new(),
             nodes: vec![0],
             times: vec![0.0],
             side: !(I_WHITE | I_BLACK), // Initialize later
             safety: 0.1,
-            init: 0.0
+            init: 0.0,
+            stop: false
         }
+    }
+
+    pub fn parse(mut t: Timer, params: &mut Params) -> Timer {
+        while let Some(p) = params.next() {
+            match p {
+                "wtime" => t.settings.times_for[I_WHITE] = parse(params.next()),
+                "btime" => t.settings.times_for[I_BLACK] = parse(params.next()),
+                "winc"  => t.settings.inc_for[I_WHITE]   = parse(params.next()),
+                "binc"  => t.settings.inc_for[I_BLACK]   = parse(params.next()),
+                "movestogo" => t.settings.moves_to_go    = parse(params.next()),
+                "ponder"   => t.settings.ponder = true,
+                "infinite" => t.settings.infinite = true,
+                _ => ()
+            }
+        }
+        t
     }
 
     pub fn start(&mut self, side: u8) {
@@ -91,6 +93,9 @@ impl Timer {
         let alloc_time = (1.0 - self.safety) * self.settings.time(self.side) / self.settings.moves_to_go as f64
                          + self.settings.inc(self.side);
 
-        alloc_time - self.times[depth-1] > estimate * 0.3 || alloc_time / 1.5 > self.elapsed()
+        !self.stop && (
+        self.settings.infinite ||
+        alloc_time - self.times[depth-1] > estimate * 0.3 ||
+        alloc_time / 1.5 > self.elapsed())
     }
 }
