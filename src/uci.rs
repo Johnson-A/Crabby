@@ -6,7 +6,7 @@ use std::thread;
 use time;
 
 use types::*;
-use util::parse_or;
+use util::*;
 use magics;
 use table;
 use search::Searcher;
@@ -32,10 +32,7 @@ pub fn main_loop() {
                 "ucinewgame" => *lock!(searcher) = Searcher::new_start(),
                 "position"   => lock!(searcher).position(&mut params),
                 "go"         => {
-                    match init_proc.take() {
-                        Some(f) => f.join().is_ok(),
-                        None => false
-                    };
+                    finish(&mut init_proc);
                     let searcher = searcher.clone();
                     *lock!(timer) = Timer::parse(Timer::new(), &mut params);
                     let timer = timer.clone();
@@ -45,9 +42,16 @@ pub fn main_loop() {
                     });
                 },
                 "perft"      => perft(&lock!(searcher).root, &mut params),
-                // "testperf"   => positions("testing/positions/performance", &mut searcher, &mut |s| s.id()),
-                "testmove"   => positions("testing/positions/perftsuite.epd", &mut lock!(searcher),
-                                                &mut |s| println!("{}", s.root.perft(6, true))),
+                "testperf" |
+                "testmove" => {
+                    finish(&mut init_proc);
+                    match first_word {
+                        "testperf" => positions("testing/positions/performance",
+                                          &mut lock!(searcher), &mut |s, t| s.go(t)),
+                        _ => positions("testing/positions/perftsuite.epd",
+                                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true)))
+                    };
+                },
                 "print"      => (),
                 "stop"       => lock!(timer).stop = true,
                 "quit"       => return,
@@ -63,7 +67,8 @@ pub fn perft(board: &Board, params: &mut Params) {
     println!("total = {}\n", board.perft(d, true));
 }
 
-pub fn positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut Searcher)) {
+pub fn positions(path: &str, searcher: &mut Searcher,
+                    do_work: &mut FnMut(&mut Searcher, Arc<Mutex<Timer>>)) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
         Err(e)   => panic!("Test suite {} could not be read. {:?}", path, e)
@@ -75,8 +80,10 @@ pub fn positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut S
         let fen = String::from("fen ") + &line.unwrap();
         println!("{}", fen);
 
+        let mut params = "wtime 100000 btime 100000 movestogo 1".split_whitespace();
+        let timer = Timer::parse(Timer::new(), &mut params);
         searcher.position(&mut fen.split_whitespace());
-        do_work(searcher);
+        do_work(searcher, Arc::new(Mutex::new(timer)));
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }

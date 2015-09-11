@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::thread::JoinHandle;
 
 pub const ROW_1: u64 = 0x00000000000000FF;
 pub const ROW_2: u64 = ROW_1 << 8;
@@ -24,6 +25,13 @@ pub const PAWN_INFO_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, 
 
 macro_rules! lock {
     ($e:expr) => ($e.lock().unwrap());
+}
+
+pub fn finish<T>(task: &mut Option<JoinHandle<T>>) -> bool {
+    match task.take() {
+        Some(unfinished) => unfinished.join().is_ok(),
+        None => false
+    }
 }
 
 /// Reverse the bits in a 64 bit number using a recursive algorithm
