@@ -2,15 +2,43 @@ use types::*;
 use util::*;
 use magics::*;
 
+pub static SAFE_MASK: [u64; 2] = [
+(FILE_C | FILE_D | FILE_E | FILE_F) & (ROW_7 | ROW_6 | ROW_5),
+(FILE_C | FILE_D | FILE_E | FILE_F) & (ROW_2 | ROW_3 | ROW_4)
+];
+
 impl Board {
     // Attack map by square
     // Piece Values by Square
     // King safety
     // Doubled pawns
     // Attacks defends - who owns more squares
-    // Space advantage
     // Simplify when ahead
     // Center squares
+    // Middlegame vs endgame
+
+    pub fn eval_space(&self, us: u8, attacked_by: &mut BitBoard) -> u32 {
+        let opp = flip(us);
+
+        let safe =  SAFE_MASK[us as usize]
+                  & !self.bb[PAWN | us]
+                  & !attacked_by[PAWN | opp]
+                  & (attacked_by[ALL | us] | !attacked_by[ALL | opp]);
+
+        let mut behind = self.bb[PAWN | us];
+        if us == WHITE {
+            behind |= (behind >> 8) | (behind >> 16);
+        } else {
+            behind |= (behind << 8) | (behind << 16);
+        }
+
+        let bonus = count(safe) + count(behind & safe);
+        let weight = count(  self.bb[KNIGHT | us]  | self.bb[BISHOP | us]
+                           | self.bb[KNIGHT | opp] | self.bb[BISHOP | opp]);
+
+        bonus * weight * weight
+    }
+
     pub fn get_evals(&self, us: u8, opp: u8, attacked_by: &mut BitBoard) -> i32 {
         let bb = &self.bb;
         let allies = bb[ALL | us];
@@ -142,6 +170,9 @@ impl Board {
 
         eval += count(attacked_by[ALL | us] & king_moves(lsb(bb[KING | opp]))) * 40;
         eval += count(attacked_by[ALL | us] & (1 << lsb(bb[KING | opp]))) * 60;
+
+        eval += self.eval_space(us, &mut attacked_by);
+        eval -= self.eval_space(opp, &mut attacked_by);
 
         let controlled = (attacked_by[PAWN | us] & !attacked_by[PAWN | opp]) |
                          (attacked_by[ALL | us] & !attacked_by[ALL | opp]);
