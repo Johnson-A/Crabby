@@ -24,18 +24,24 @@ pub struct Searcher {
 }
 
 impl Searcher {
-    pub fn new_start() -> Searcher {
+    pub fn new_start(table_size: usize) -> Searcher {
         let start = Board::start_position();
 
         Searcher {
             root: start,
-            table: Table::empty(10000000 * 5),
+            table: Table::empty(table_size),
             killers: vec![Killer(Move::NULL, Move::NULL)],
             rep: vec![start.hash],
             ply: 0,
             node_count: 0,
             irreversible: 0
         }
+    }
+
+    pub fn refresh(&mut self) {
+        let size = self.table.num_elems();
+        *self = Searcher::new_start(0);
+        self.table = Table::empty(size);
     }
 
     pub fn extend(&mut self) {

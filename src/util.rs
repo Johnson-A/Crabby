@@ -27,6 +27,10 @@ macro_rules! lock {
     ($e:expr) => ($e.lock().unwrap());
 }
 
+macro_rules! ArcMutex {
+    ($e:expr) => (Arc::new(Mutex::new($e)));
+}
+
 pub fn finish<T>(task: &mut Option<JoinHandle<T>>) -> bool {
     match task.take() {
         Some(unfinished) => unfinished.join().is_ok(),

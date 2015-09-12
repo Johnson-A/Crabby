@@ -17,8 +17,9 @@ const ENGINE_NAME: &'static str = "Crabby";
 pub fn main_loop() {
     let mut init_proc = Some(thread::spawn(|| init()));
     let stdin = stdin();
-    let searcher = Arc::new(Mutex::new(Searcher::new_start()));
-    let timer = Arc::new(Mutex::new(Timer::new()));
+    let table_size = 50_000_000;
+    let searcher = ArcMutex!(Searcher::new_start(table_size));
+    let timer = ArcMutex!(Timer::new());
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -29,7 +30,7 @@ pub fn main_loop() {
                 "uci"        => uci(),
                 "setoption"  => (),
                 "isready"    => println!("readyok"),
-                "ucinewgame" => *lock!(searcher) = Searcher::new_start(),
+                "ucinewgame" => lock!(searcher).refresh(),
                 "position"   => lock!(searcher).position(&mut params),
                 "go"         => {
                     finish(&mut init_proc);
