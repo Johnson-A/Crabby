@@ -28,23 +28,22 @@ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 * Late Move Reduction
 * Killer move heuristic
 * Static exchange evaluation
-* Transposition Table with Zobrist hashing
+* Partitioned Transposition Table with Zobrist hashing
 * Bitboard based representation
 * Magic move generation
 
 # Planned
 * Aspiration window
-* Time manager
+* Time manager -> improvements
 * PVS/Negascout or MTD(f) -> improvements
 * Piece-square evaluation
 * Evaluation -> improvements
-* Improve Principal variation extraction
 * 50 move rule
 
 # Extended UCI Commands
 * perft x - run perft to a depth x
-* testmove - Run perft on many positions to validate move generation
-* testperf - Search to a given depth in many positions to test performance
+* test move - Run perft on many positions to validate move generation
+* test perf - Search to a given depth in many positions to test performance
 
 # Terms
 Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in the [LICENSE](LICENSE)
