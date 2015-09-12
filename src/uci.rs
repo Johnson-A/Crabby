@@ -32,6 +32,13 @@ pub fn main_loop() {
                 "isready"    => println!("readyok"),
                 "ucinewgame" => lock!(searcher).refresh(),
                 "position"   => lock!(searcher).position(&mut params),
+                "stop"       => lock!(timer).stop = true,
+                "quit"       => return,
+                "print"      => (),
+                "perft"      => {
+                    finish(&mut init_proc);
+                    perft(&lock!(searcher).root, &mut params)
+                },
                 "go"         => {
                     finish(&mut init_proc);
                     let searcher = searcher.clone();
@@ -42,21 +49,17 @@ pub fn main_loop() {
                         lock!(searcher).go(timer);
                     });
                 },
-                "perft"      => perft(&lock!(searcher).root, &mut params),
-                "testperf" |
-                "testmove" => {
+                "test"       => {
                     finish(&mut init_proc);
-                    match first_word {
-                        "testperf" => positions("testing/positions/performance",
-                                          &mut lock!(searcher), &mut |s, t| s.go(t)),
-                        _ => positions("testing/positions/perftsuite.epd",
-                                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true)))
+                    match params.next() {
+                        Some("perf") => positions("testing/positions/performance",
+                                            &mut lock!(searcher), &mut |s, t| s.go(t)),
+                        Some("move") => positions("testing/positions/perftsuite.epd",
+                                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true))),
+                        _ => println!("Valid options are `perf` or `move`")
                     };
                 },
-                "print"      => (),
-                "stop"       => lock!(timer).stop = true,
-                "quit"       => return,
-                _            => println!("Unknown command: {}", first_word)
+                _ => println!("Unknown command: {}", first_word)
             }
         }
     }
@@ -84,7 +87,7 @@ pub fn positions(path: &str, searcher: &mut Searcher,
         let mut params = "wtime 100000 btime 100000 movestogo 1".split_whitespace();
         let timer = Timer::parse(Timer::new(), &mut params);
         searcher.position(&mut fen.split_whitespace());
-        do_work(searcher, Arc::new(Mutex::new(timer)));
+        do_work(searcher, ArcMutex!(timer));
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }
