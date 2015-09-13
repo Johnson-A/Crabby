@@ -30,7 +30,7 @@ pub fn main_loop() {
                 "uci"        => uci(),
                 "setoption"  => (),
                 "isready"    => println!("readyok"),
-                "ucinewgame" => lock!(searcher).refresh(),
+                "ucinewgame" => lock!(searcher).refresh(table_size),
                 "position"   => lock!(searcher).position(&mut params),
                 "stop"       => lock!(timer).stop = true,
                 "quit"       => return,

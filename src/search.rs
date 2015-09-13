@@ -38,10 +38,9 @@ impl Searcher {
         }
     }
 
-    pub fn refresh(&mut self) {
-        let size = self.table.num_elems();
-        *self = Searcher::new_start(0);
-        self.table = Table::empty(size);
+    pub fn refresh(&mut self, new_size: usize) {
+        self.table.units.clear(); // Drop the table before assignment
+        *self = Searcher::new_start(new_size);
     }
 
     pub fn extend(&mut self) {
