@@ -123,7 +123,6 @@ impl Searcher {
 
         if    !is_pv
            && depth >= 2
-        //    && eval >= beta
            && !board.is_in_check()
         {
             let eval = board.evaluate();
@@ -140,9 +139,7 @@ impl Searcher {
                 if s >= VALUE_MATE - 1000 { return beta }
 
                 if depth < 14 { return s }
-                self.ply += 1;
                 let v = self.search(&board, d, beta - 1, beta, NT::NonPV);
-                self.ply -= 1;
                 if v >= beta { return s }
             }
         }
@@ -166,14 +163,12 @@ impl Searcher {
                 let mut s = alpha + 1;
 
                 if    depth >= 3
-                //    && moves_searched >= 4
                    && !mv.is_capture()
                    && mv.promotion() == 0
                    && mv != self.killers[self.ply].0
                    && mv != self.killers[self.ply].1
                    && !new_board.is_in_check()
                 {
-                    // let d = if depth > 8 { depth - 3 } else { depth - 2 };
                     let d = depth - depth / 5 - 2;
                     s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
                 }
@@ -187,7 +182,6 @@ impl Searcher {
                 s
             };
             self.ply -= 1;
-            // table >= depth
 
             if score != -INFINITY { moves_searched += 1 } else { continue }
 
