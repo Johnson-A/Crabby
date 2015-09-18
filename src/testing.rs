@@ -23,23 +23,26 @@ pub fn move_gen(b: &mut Bencher) {
     b.iter(|| board.get_moves());
 }
 
-// #[bench]
-// pub fn get_moves(b: &mut Bencher) {
-//     check_init();
-//     let mut res = 0;
-//     let c = 0;
-//
-//     b.iter(|| black_box({
-//         res |= bishop_moves(0, c);
-//         res |= bishop_moves(0, c);
-//         res |= bishop_moves(0, c);
-//         res |= bishop_moves(0, c);
-//         res |= bishop_moves(0, c);
-//
-//         res |= rook_moves(0, c);
-//         res |= rook_moves(0, c);
-//         res |= rook_moves(0, c);
-//         res |= rook_moves(0, c);
-//         res |= rook_moves(0, c);
-//     }));
-// }
+#[bench]
+pub fn get_moves(b: &mut Bencher) {
+    check_init();
+    let mut res = 0;
+    let c = 0;
+
+    b.iter(|| {
+        res |= bishop_moves(0, c);
+        res |= bishop_moves(0, c);
+        res |= bishop_moves(0, c);
+        res |= bishop_moves(0, c);
+        res |= bishop_moves(0, c);
+
+        res |= rook_moves(0, c);
+        res |= rook_moves(0, c);
+        res |= rook_moves(0, c);
+        res |= rook_moves(0, c);
+        res |= rook_moves(0, c);
+    });
+    if res == 0 {
+        println!("{}", res);
+    }
+}

@@ -16,6 +16,9 @@ impl Board {
     // Simplify when ahead
     // Center squares
     // Middlegame vs endgame
+    // Bishop pair
+    // Pawn on same color as bishop
+    // Trapped bishop
 
     pub fn eval_space(&self, us: u8, attacked_by: &mut BitBoard) -> u32 {
         let opp = flip(us);
@@ -171,7 +174,7 @@ impl Board {
         eval += count(attacked_by[ALL | us] & king_moves(lsb(bb[KING | opp]))) * 40;
         eval += count(attacked_by[ALL | us] & (1 << lsb(bb[KING | opp]))) * 60;
 
-        eval += self.eval_space(us, &mut attacked_by);
+        eval += self.eval_space(us,  &mut attacked_by);
         eval -= self.eval_space(opp, &mut attacked_by);
 
         let real_eval = (eval as i32) - 1000*1000;
