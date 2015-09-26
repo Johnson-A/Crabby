@@ -2,6 +2,7 @@ use std::io::prelude::*;
 use std::io::{stdin, BufReader};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use time;
 
@@ -15,11 +16,11 @@ use timer::Timer;
 const ENGINE_NAME: &'static str = "Crabby";
 
 pub fn main_loop() {
-    let mut init_proc = Some(thread::spawn(|| init()));
+    let init_proc = &mut Some(thread::spawn(|| init()));
     let stdin = stdin();
     let table_size = 50_000_000;
     let searcher = ArcMutex!(Searcher::new_start(table_size));
-    let timer = ArcMutex!(Timer::new());
+    let should_stop = Arc::new(AtomicBool::new(false));
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -32,37 +33,40 @@ pub fn main_loop() {
                 "isready"    => println!("readyok"),
                 "ucinewgame" => lock!(searcher).refresh(table_size),
                 "position"   => lock!(searcher).position(&mut params),
-                "stop"       => lock!(timer).stop = true,
+                "stop"       => should_stop.store(true, Ordering::Relaxed),
                 "quit"       => return,
                 "print"      => (),
-                "perft"      => {
-                    finish(&mut init_proc);
-                    perft(&lock!(searcher).root, &mut params)
-                },
-                "go"         => {
-                    finish(&mut init_proc);
-                    let searcher = searcher.clone();
-                    *lock!(timer) = Timer::parse(Timer::new(), &mut params);
-                    let timer = timer.clone();
+                "go" | "perft" | "test" => {
+                    finish(init_proc);
 
-                    thread::spawn(move || {
-                        lock!(searcher).go(timer);
-                    });
-                },
-                "test"       => {
-                    finish(&mut init_proc);
-                    match params.next() {
-                        Some("perf") => positions("testing/positions/performance",
-                                            &mut lock!(searcher), &mut |s, t| s.go(t)),
-                        Some("move") => positions("testing/positions/perftsuite.epd",
-                                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true))),
-                        _ => println!("Valid options are `perf` or `move`")
-                    };
-                },
+                    match first_word {
+                        "go" => {
+                            let searcher = searcher.clone();
+                            let should_stop = should_stop.clone();
+                            let timer = Timer::parse(Timer::new(), &mut params);
+
+                            thread::spawn(move || {
+                                lock!(searcher).go(timer, should_stop);
+                            });
+                        },
+                        "perft" => perft(&lock!(searcher).root, &mut params),
+                        _test   => run(params.next(), searcher.clone()) // TODO: Stop test
+                    }
+                }
                 _ => println!("Unknown command: {}", first_word)
             }
         }
     }
+}
+
+pub fn run(test: Option<&str>, searcher: Arc<Mutex<Searcher>>) {
+    match test {
+        Some("perf") => positions("testing/positions/performance",
+                &mut lock!(searcher), &mut |s, t| s.go(t, Arc::new(AtomicBool::new(false)))),
+        Some("move") => positions("testing/positions/perftsuite.epd",
+                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true))),
+        _ => println!("Valid options are `perf` or `move`")
+    };
 }
 
 pub fn perft(board: &Board, params: &mut Params) {
@@ -72,7 +76,7 @@ pub fn perft(board: &Board, params: &mut Params) {
 }
 
 pub fn positions(path: &str, searcher: &mut Searcher,
-                    do_work: &mut FnMut(&mut Searcher, Arc<Mutex<Timer>>)) {
+                    do_work: &mut FnMut(&mut Searcher, Timer)) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
         Err(e)   => panic!("Test suite {} could not be read. {:?}", path, e)
@@ -87,7 +91,7 @@ pub fn positions(path: &str, searcher: &mut Searcher,
         let mut params = "wtime 100000 btime 100000 movestogo 1".split_whitespace();
         let timer = Timer::parse(Timer::new(), &mut params);
         searcher.position(&mut fen.split_whitespace());
-        do_work(searcher, ArcMutex!(timer));
+        do_work(searcher, timer);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }

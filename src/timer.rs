@@ -36,8 +36,7 @@ pub struct Timer {
     times: Vec<f64>,
     side: usize,
     safety: f64,
-    init: f64,
-    pub stop: bool
+    init: f64
 }
 
 impl Timer {
@@ -48,8 +47,7 @@ impl Timer {
             times: vec![0.0],
             side: !(I_WHITE | I_BLACK), // Initialize later
             safety: 0.1,
-            init: 0.0,
-            stop: false
+            init: 0.0
         }
     }
 
@@ -91,9 +89,8 @@ impl Timer {
         let alloc_time = (1.0 - self.safety) * self.settings.time(self.side) / self.settings.moves_to_go as f64
                          + self.settings.inc(self.side);
 
-        !self.stop && (
         self.settings.infinite ||
         alloc_time - self.times[depth-1] > estimate * 0.3 ||
-        alloc_time / 1.5 > self.elapsed())
+        alloc_time / 1.5 > self.elapsed()
     }
 }

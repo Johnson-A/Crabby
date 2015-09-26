@@ -1,6 +1,7 @@
 use std::i32;
 use std::cmp::{min, max};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use timer::Timer;
 use types::*;
 use table::*;
@@ -73,23 +74,22 @@ impl Searcher {
         }
     }
 
-    /// Search up to max_ply and get an estimate for a good search depth next move
-    pub fn go(&mut self, timer: Arc<Mutex<Timer>>) {
+    pub fn go(&mut self, mut timer: Timer, should_stop: Arc<AtomicBool>) {
         println!("Searching\n{}", self.root);
-        lock!(timer).stop = false;
-        lock!(timer).start(self.root.to_move);
+        should_stop.store(false, Ordering::Relaxed);
+        timer.start(self.root.to_move);
         let mut depth = 1;
 
-        while lock!(timer).should_search(depth) {
+        while !should_stop.load(Ordering::Relaxed) & timer.should_search(depth) {
             self.extend();
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
-            lock!(timer).toc(self.node_count);
+            timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
-                depth, score / 10, (lock!(timer).elapsed() * 1000.0) as u32, self.node_count,
+                depth, score / 10, (timer.elapsed() * 1000.0) as u32, self.node_count,
                 pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
 
             depth += 1;
