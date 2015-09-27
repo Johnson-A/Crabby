@@ -19,8 +19,8 @@ pub fn main_loop() {
     let init_proc = &mut Some(thread::spawn(|| init()));
     let stdin = stdin();
     let table_size = 50_000_000;
-    let searcher = ArcMutex!(Searcher::new_start(table_size));
     let should_stop = Arc::new(AtomicBool::new(false));
+    let searcher = ArcMutex!(Searcher::new_start(table_size, should_stop.clone()));
 
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
@@ -42,11 +42,10 @@ pub fn main_loop() {
                     match first_word {
                         "go" => {
                             let searcher = searcher.clone();
-                            let should_stop = should_stop.clone();
                             let timer = Timer::parse(Timer::new(), &mut params);
 
                             thread::spawn(move || {
-                                lock!(searcher).go(timer, should_stop);
+                                lock!(searcher).go(timer);
                             });
                         },
                         "perft" => perft(&lock!(searcher).root, &mut params),
@@ -62,7 +61,7 @@ pub fn main_loop() {
 pub fn run(test: Option<&str>, searcher: Arc<Mutex<Searcher>>) {
     match test {
         Some("perf") => positions("testing/positions/performance",
-                &mut lock!(searcher), &mut |s, t| s.go(t, Arc::new(AtomicBool::new(false)))),
+                &mut lock!(searcher), &mut |s, t| s.go(t)),
         Some("move") => positions("testing/positions/perftsuite.epd",
                 &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true))),
         _ => println!("Valid options are `perf` or `move`")

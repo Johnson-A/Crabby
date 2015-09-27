@@ -21,11 +21,12 @@ pub struct Searcher {
     pub rep: Vec<Hash>,
     pub ply: usize,
     pub node_count: usize,
-    pub irreversible: usize
+    pub irreversible: usize,
+    should_stop: Arc<AtomicBool>
 }
 
 impl Searcher {
-    pub fn new_start(table_size: usize) -> Searcher {
+    pub fn new_start(table_size: usize, should_stop: Arc<AtomicBool>) -> Searcher {
         let start = Board::start_position();
 
         Searcher {
@@ -35,13 +36,14 @@ impl Searcher {
             rep: vec![start.hash],
             ply: 0,
             node_count: 0,
-            irreversible: 0
+            irreversible: 0,
+            should_stop: should_stop
         }
     }
 
     pub fn refresh(&mut self, new_size: usize) {
         self.table.units.clear(); // Drop the table before assignment
-        *self = Searcher::new_start(new_size);
+        *self = Searcher::new_start(new_size, self.should_stop.clone());
     }
 
     pub fn extend(&mut self) {
@@ -74,13 +76,13 @@ impl Searcher {
         }
     }
 
-    pub fn go(&mut self, mut timer: Timer, should_stop: Arc<AtomicBool>) {
+    pub fn go(&mut self, mut timer: Timer) {
         println!("Searching\n{}", self.root);
-        should_stop.store(false, Ordering::Relaxed);
+        self.should_stop.store(false, Ordering::Relaxed);
         timer.start(self.root.to_move);
         let mut depth = 1;
 
-        while !should_stop.load(Ordering::Relaxed) & timer.should_search(depth) {
+        while !self.should_stop.load(Ordering::Relaxed) & timer.should_search(depth) {
             self.extend();
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
