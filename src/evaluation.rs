@@ -66,6 +66,8 @@ impl Board {
             attacked_by[ROOK | us] |= att;
         });
 
+        if count(bb[BISHOP | us]) == 2 { eval += 100 } // Ignore bishop promotions
+
         for_all(bb[BISHOP | us], &mut |from| {
             let att = bishop_moves(from, occ);
             eval += (att & !occ).count_ones() * 17 +

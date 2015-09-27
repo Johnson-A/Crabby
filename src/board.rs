@@ -233,7 +233,7 @@ impl Board {
         }
     }
 
-    /// Return the lowest valued enemy attacker of a given square and its position
+    /// Return the lowest valued enemy attacker of a given square and the attackers position
     pub fn attacker(&self, pos: u32, us: u8) -> (u8, u32) {
         let bb = &self.bb;
         let opp = flip(us);
@@ -241,13 +241,13 @@ impl Board {
         let l_file = if pos % 8 > 0 { file(pos - 1) } else { 0 };
         let r_file = if pos % 8 < 7 { file(pos + 1) } else { 0 };
         let row_n = pos / 8;
-        let attacking_rank = match opp {
+        let attacking_row = match opp {
             WHITE if row_n > 1 => row(pos - 8),
             BLACK if row_n < 6 => row(pos + 8),
             _ => 0
         };
 
-        let pawns = bb[PAWN | opp] & attacking_rank & (l_file | r_file);
+        let pawns = bb[PAWN | opp] & attacking_row & (l_file | r_file);
         if pawns != 0 { return (PAWN | opp, lsb(pawns)) }
 
         let knights = knight_moves(pos) & bb[KNIGHT | opp];
@@ -278,7 +278,7 @@ impl Board {
         let enemies = bb[ALL | opp];
         let occ = bb[ALL | us] | enemies;
 
-        let (rank_3, rank_8, l_file, r_file, up, left, right) =
+        let (row_3, row_8, l_file, r_file, up, left, right) =
             if us == WHITE { PAWN_INFO_WHITE } else { PAWN_INFO_BLACK };
 
         for_all(bb[QUEEN | us], &mut |from| {
@@ -315,20 +315,20 @@ impl Board {
 
         if us == WHITE {
             pushes = (pawns << up) & !occ;
-            double_pushes = ((pushes & rank_3) << up) & !occ;
+            double_pushes = ((pushes & row_3) << up) & !occ;
             left_attacks = (pawns << left) & (enemies | self.en_passant) & !r_file;
             right_attacks = (pawns << right) & (enemies | self.en_passant) & !l_file;
         } else {
             pushes = (pawns >> -up) & !occ;
-            double_pushes = ((pushes & rank_3) >> -up) & !occ;
+            double_pushes = ((pushes & row_3) >> -up) & !occ;
             left_attacks = (pawns >> -left) & (enemies | self.en_passant) & !r_file;
             right_attacks = (pawns >> -right) & (enemies | self.en_passant) & !l_file;
         }
         let l_en_passant = left_attacks & self.en_passant;
         let r_en_passant = right_attacks & self.en_passant;
-        let prom_pushes = pushes & rank_8;
-        let prom_l_att = left_attacks & rank_8;
-        let prom_r_att = right_attacks & rank_8;
+        let prom_pushes = pushes & row_8;
+        let prom_l_att = left_attacks & row_8;
+        let prom_r_att = right_attacks & row_8;
 
         add_moves(&mut moves, pushes ^ prom_pushes, up, 0);
         add_moves(&mut moves, double_pushes, up+up, DOUBLE_PAWN_PUSH);
@@ -427,7 +427,7 @@ impl Board {
 
     pub fn from_fen(fen: &mut Params) -> Board {
         let fen_board = fen.next().expect("Missing fen board");
-        let reversed_rows = fen_board.split('/').rev(); // fen is read from top rank
+        let reversed_rows = fen_board.split('/').rev(); // fen is read from top row
 
         let mut sqs = [EMPTY; 64];
 

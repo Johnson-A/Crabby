@@ -101,13 +101,9 @@ impl Searcher {
         println!("bestmove {}", best.expect("Error: No move found"));
     }
 
-    // TODO: wrap self.ply += 1 /* search */ self.ply -= 1
-    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32,
-                             nt: NT) -> i32 {
+    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32, nt: NT) -> i32 {
         self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }
-
-        let is_pv = nt == NT::Root || nt == NT::PV;
 
         let (table_score, mut best_move) = self.table.probe(board.hash, depth, alpha, beta);
 
@@ -120,6 +116,8 @@ impl Searcher {
             self.table.record(board, score, Move::NULL, depth, NodeBound::Exact);
             return score
         }
+
+        let is_pv = nt == NT::Root || nt == NT::PV;
 
         if    !is_pv
            && depth >= 2
