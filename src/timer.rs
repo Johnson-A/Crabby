@@ -11,7 +11,7 @@ pub struct TimeSettings {
 }
 
 impl TimeSettings {
-    pub fn new() -> TimeSettings {
+    pub fn default() -> TimeSettings {
         TimeSettings {
             times_for: [300000.0, 300000.0],
             inc_for: [0.0, 0.0],
@@ -19,6 +19,22 @@ impl TimeSettings {
             ponder: false,
             infinite: false
         }
+    }
+
+    pub fn parse(mut self, params: &mut Params) -> TimeSettings {
+        while let Some(p) = params.next() {
+            match p {
+                "wtime" => self.times_for[I_WHITE] = parse(params.next()),
+                "btime" => self.times_for[I_BLACK] = parse(params.next()),
+                "winc"  => self.inc_for[I_WHITE]   = parse(params.next()),
+                "binc"  => self.inc_for[I_BLACK]   = parse(params.next()),
+                "movestogo" => self.moves_to_go    = parse(params.next()),
+                "ponder"   => self.ponder = true,
+                "infinite" => self.infinite = true,
+                _ => ()
+            }
+        }
+        self
     }
 
     pub fn time(&self, side: usize) -> f64 {
@@ -40,31 +56,15 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn new() -> Timer {
+    pub fn new(params: &mut Params) -> Timer {
         Timer {
-            settings: TimeSettings::new(),
+            settings: TimeSettings::default().parse(params),
             nodes: vec![0],
             times: vec![0.0],
             side: !(I_WHITE | I_BLACK), // Initialize later
             safety: 0.1,
             init: 0.0
         }
-    }
-
-    pub fn parse(mut t: Timer, params: &mut Params) -> Timer {
-        while let Some(p) = params.next() {
-            match p {
-                "wtime" => t.settings.times_for[I_WHITE] = parse(params.next()),
-                "btime" => t.settings.times_for[I_BLACK] = parse(params.next()),
-                "winc"  => t.settings.inc_for[I_WHITE]   = parse(params.next()),
-                "binc"  => t.settings.inc_for[I_BLACK]   = parse(params.next()),
-                "movestogo" => t.settings.moves_to_go    = parse(params.next()),
-                "ponder"   => t.settings.ponder = true,
-                "infinite" => t.settings.infinite = true,
-                _ => ()
-            }
-        }
-        t
     }
 
     pub fn start(&mut self, side: u8) {

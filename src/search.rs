@@ -7,7 +7,7 @@ use types::*;
 use table::*;
 
 pub const INFINITY: i32 = i32::MAX;
-pub const VALUE_MATE: i32 = 1000000000;
+pub const VALUE_MATE: i32 = 1_000_000_000;
 
 #[derive(PartialEq, Eq)]
 pub enum NT {
@@ -16,12 +16,12 @@ pub enum NT {
 
 pub struct Searcher {
     pub root: Board,
-    pub table: Table,
-    pub killers: Vec<Killer>,
-    pub rep: Vec<Hash>,
-    pub ply: usize,
-    pub node_count: usize,
-    pub irreversible: usize,
+    table: Table,
+    killers: Vec<Killer>,
+    rep: Vec<Hash>,
+    ply: usize,
+    node_count: usize,
+    irreversible: usize,
     should_stop: Arc<AtomicBool>
 }
 

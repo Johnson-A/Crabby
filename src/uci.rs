@@ -42,14 +42,14 @@ pub fn main_loop() {
                     match first_word {
                         "go" => {
                             let searcher = searcher.clone();
-                            let timer = Timer::parse(Timer::new(), &mut params);
+                            let timer = Timer::new(&mut params);
 
                             thread::spawn(move || {
                                 lock!(searcher).go(timer);
                             });
                         },
                         "perft" => perft(&lock!(searcher).root, &mut params),
-                        _test   => run(params.next(), searcher.clone()) // TODO: Stop test
+                        _test   => run(&mut lock!(searcher), params.next())
                     }
                 }
                 _ => println!("Unknown command: {}", first_word)
@@ -58,12 +58,12 @@ pub fn main_loop() {
     }
 }
 
-pub fn run(test: Option<&str>, searcher: Arc<Mutex<Searcher>>) {
+pub fn run(searcher: &mut Searcher, test: Option<&str>) {
     match test {
         Some("perf") => positions("testing/positions/performance",
-                &mut lock!(searcher), &mut |s, t| s.go(t)),
+                searcher, &mut |s, t| s.go(t)),
         Some("move") => positions("testing/positions/perftsuite.epd",
-                &mut lock!(searcher), &mut |s, _| println!("{}", s.root.perft(6, true))),
+                searcher, &mut |s, _| println!("{}", s.root.perft(6, true))),
         _ => println!("Valid options are `perf` or `move`")
     };
 }
@@ -88,9 +88,8 @@ pub fn positions(path: &str, searcher: &mut Searcher,
         println!("{}", fen);
 
         let mut params = "wtime 100000 btime 100000 movestogo 1".split_whitespace();
-        let timer = Timer::parse(Timer::new(), &mut params);
         searcher.position(&mut fen.split_whitespace());
-        do_work(searcher, timer);
+        do_work(searcher, Timer::new(&mut params));
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }
