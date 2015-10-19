@@ -34,8 +34,8 @@ pub unsafe fn init() {
     king_map_init();
     knight_map_init();
 
-    let size  = get_piece_map(&bishop_attacks, 0, &mut BISHOP_MAP);
-    let total = get_piece_map(&rook_attacks, size, &mut ROOK_MAP);
+    let size  = get_piece_map(&bishop_attacks, &mut BISHOP_MAP, 0);
+    let total = get_piece_map(&rook_attacks, &mut ROOK_MAP, size);
     assert!(total == MAP_SIZE)
 }
 
@@ -91,7 +91,7 @@ impl SMagic {
     }
 }
 
-pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, mut offset: usize, piece_map: &mut [SMagic; 64]) -> usize {
+pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, piece_map: &mut [SMagic; 64], mut offset: usize) -> usize {
     let mut rng = thread_rng();
 
     for (pos, entry) in piece_map.iter_mut().enumerate() {
