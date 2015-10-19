@@ -3,8 +3,8 @@ use util::*;
 
 static mut KING_MAP: [u64; 64] = [0; 64];
 static mut KNIGHT_MAP: [u64; 64] = [0; 64];
-static mut BISHOP_MAP: [SMagic; 64] = [SMagic { mask: 0, magic: 0, shift: 0 }; 64];
-static mut ROOK_MAP: [SMagic; 64] = [SMagic { mask: 0, magic: 0, shift: 0 }; 64];
+static mut BISHOP_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+static mut ROOK_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
 
 const MAP_SIZE: usize = 107648;
 static mut MAP: [u64; MAP_SIZE] = [0; MAP_SIZE];
@@ -34,9 +34,9 @@ pub unsafe fn init() {
     king_map_init();
     knight_map_init();
 
-    let mut offset = 0;
-    BISHOP_MAP = get_piece_map(&bishop_attacks, &mut offset);
-    ROOK_MAP = get_piece_map(&rook_attacks, &mut offset);
+    let size  = get_piece_map(&bishop_attacks, 0, &mut BISHOP_MAP);
+    let total = get_piece_map(&rook_attacks, size, &mut ROOK_MAP);
+    assert!(total == MAP_SIZE)
 }
 
 pub unsafe fn knight_map_init() {
@@ -91,8 +91,7 @@ impl SMagic {
     }
 }
 
-pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, offset: &mut usize) -> [SMagic; 64]{
-    let mut piece_map = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
+pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, mut offset: usize, piece_map: &mut [SMagic; 64]) -> usize {
     let mut rng = thread_rng();
 
     for (pos, entry) in piece_map.iter_mut().enumerate() {
@@ -139,13 +138,14 @@ pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, offset: &mut usi
                 *attack = reference[i];
             }
 
-            *entry = SMagic { offset: *offset, mask: mask, magic: magic, shift: shift };
+            *entry = SMagic { offset: offset, mask: mask, magic: magic, shift: shift };
             for i in 0..size {
-                MAP[*offset + i] = attacks[i];
+                MAP[offset + i] = attacks[i];
             }
-            *offset += size;
+            offset += size;
+
             break // If we've reached this point, all from 0..size have been verified
         }
     }
-    piece_map
+    offset
 }
