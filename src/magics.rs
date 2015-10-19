@@ -1,11 +1,13 @@
 use rand::{Rng, thread_rng};
 use util::*;
 
-pub static mut KING_MAP: [u64; 64] = [0; 64];
-pub static mut KNIGHT_MAP: [u64; 64] = [0; 64];
-pub static mut BISHOP_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
-pub static mut ROOK_MAP: [SMagic; 64] = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
-pub static mut MAP: [u64; 107648] = [0; 107648];
+static mut KING_MAP: [u64; 64] = [0; 64];
+static mut KNIGHT_MAP: [u64; 64] = [0; 64];
+static mut BISHOP_MAP: [SMagic; 64] = [SMagic { mask: 0, magic: 0, shift: 0 }; 64];
+static mut ROOK_MAP: [SMagic; 64] = [SMagic { mask: 0, magic: 0, shift: 0 }; 64];
+
+const MAP_SIZE: usize = 107648;
+static mut MAP: [u64; MAP_SIZE] = [0; MAP_SIZE];
 
 pub fn knight_moves(from: u32) -> u64 {
     unsafe { KNIGHT_MAP[from as usize] }
@@ -29,14 +31,12 @@ pub fn queen_moves(from: u32, occ: u64) -> u64 {
 }
 
 pub unsafe fn init() {
-    let mut table = Vec::new();
     king_map_init();
     knight_map_init();
-    BISHOP_MAP = get_piece_map(&bishop_attacks, &mut table);
-    ROOK_MAP = get_piece_map(&rook_attacks, &mut table);
-    for (i, elem) in table.iter().enumerate() {
-        MAP[i] = *elem;
-    }
+
+    let mut offset = 0;
+    BISHOP_MAP = get_piece_map(&bishop_attacks, &mut offset);
+    ROOK_MAP = get_piece_map(&rook_attacks, &mut offset);
 }
 
 pub unsafe fn knight_map_init() {
@@ -91,12 +91,11 @@ impl SMagic {
     }
 }
 
-pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -> [SMagic; 64] {
-    let mut map = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
-    let mut offset = table.len();
+pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, offset: &mut usize) -> [SMagic; 64]{
+    let mut piece_map = [SMagic { offset: 0, mask: 0, magic: 0, shift: 0 }; 64];
     let mut rng = thread_rng();
 
-    for (pos, entry) in map.iter_mut().enumerate() {
+    for (pos, entry) in piece_map.iter_mut().enumerate() {
         let s = pos as u32;
 
         let edges = ((ROW_1  | ROW_8)  & !row(s)) |
@@ -140,11 +139,13 @@ pub fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, table: &mut Vec<u64>) -
                 *attack = reference[i];
             }
 
-            *entry = SMagic { offset: offset, mask: mask, magic: magic, shift: shift };
-            offset += size;
-            table.extend(attacks);
+            *entry = SMagic { offset: *offset, mask: mask, magic: magic, shift: shift };
+            for i in 0..size {
+                MAP[*offset + i] = attacks[i];
+            }
+            *offset += size;
             break // If we've reached this point, all from 0..size have been verified
         }
     }
-    map
+    piece_map
 }

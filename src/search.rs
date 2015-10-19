@@ -7,7 +7,7 @@ use types::*;
 use table::*;
 
 pub const INFINITY: i32 = i32::MAX;
-pub const VALUE_MATE: i32 = 1_000_000_000;
+pub const VALUE_MATE: i32 = INFINITY / 2;
 
 #[derive(PartialEq, Eq)]
 pub enum NT {
