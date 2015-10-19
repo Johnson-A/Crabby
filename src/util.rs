@@ -1,14 +1,14 @@
 use std::str::FromStr;
 use std::thread::JoinHandle;
 
-pub const ROW_1: u64 = 0x00000000000000FF;
-pub const ROW_2: u64 = ROW_1 << 8;
-pub const ROW_3: u64 = ROW_1 << 8 * 2;
-pub const ROW_4: u64 = ROW_1 << 8 * 3;
-pub const ROW_5: u64 = ROW_1 << 8 * 4;
-pub const ROW_6: u64 = ROW_1 << 8 * 5;
-pub const ROW_7: u64 = ROW_1 << 8 * 6;
-pub const ROW_8: u64 = ROW_1 << 8 * 7;
+pub const ROW_1: u64 = 0xFF;
+pub const ROW_2: u64 = ROW_1 << (8 * 1);
+pub const ROW_3: u64 = ROW_1 << (8 * 2);
+pub const ROW_4: u64 = ROW_1 << (8 * 3);
+pub const ROW_5: u64 = ROW_1 << (8 * 4);
+pub const ROW_6: u64 = ROW_1 << (8 * 5);
+pub const ROW_7: u64 = ROW_1 << (8 * 6);
+pub const ROW_8: u64 = ROW_1 << (8 * 7);
 
 pub const FILE_A: u64 = 0x0101010101010101;
 pub const FILE_B: u64 = FILE_A << 1;
