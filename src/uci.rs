@@ -17,11 +17,12 @@ const ENGINE_NAME: &'static str = "Crabby";
 
 pub fn main_loop() {
     let init_proc = &mut Some(thread::spawn(|| init()));
-    let stdin = stdin();
     let table_size = 50_000_000;
     let should_stop = Arc::new(AtomicBool::new(false));
-    let searcher = ArcMutex!(Searcher::new_start(table_size, should_stop.clone()));
+    let searcher = Searcher::new_start(table_size, should_stop.clone());
+    let searcher = Arc::new(Mutex::new(searcher));
 
+    let stdin = stdin();
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
         let mut params = line.split_whitespace();
