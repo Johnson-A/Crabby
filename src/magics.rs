@@ -44,16 +44,14 @@ pub unsafe fn knight_map_init() {
     (-1, -2), (-2, -1), (-2, 1), (-1, 2),
     (1, -2),  (2, -1),  (2, 1),  (1, 2)];
 
-    for (i, att) in KNIGHT_MAP.iter_mut().enumerate() {
-        let mut targets = 0;
+    for (i, attacks) in KNIGHT_MAP.iter_mut().enumerate() {
         let (r, c) = ((i / 8) as isize, (i % 8) as isize);
 
         for &(dr, dc) in &offsets {
             if r+dr >= 0 && c+dc >= 0 && r+dr < 8 && c+dc < 8 {
-                targets |= 1 << ((r + dr)*8 + c + dc);
+                *attacks |= 1 << ((r + dr)*8 + c + dc);
             }
         }
-        *att = targets;
     }
 }
 
@@ -63,16 +61,14 @@ pub unsafe fn king_map_init() {
     (0, -1),          (0, 1),
     (-1,-1), (-1, 0), (-1, 1)];
 
-    for (i, att) in KING_MAP.iter_mut().enumerate() {
-        let mut targets = 0;
+    for (i, attacks) in KING_MAP.iter_mut().enumerate() {
         let (r, c) = ((i / 8) as isize, (i % 8) as isize);
 
         for &(dr, dc) in &offsets {
             if r+dr >= 0 && c+dc >= 0 && r+dr < 8 && c+dc < 8 {
-                targets |= 1 << ((r+dr)*8 + (c+dc));
+                *attacks |= 1 << ((r + dr)*8 + c + dc);
             }
         }
-        *att = targets;
     }
 }
 
