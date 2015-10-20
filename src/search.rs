@@ -41,7 +41,6 @@ impl Searcher {
     }
 
     pub fn reset(&mut self, new_size: usize) {
-        self.table.units.clear(); // Drop the table before assignment to avoid running out of memory
         *self = Searcher::new(new_size, Timer::default(self.timer.should_stop.clone()));
     }
 
