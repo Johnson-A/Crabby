@@ -26,13 +26,13 @@ impl BitBoard {
 impl Index<u8> for BitBoard {
     type Output = u64;
 
-    fn index<'a>(&'a self, index: u8) -> &'a u64 {
+    fn index(&self, index: u8) -> &u64 {
         &self.0[index as usize]
     }
 }
 
 impl IndexMut<u8> for BitBoard {
-    fn index_mut<'a>(&'a mut self, index: u8) -> &'a mut u64 {
+    fn index_mut(&mut self, index: u8) -> &mut u64 {
         &mut self.0[index as usize]
     }
 }

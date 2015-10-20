@@ -367,7 +367,7 @@ impl Board {
     }
 
     /// Move better SEE to the front to improve move ordering in alpha-beta search
-    pub fn qsort(&self, moves: &Vec<Move>) -> Vec<(i32, Move)> {
+    pub fn qsort(&self, moves: &[Move]) -> Vec<(i32, Move)> {
         let mut temp: Vec<(i32, Move)> = moves.iter().map(
             |mv| (self.see_move(mv), *mv)).filter(|e| e.0 > 0).collect();
 

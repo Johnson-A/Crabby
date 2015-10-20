@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::thread::JoinHandle;
 
 pub const ROW_1: u64 = 0xFF;
-pub const ROW_2: u64 = ROW_1 << (8 * 1);
+pub const ROW_2: u64 = ROW_1 << 8;
 pub const ROW_3: u64 = ROW_1 << (8 * 2);
 pub const ROW_4: u64 = ROW_1 << (8 * 3);
 pub const ROW_5: u64 = ROW_1 << (8 * 4);
@@ -132,9 +132,9 @@ pub const MAIN_DIAG: u64 = 0x8040201008040201;
 pub fn diag(from: u32) -> u64 {
     let diag_index = ((from / 8) - (from % 8)) & 15;
     if diag_index <= 7 {
-        MAIN_DIAG << 8 * diag_index
+        MAIN_DIAG << (8 * diag_index)
     } else {
-        MAIN_DIAG >> 8 * (16 - diag_index)
+        MAIN_DIAG >> (8 * (16 - diag_index))
     }
 }
 
@@ -143,8 +143,8 @@ pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
 pub fn a_diag(from: u32) -> u64 {
     let diag_index = ((from / 8) + (from % 8)) ^ 7;
     if diag_index <= 7 {
-        MAIN_ANTI_DIAG >> 8 * diag_index
+        MAIN_ANTI_DIAG >> (8 * diag_index)
     } else {
-        MAIN_ANTI_DIAG << 8 * (16 - diag_index)
+        MAIN_ANTI_DIAG << (8 * (16 - diag_index))
     }
 }

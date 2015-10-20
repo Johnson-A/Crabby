@@ -16,7 +16,7 @@ use timer::Timer;
 const ENGINE_NAME: &'static str = "Crabby";
 
 pub fn main_loop() {
-    let init_proc = &mut Some(thread::spawn(|| init()));
+    let init_proc = &mut Some(thread::spawn(init));
     let table_size = 50_000_000;
     let should_stop = Arc::new(AtomicBool::new(false));
     let timer = Timer::default(should_stop.clone());

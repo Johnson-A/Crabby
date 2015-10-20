@@ -152,7 +152,7 @@ impl Searcher {
 
             self.ply += 1;
 
-            let score = if self.is_repeated(new_board.hash) {
+            let score = if self.check_repitition(new_board.hash) {
                 0
             } else if moves_searched == 0 {
                 -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
@@ -206,7 +206,7 @@ impl Searcher {
     }
 
     // TODO: update irreversible, full three move and fifty move repition
-    pub fn is_repeated(&mut self, hash: Hash) -> bool {
+    pub fn check_repitition(&mut self, hash: Hash) -> bool {
         let mut pos_ply = self.ply + self.root.ply;
         self.rep[pos_ply] = hash;
 

@@ -135,8 +135,8 @@ pub unsafe fn get_piece_map(attacks: &Fn(u64, u32, u64) -> u64, piece_map: &mut 
             }
 
             *entry = SMagic { offset: offset, mask: mask, magic: magic, shift: shift };
-            for i in 0..size {
-                MAP[offset + i] = attacks[i];
+            for (i, &att) in attacks.iter().enumerate() {
+                MAP[offset + i] = att;
             }
             offset += size;
 

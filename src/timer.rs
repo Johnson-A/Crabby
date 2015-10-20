@@ -12,16 +12,6 @@ pub struct TimeSettings {
 }
 
 impl TimeSettings {
-    pub fn default() -> TimeSettings {
-        TimeSettings {
-            times_for: [300000.0, 300000.0],
-            inc_for: [0.0, 0.0],
-            moves_to_go: 40,
-            ponder: false,
-            infinite: false
-        }
-    }
-
     pub fn parse(mut self, params: &mut Params) -> TimeSettings {
         while let Some(p) = params.next() {
             match p {
@@ -44,6 +34,18 @@ impl TimeSettings {
 
     pub fn inc(&self, side: usize) -> f64 {
         self.inc_for[side] / 1000.0
+    }
+}
+
+impl Default for TimeSettings {
+    fn default() -> TimeSettings {
+        TimeSettings {
+            times_for: [300000.0, 300000.0],
+            inc_for: [0.0, 0.0],
+            moves_to_go: 40,
+            ponder: false,
+            infinite: false
+        }
     }
 }
 
