@@ -1,10 +1,13 @@
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use util::lsb;
 use std::str::SplitWhitespace;
 
 pub type Params<'a> = SplitWhitespace<'a>;
+pub type Flag = Arc<AtomicBool>;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct BitBoard(pub [u64; 14]);

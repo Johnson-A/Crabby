@@ -1,7 +1,5 @@
 use std::i32;
 use std::cmp::{min, max};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use timer::Timer;
 use types::*;
 use table::*;
@@ -16,34 +14,35 @@ pub enum NT {
 
 pub struct Searcher {
     pub root: Board,
+    pub timer: Timer,
     table: Table,
     killers: Vec<Killer>,
     rep: Vec<Hash>,
     ply: usize,
     node_count: usize,
-    irreversible: usize,
-    should_stop: Arc<AtomicBool>
+    irreversible: usize
 }
 
 impl Searcher {
-    pub fn new_start(table_size: usize, should_stop: Arc<AtomicBool>) -> Searcher {
+    /// Create a new searcher from the start position
+    pub fn new(table_size: usize, timer: Timer) -> Searcher {
         let start = Board::start_position();
 
         Searcher {
+            timer: timer,
             root: start,
             table: Table::empty(table_size),
             killers: vec![Killer(Move::NULL, Move::NULL)],
             rep: vec![start.hash],
             ply: 0,
             node_count: 0,
-            irreversible: 0,
-            should_stop: should_stop
+            irreversible: 0
         }
     }
 
-    pub fn refresh(&mut self, new_size: usize) {
-        self.table.units.clear(); // Drop the table before assignment
-        *self = Searcher::new_start(new_size, self.should_stop.clone());
+    pub fn reset(&mut self, new_size: usize) {
+        self.table.units.clear(); // Drop the table before assignment to avoid running out of memory
+        *self = Searcher::new(new_size, Timer::default(self.timer.should_stop.clone()));
     }
 
     pub fn extend(&mut self) {
@@ -76,22 +75,21 @@ impl Searcher {
         }
     }
 
-    pub fn go(&mut self, mut timer: Timer) {
+    pub fn go(&mut self) {
         println!("Searching\n{}", self.root);
-        self.should_stop.store(false, Ordering::Relaxed);
-        timer.start(self.root.to_move);
+        self.timer.start(self.root.to_move);
         let mut depth = 1;
 
-        while !self.should_stop.load(Ordering::Relaxed) & timer.should_search(depth) {
+        while self.timer.should_search(depth) {
             self.extend();
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
             let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
 
-            timer.toc(self.node_count);
+            self.timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
-                depth, score / 10, (timer.elapsed() * 1000.0) as u32, self.node_count,
+                depth, score / 10, (self.timer.elapsed() * 1000.0) as u32, self.node_count,
                 pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
 
             depth += 1;

@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use time;
 use types::*;
 use util::*;
@@ -47,6 +48,7 @@ impl TimeSettings {
 }
 
 pub struct Timer {
+    pub should_stop: Flag,
     settings: TimeSettings,
     nodes: Vec<usize>,
     times: Vec<f64>,
@@ -56,9 +58,10 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn new(params: &mut Params) -> Timer {
+    pub fn new(flag: Flag, settings: TimeSettings) -> Timer {
         Timer {
-            settings: TimeSettings::default().parse(params),
+            should_stop: flag,
+            settings: settings,
             nodes: vec![0],
             times: vec![0.0],
             side: !(I_WHITE | I_BLACK), // Initialize later
@@ -67,9 +70,19 @@ impl Timer {
         }
     }
 
+    pub fn default(flag: Flag) -> Timer {
+        Timer::new(flag, TimeSettings::default())
+    }
+
+    pub fn replace(&mut self, params: &mut Params) {
+        let settings = TimeSettings::default().parse(params);
+        *self = Timer::new(self.should_stop.clone(), settings);
+    }
+
     pub fn start(&mut self, side: u8) {
         self.init = time::precise_time_s();
         self.side = side as usize;
+        self.should_stop.store(false, Ordering::Relaxed);
     }
 
     pub fn toc(&mut self, node_count: usize) {
@@ -89,8 +102,9 @@ impl Timer {
         let alloc_time = (1.0 - self.safety) * self.settings.time(self.side) / self.settings.moves_to_go as f64
                          + self.settings.inc(self.side);
 
+        !self.should_stop.load(Ordering::Relaxed) && (
         self.settings.infinite ||
         alloc_time - self.times[depth-1] > estimate * 0.3 ||
-        alloc_time / 1.5 > self.elapsed()
+        alloc_time / 1.5 > self.elapsed())
     }
 }

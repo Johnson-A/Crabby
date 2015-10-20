@@ -19,8 +19,8 @@ pub fn main_loop() {
     let init_proc = &mut Some(thread::spawn(|| init()));
     let table_size = 50_000_000;
     let should_stop = Arc::new(AtomicBool::new(false));
-    let searcher = Searcher::new_start(table_size, should_stop.clone());
-    let searcher = Arc::new(Mutex::new(searcher));
+    let timer = Timer::default(should_stop.clone());
+    let searcher = Arc::new(Mutex::new(Searcher::new(table_size, timer)));
 
     let stdin = stdin();
     for line in stdin.lock().lines() {
@@ -32,7 +32,7 @@ pub fn main_loop() {
                 "uci"        => uci(),
                 "setoption"  => (),
                 "isready"    => println!("readyok"),
-                "ucinewgame" => lock!(searcher).refresh(table_size),
+                "ucinewgame" => lock!(searcher).reset(table_size),
                 "position"   => lock!(searcher).position(&mut params),
                 "stop"       => should_stop.store(true, Ordering::Relaxed),
                 "quit"       => return,
@@ -42,11 +42,11 @@ pub fn main_loop() {
 
                     match first_word {
                         "go" => {
-                            let searcher = searcher.clone();
-                            let timer = Timer::new(&mut params);
+                            lock!(searcher).timer.replace(&mut params);
 
+                            let searcher = searcher.clone();
                             thread::spawn(move || {
-                                lock!(searcher).go(timer);
+                                lock!(searcher).go();
                             });
                         },
                         "perft" => perft(&lock!(searcher).root, &mut params),
@@ -62,9 +62,9 @@ pub fn main_loop() {
 pub fn run(searcher: &mut Searcher, test: Option<&str>) {
     match test {
         Some("perf") => positions("testing/positions/performance",
-                searcher, &mut |s, t| s.go(t)),
+                searcher, &mut |s| s.go()),
         Some("move") => positions("testing/positions/perftsuite.epd",
-                searcher, &mut |s, _| println!("{}", s.root.perft(6, true))),
+                searcher, &mut |s| println!("{}", s.root.perft(6, true))),
         _ => println!("Valid options are `perf` or `move`")
     };
 }
@@ -75,22 +75,21 @@ pub fn perft(board: &Board, params: &mut Params) {
     println!("total = {}\n", board.perft(d, true));
 }
 
-pub fn positions(path: &str, searcher: &mut Searcher,
-                    do_work: &mut FnMut(&mut Searcher, Timer)) {
+pub fn positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut Searcher)) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
         Err(e)   => panic!("Test suite {} could not be read. {:?}", path, e)
     };
 
     let start = time::precise_time_s();
+    searcher.timer.replace(&mut "wtime 10000 btime 10000 movestogo 1".split_whitespace());
 
     for line in file.lines().take(10) {
         let fen = String::from("fen ") + &line.unwrap();
         println!("{}", fen);
 
-        let mut params = "wtime 100000 btime 100000 movestogo 1".split_whitespace();
         searcher.position(&mut fen.split_whitespace());
-        do_work(searcher, Timer::new(&mut params));
+        do_work(searcher);
     }
     println!("Time taken = {} seconds", time::precise_time_s() - start);
 }
