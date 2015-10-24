@@ -52,17 +52,17 @@ impl Board {
 
         for_all(bb[QUEEN | us], &mut |from| {
             let att = queen_moves(from, occ);
-            eval += (att & !occ).count_ones() * 5 +
-                    (att & enemies).count_ones() * 15 +
-                    (att & allies).count_ones() * 8;
+            eval += count(att & !occ) * 5 +
+                    count(att & enemies) * 15 +
+                    count(att & allies) * 8;
             attacked_by[QUEEN | us] |= att;
         });
 
         for_all(bb[ROOK | us], &mut |from| {
             let att = rook_moves(from, occ);
-            eval += (att & !occ).count_ones() * 15 +
-                    (att & enemies).count_ones() * 20 +
-                    (att & allies).count_ones() * 15;
+            eval += count(att & !occ) * 15 +
+                    count(att & enemies) * 20 +
+                    count(att & allies) * 15;
             attacked_by[ROOK | us] |= att;
         });
 
@@ -70,34 +70,34 @@ impl Board {
 
         for_all(bb[BISHOP | us], &mut |from| {
             let att = bishop_moves(from, occ);
-            eval += (att & !occ).count_ones() * 17 +
-                    (att & enemies).count_ones() * 30 +
-                    (att & allies).count_ones() * 15;
+            eval += count(att & !occ) * 17 +
+                    count(att & enemies) * 30 +
+                    count(att & allies) * 15;
             attacked_by[BISHOP | us] |= att;
         });
 
         for_all(bb[KNIGHT | us], &mut |from| {
             let att = knight_moves(from);
-            eval += (att & !occ).count_ones() * 20 +
-                    (att & enemies).count_ones() * 35 +
-                    (att & allies).count_ones() * 15;
+            eval += count(att & !occ) * 20 +
+                    count(att & enemies) * 35 +
+                    count(att & allies) * 15;
             attacked_by[KNIGHT | us] |= att;
         });
 
         for_all(bb[KING | us], &mut |from| {
             let att = king_moves(from);
-            eval += (att & !occ).count_ones() * 4 +
-                    (att & enemies).count_ones() * 15 +
-                    (att & allies).count_ones() * 10;
+            eval += count(att & !occ) * 4 +
+                    count(att & enemies) * 15 +
+                    count(att & allies) * 10;
             attacked_by[KING | us] |= att;
         });
 
-        let material = (bb[PAWN   | us].count_ones() * p_val(PAWN))   +
-                       (bb[KNIGHT | us].count_ones() * p_val(KNIGHT)) +
-                       (bb[BISHOP | us].count_ones() * p_val(BISHOP)) +
-                       (bb[ROOK   | us].count_ones() * p_val(ROOK))   +
-                       (bb[QUEEN  | us].count_ones() * p_val(QUEEN))  +
-                       (bb[KING   | us].count_ones() * p_val(KING));
+        let material = count(bb[PAWN   | us]) * p_val(PAWN)   +
+                       count(bb[KNIGHT | us]) * p_val(KNIGHT) +
+                       count(bb[BISHOP | us]) * p_val(BISHOP) +
+                       count(bb[ROOK   | us]) * p_val(ROOK)   +
+                       count(bb[QUEEN  | us]) * p_val(QUEEN)  +
+                       count(bb[KING   | us]) * p_val(KING);
 
         (material + eval) as i32
     }
@@ -115,8 +115,8 @@ impl Board {
         let occ = bb[ALL | us] | bb[ALL | opp];;
 
         if us == WHITE {
-            eval -= ((bb[KNIGHT | us] | bb[BISHOP | us])   & ROW_1).count_ones() * 50;
-            eval += ((bb[KNIGHT | opp] | bb[BISHOP | opp]) & ROW_8).count_ones() * 50;
+            eval -= count((bb[KNIGHT | us] | bb[BISHOP | us])   & ROW_1) * 50;
+            eval += count((bb[KNIGHT | opp] | bb[BISHOP | opp]) & ROW_8) * 50;
 
             let pushes = (bb[PAWN | us] << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
@@ -124,10 +124,10 @@ impl Board {
             let right_attacks = (bb[PAWN | us] << 9) & (bb[ALL | opp] | self.en_passant) & !FILE_A;
             attacked_by[PAWN | us] |= left_attacks | right_attacks;
 
-            eval += pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval += left_attacks.count_ones() * 30 +
-                    right_attacks.count_ones() * 30;
+            eval += count(pushes) * 10 +
+                    count(double_pushes) * 10;
+            eval += count(left_attacks) * 30 +
+                    count(right_attacks) * 30;
 
             let pushes = (bb[PAWN | opp] >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -135,13 +135,13 @@ impl Board {
             let right_attacks = (bb[PAWN | opp] >> 9) & (bb[ALL | us] | self.en_passant) & !FILE_H;
             attacked_by[PAWN | opp] |= left_attacks | right_attacks;
 
-            eval -= pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval -= left_attacks.count_ones() * 30 +
-                    right_attacks.count_ones() * 30;
+            eval -= count(pushes) * 10 +
+                    count(double_pushes) * 10;
+            eval -= count(left_attacks) * 30 +
+                    count(right_attacks) * 30;
         } else {
-            eval -= ((bb[KNIGHT | us] | bb[BISHOP | us])   & ROW_8).count_ones() * 50;
-            eval += ((bb[KNIGHT | opp] | bb[BISHOP | opp]) & ROW_1).count_ones() * 50;
+            eval -= count((bb[KNIGHT | us] | bb[BISHOP | us])   & ROW_8) * 50;
+            eval += count((bb[KNIGHT | opp] | bb[BISHOP | opp]) & ROW_1) * 50;
 
             let pushes = (bb[PAWN | us] >> 8) & !occ;
             let double_pushes = ((pushes & ROW_6) >> 8) & !occ;
@@ -149,10 +149,10 @@ impl Board {
             let right_attacks = (bb[PAWN | us] >> 9) & (bb[ALL | opp] | self.en_passant) & !FILE_H;
             attacked_by[PAWN | us] |= left_attacks | right_attacks;
 
-            eval += pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval += left_attacks.count_ones() * 30 +
-                    right_attacks.count_ones() * 30;
+            eval += count(pushes) * 10 +
+                    count(double_pushes) * 10;
+            eval += count(left_attacks) * 30 +
+                    count(right_attacks) * 30;
 
             let pushes = (bb[PAWN | opp] << 8) & !occ;
             let double_pushes = ((pushes & ROW_3) << 8) & !occ;
@@ -160,10 +160,10 @@ impl Board {
             let right_attacks = (bb[PAWN | opp] << 9) & (bb[ALL | us] | self.en_passant) & !FILE_A;
             attacked_by[PAWN | opp] |= left_attacks | right_attacks;
 
-            eval -= pushes.count_ones() * 10 +
-                    double_pushes.count_ones() * 10;
-            eval -= left_attacks.count_ones() * 30 +
-                    right_attacks.count_ones() * 30;
+            eval -= count(pushes) * 10 +
+                    count(double_pushes) * 10;
+            eval -= count(left_attacks) * 30 +
+                    count(right_attacks) * 30;
         }
 
         let diff = self.get_evals(us, opp, &mut attacked_by) - self.get_evals(opp, us, &mut attacked_by);

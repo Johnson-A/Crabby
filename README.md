@@ -42,6 +42,7 @@ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 * Multi-threaded search
 * Parameter Optimization
 * UCI option parsing and implementation
+* Parameter Optimization
 
 # Extended UCI Commands
 * perft x - run perft to a depth x

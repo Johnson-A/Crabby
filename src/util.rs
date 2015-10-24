@@ -19,19 +19,52 @@ pub const FILE_F: u64 = FILE_A << 5;
 pub const FILE_G: u64 = FILE_A << 6;
 pub const FILE_H: u64 = FILE_A << 7;
 
+pub fn file(from: u32) -> u64 {
+    FILE_A << (from % 8)
+}
+
+pub fn row(from: u32) -> u64 {
+    ROW_1 << (8 * (from / 8))
+}
+
+pub const MAIN_DIAG: u64 = 0x8040201008040201;
+
+pub fn diag(from: u32) -> u64 {
+    let diag_index = ((from / 8) - (from % 8)) & 15;
+    if diag_index <= 7 {
+        MAIN_DIAG << (8 * diag_index)
+    } else {
+        MAIN_DIAG >> (8 * (16 - diag_index))
+    }
+}
+
+pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
+
+pub fn anti_diag(from: u32) -> u64 {
+    let diag_index = ((from / 8) + (from % 8)) ^ 7;
+    if diag_index <= 7 {
+        MAIN_ANTI_DIAG >> (8 * diag_index)
+    } else {
+        MAIN_ANTI_DIAG << (8 * (16 - diag_index))
+    }
+}
+
 // (row_3, row_8, l_file, r_file, up, left, right)
 pub const PAWN_INFO_WHITE: (u64, u64, u64, u64, i32, i32, i32) = (ROW_3, ROW_8, FILE_A, FILE_H, 8, 7, 9);
 pub const PAWN_INFO_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, FILE_H, FILE_A, -8, -7, -9);
 
-macro_rules! lock {
-    ($e:expr) => ($e.lock().unwrap());
+#[inline] pub fn lsb(val: u64) -> u32 {
+    val.trailing_zeros()
 }
 
-pub fn finish<T>(task: &mut Option<JoinHandle<T>>) -> bool {
-    match task.take() {
-        Some(unfinished) => unfinished.join().is_ok(),
-        None => false
-    }
+#[inline] pub fn count(val: u64) -> u32 {
+    val.count_ones()
+}
+
+#[inline] pub fn bit_pop(x: &mut u64) -> u32 {
+    let lsb_pos = lsb(*x);
+    *x ^= 1 << lsb_pos;
+    lsb_pos
 }
 
 /// Reverse the bits in a 64 bit number using a recursive algorithm
@@ -60,7 +93,7 @@ pub fn rook_attacks(piece: u64, from: u32, occ: u64) -> u64 {
 
 pub fn bishop_attacks(piece: u64, from: u32, occ: u64) -> u64 {
     get_attacks(piece, occ, diag(from)) |
-    get_attacks(piece, occ, a_diag(from))
+    get_attacks(piece, occ, anti_diag(from))
 }
 
 pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
@@ -71,14 +104,14 @@ pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
     }
 }
 
-pub fn move_to<T: Eq>(moves: &mut Vec<T>, elem: T, place: usize) {
-    let pos = moves.iter().position(|x| *x == elem);
-    match pos {
-        Some(ind) => {
-            moves.remove(ind);
-            moves.insert(place, elem);
-        },
-        None => ()
+macro_rules! lock {
+    ($e:expr) => ($e.lock().unwrap());
+}
+
+pub fn finish<T>(task: &mut Option<JoinHandle<T>>) -> bool {
+    match task.take() {
+        Some(unfinished) => unfinished.join().is_ok(),
+        None => false
     }
 }
 
@@ -94,57 +127,4 @@ pub fn try_parse<T: FromStr>(p: Option<&str>) -> Result<T, String> {
     p.ok_or("Value is None".into()).and_then(|t| t.parse().map_err(|_|
         format!("{} cannot be parsed", t)
     ))
-}
-
-pub fn lsb(val: u64) -> u32 {
-    val.trailing_zeros()
-}
-
-pub fn count(val: u64) -> u32 {
-    val.count_ones()
-}
-
-// ![feature(negate_unsigned)]
-// #[inline] pub fn bit_pop(x: &mut u64) -> u64 {
-//     let lsb = *x & -(*x);
-//     // TODO: v & (!v + 1)
-//     *x ^= lsb;
-//     lsb
-// }
-
-// TODO: Change to bit_pop, *b - 1 instead of ^= 1 << lsb
-#[inline] pub fn bit_pop(x: &mut u64) -> u32 {
-    let lsb_pos = lsb(*x);
-    *x ^= 1 << lsb_pos;
-    lsb_pos
-}
-
-pub fn file(from: u32) -> u64 {
-    FILE_A << (from % 8)
-}
-
-pub fn row(from: u32) -> u64 {
-    ROW_1 << (8 * (from / 8))
-}
-
-pub const MAIN_DIAG: u64 = 0x8040201008040201;
-
-pub fn diag(from: u32) -> u64 {
-    let diag_index = ((from / 8) - (from % 8)) & 15;
-    if diag_index <= 7 {
-        MAIN_DIAG << (8 * diag_index)
-    } else {
-        MAIN_DIAG >> (8 * (16 - diag_index))
-    }
-}
-
-pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
-
-pub fn a_diag(from: u32) -> u64 {
-    let diag_index = ((from / 8) + (from % 8)) ^ 7;
-    if diag_index <= 7 {
-        MAIN_ANTI_DIAG >> (8 * diag_index)
-    } else {
-        MAIN_ANTI_DIAG << (8 * (16 - diag_index))
-    }
 }
