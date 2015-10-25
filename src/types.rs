@@ -13,6 +13,17 @@ pub type Flag = Arc<AtomicBool>;
 pub struct BitBoard(pub [u64; 14]);
 
 impl BitBoard {
+    pub fn generate_from(sqs: &Squares) -> BitBoard {
+        let mut bb = BitBoard([0; 14]);
+
+        for (pos, &piece) in sqs.iter().enumerate() {
+            if piece != EMPTY { bb[piece] |= 1 << pos }
+        }
+
+        bb.set_all();
+        bb
+    }
+
     /// Populate the bitboard entries for occupancy
     pub fn set_all(&mut self) {
         self[ALL | WHITE] = self[PAWN | WHITE] | self[KNIGHT | WHITE] | self[BISHOP | WHITE] |

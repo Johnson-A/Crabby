@@ -4,18 +4,6 @@ use types::*;
 use util::*;
 use magics::*;
 
-pub fn gen_bitboards(sqs: &Squares) -> BitBoard {
-    let mut bb = BitBoard([0; 14]);
-
-    for (pos, &piece) in sqs.iter().enumerate() {
-        if piece != EMPTY { bb[piece] |= 1 << pos }
-    }
-
-    bb.set_all();
-
-    bb
-}
-
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
     while targets != 0 {
         let to = bit_pop(&mut targets);
@@ -460,8 +448,11 @@ impl Board {
             _ => 0
         };
 
-        Hash::init(Board { bb: gen_bitboards(&sqs), sqs: sqs, ply: 0, to_move: to_move,
-                   hash: Hash { val: 0 }, castling: castling, en_passant: en_passant })
+        let bitboard = BitBoard::generate_from(&sqs);
+        let hash = Hash::init(&sqs, castling, en_passant, to_move);
+        
+        Board { bb: bitboard, sqs: sqs, ply: 0, to_move: to_move,
+                hash: hash, castling: castling, en_passant: en_passant }
     }
 
     pub fn start_position() -> Board {
