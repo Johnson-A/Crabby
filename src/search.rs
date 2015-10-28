@@ -132,13 +132,13 @@ impl Searcher {
             return s
         }
 
+        let is_pv = nt == NT::Root || nt == NT::PV;
+
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
             self.table.record(board, score, Move::NULL, depth, NodeBound::Exact, is_pv);
             return score
         }
-
-        let is_pv = nt == NT::Root || nt == NT::PV;
 
         if    !is_pv
            && depth >= 2
