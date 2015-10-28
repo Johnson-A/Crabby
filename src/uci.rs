@@ -8,6 +8,7 @@ use time;
 
 use types::*;
 use util::*;
+use board::Board;
 use magics;
 use table;
 use search::Searcher;

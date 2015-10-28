@@ -2,6 +2,8 @@ use std::i32;
 use std::cmp::{min, max};
 use timer::Timer;
 use types::*;
+use Move::*;
+use board::Board;
 use table::*;
 
 pub const INFINITY: i32 = i32::MAX;
@@ -89,7 +91,7 @@ impl Searcher {
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
                 depth, score / 10, (self.timer.elapsed() * 1000.0) as u32, self.node_count,
-                pv.iter().map(|mv| mv.to_string()).collect::<Vec<_>>().join(" "));
+                pv.iter().map(|mv| format!("{}", mv)).collect::<Vec<_>>().join(" "));
 
             depth += 1;
         }

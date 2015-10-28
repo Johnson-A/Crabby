@@ -5,9 +5,13 @@ extern crate rand;
 
 #[macro_use]
 pub mod util;
+
+pub mod bitboard;
 pub mod board;
 pub mod evaluation;
 pub mod magics;
+pub mod Move;
+pub mod print;
 pub mod search;
 pub mod table;
 pub mod testing;

@@ -19,15 +19,17 @@ pub const FILE_F: u64 = FILE_A << 5;
 pub const FILE_G: u64 = FILE_A << 6;
 pub const FILE_H: u64 = FILE_A << 7;
 
-pub fn file(from: u32) -> u64 {
-    FILE_A << (from % 8)
-}
+pub const MAIN_DIAG: u64 = 0x8040201008040201;
+
+pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
 
 pub fn row(from: u32) -> u64 {
     ROW_1 << (8 * (from / 8))
 }
 
-pub const MAIN_DIAG: u64 = 0x8040201008040201;
+pub fn file(from: u32) -> u64 {
+    FILE_A << (from % 8)
+}
 
 pub fn diag(from: u32) -> u64 {
     let diag_index = ((from / 8) - (from % 8)) & 15;
@@ -37,8 +39,6 @@ pub fn diag(from: u32) -> u64 {
         MAIN_DIAG >> (8 * (16 - diag_index))
     }
 }
-
-pub const MAIN_ANTI_DIAG: u64 = 0x0102040810204080;
 
 pub fn anti_diag(from: u32) -> u64 {
     let diag_index = ((from / 8) + (from % 8)) ^ 7;

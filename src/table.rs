@@ -2,6 +2,8 @@ use rand::{Rng, SeedableRng, StdRng};
 use std::collections::HashSet;
 use std::mem;
 use types::*;
+use Move::Move;
+use board::*;
 use util::lsb;
 
 static mut piece_keys: [u64; 64*6*2] = [0; 64*6*2];
@@ -23,6 +25,9 @@ pub unsafe fn init() {
     set_random(&mut ep_keys,     rng);
     color_key = rng.gen();
 }
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Hash { pub val: u64 }
 
 impl Hash {
     pub fn init(sqs: &Squares, castling: u8, en_passant: u64, color: u8) -> Hash {

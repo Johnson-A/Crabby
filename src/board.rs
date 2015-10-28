@@ -2,34 +2,26 @@ use std::cmp::Ordering::{Less, Greater};
 use std::cmp::max;
 use types::*;
 use util::*;
+use Move::*;
+use table::Hash;
+use bitboard::BitBoard;
+use print::*;
 use magics::*;
 
-pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
-    while targets != 0 {
-        let to = bit_pop(&mut targets);
-        let from = (to as i32 - diff) as u32;
-        moves.push(Move::new(from, to, flags));
-    }
+pub type Squares = [u8; 64];
+
+#[derive(Copy)]
+pub struct Board {
+    pub bb: BitBoard,
+    pub sqs: Squares,
+    pub ply: usize,
+    pub to_move: u8,
+    pub hash: Hash,
+    pub castling: u8,
+    pub en_passant: u64
 }
 
-pub fn add_moves_from(moves: &mut Vec<Move>, from: u32, mut targets: u64, flags: u32) {
-    while targets != 0 {
-        let to = bit_pop(&mut targets);
-        moves.push(Move::new(from, to, flags));
-    }
-}
-
-pub fn add_prom_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
-    while targets != 0 {
-        let to = bit_pop(&mut targets);
-        let from = (to as i32 - diff) as u32;
-
-        moves.push(Move::new(from, to, flags | QUEEN_PROM));
-        moves.push(Move::new(from, to, flags | ROOK_PROM));
-        moves.push(Move::new(from, to, flags | KNIGHT_PROM));
-        moves.push(Move::new(from, to, flags | BISHOP_PROM));
-    }
-}
+impl Clone for Board { fn clone(&self) -> Self { *self } }
 
 impl Board {
     pub fn perft(&self, depth: u8, print: bool) -> usize {
@@ -450,7 +442,7 @@ impl Board {
 
         let bitboard = BitBoard::generate_from(&sqs);
         let hash = Hash::init(&sqs, castling, en_passant, to_move);
-        
+
         Board { bb: bitboard, sqs: sqs, ply: 0, to_move: to_move,
                 hash: hash, castling: castling, en_passant: en_passant }
     }

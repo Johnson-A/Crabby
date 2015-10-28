@@ -1,4 +1,6 @@
 use types::*;
+use board::Board;
+use bitboard::BitBoard;
 use util::*;
 use magics::*;
 
