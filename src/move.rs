@@ -1,4 +1,4 @@
-//! Since move keywork is taken, capitalize to Move
+//! Since keyword move is taken, capitalize to Move
 #![allow(non_snake_case)]
 use types::*;
 use util::*;
