@@ -2,7 +2,7 @@ use std::cmp::Ordering::{Less, Greater};
 use std::cmp::max;
 use types::*;
 use util::*;
-use Move::*;
+use _move::*;
 use table::Hash;
 use bitboard::BitBoard;
 use print::*;

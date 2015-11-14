@@ -2,7 +2,7 @@ use rand::{Rng, SeedableRng, StdRng};
 use std::collections::HashSet;
 use std::mem;
 use types::*;
-use Move::Move;
+use _move::Move;
 use board::*;
 use util::lsb;
 

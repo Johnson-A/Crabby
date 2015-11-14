@@ -3,7 +3,7 @@ use std::ascii::AsciiExt;
 use std::fmt::{Display, Formatter, Result};
 
 use board::Board;
-use Move::Move;
+use _move::Move;
 use types::*;
 use util::*;
 

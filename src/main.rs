@@ -10,7 +10,7 @@ pub mod bitboard;
 pub mod board;
 pub mod evaluation;
 pub mod magics;
-pub mod Move;
+pub mod _move;
 pub mod print;
 pub mod search;
 pub mod table;

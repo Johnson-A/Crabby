@@ -2,7 +2,7 @@ use std::i32;
 use std::cmp::{min, max};
 use timer::Timer;
 use types::*;
-use Move::*;
+use _move::*;
 use board::Board;
 use table::*;
 
