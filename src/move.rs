@@ -26,12 +26,13 @@ impl Move {
     pub fn from(&self)  -> u32 { self.data & 0x3F }
     pub fn to(&self)    -> u32 { (self.data >> 6) & 0x3F }
     pub fn flags(&self) -> u32 { self.data >> 12 }
+
     pub fn promotion(&self) -> u32 { self.flags() & 0x7 }
-    pub fn king_castle(&self) -> bool { self.flags() & CASTLES_KING != 0 }
-    pub fn queen_castle(&self) -> bool { self.flags() & CASTLES_QUEEN != 0 }
-    pub fn is_capture(&self) -> bool { self.flags() & IS_CAPTURE != 0 }
+    pub fn king_castle(&self)    -> bool { self.flags() & CASTLES_KING     != 0 }
+    pub fn queen_castle(&self)   -> bool { self.flags() & CASTLES_QUEEN    != 0 }
+    pub fn is_capture(&self)     -> bool { self.flags() & IS_CAPTURE       != 0 }
     pub fn is_double_push(&self) -> bool { self.flags() & DOUBLE_PAWN_PUSH != 0 }
-    pub fn is_en_passant(&self) -> bool { self.flags() & EN_PASSANT != 0 }
+    pub fn is_en_passant(&self)  -> bool { self.flags() & EN_PASSANT       != 0 }
 }
 
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {
