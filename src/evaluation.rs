@@ -9,6 +9,70 @@ pub static SAFE_MASK: [u64; 2] = [
 (FILE_C | FILE_D | FILE_E | FILE_F) & (ROW_2 | ROW_3 | ROW_4)
 ];
 
+/// Piece Square boards are relative to black
+fn flip_vertical(square: u32) -> u32 {
+    lsb((1u64 << square).swap_bytes())
+}
+
+fn rel_loc(square: u32, color: u8) -> usize {
+    if color == WHITE { flip_vertical(square) as usize } else { square as usize }
+}
+
+pub static PAWN_SQUARE: [i32; 64] = [
+0,  0,  0,  0,  0,  0,  0,  0,
+50, 50, 50, 50, 50, 50, 50, 50,
+10, 10, 20, 30, 30, 20, 10, 10,
+5,  5, 10, 25, 25, 10,  5,  5,
+0,  0,  0, 20, 20,  0,  0,  0,
+5, -5,-10,  0,  0,-10, -5,  5,
+5, 10, 10,-20,-20, 10, 10,  5,
+0,  0,  0,  0,  0,  0,  0,  0,
+];
+
+pub static KNIGHT_SQUARE: [i32; 64] = [
+-50,-40,-30,-30,-30,-30,-40,-50,
+-40,-20,  0,  0,  0,  0,-20,-40,
+-30,  0, 10, 15, 15, 10,  0,-30,
+-30,  5, 15, 20, 20, 15,  5,-30,
+-30,  0, 15, 20, 20, 15,  0,-30,
+-30,  5, 10, 15, 15, 10,  5,-30,
+-40,-20,  0,  5,  5,  0,-20,-40,
+-50,-40,-30,-30,-30,-30,-40,-50,
+];
+
+pub static BISHOP_SQUARE: [i32; 64] = [
+-20,-10,-10,-10,-10,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5, 10, 10,  5,  0,-10,
+-10,  5,  5, 10, 10,  5,  5,-10,
+-10,  0, 10, 10, 10, 10,  0,-10,
+-10, 10, 10, 10, 10, 10, 10,-10,
+-10,  5,  0,  0,  0,  0,  5,-10,
+-20,-10,-10,-10,-10,-10,-10,-20,
+];
+
+pub static ROOK_SQUARE: [i32; 64] = [
+ 0,  0,  0,  0,  0,  0,  0,  0,
+ 5, 10, 10, 10, 10, 10, 10,  5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+-5,  0,  0,  0,  0,  0,  0, -5,
+ 0,  0,  0,  5,  5,  0,  0,  0,
+ ];
+
+pub static QUEEN_SQUARE: [i32; 64] = [
+-20,-10,-10, -5, -5,-10,-10,-20,
+-10,  0,  0,  0,  0,  0,  0,-10,
+-10,  0,  5,  5,  5,  5,  0,-10,
+ -5,  0,  5,  5,  5,  5,  0, -5,
+  0,  0,  5,  5,  5,  5,  0, -5,
+-10,  5,  5,  5,  5,  5,  0,-10,
+-10,  0,  5,  0,  0,  0,  0,-10,
+-20,-10,-10, -5, -5,-10,-10,-20,
+];
+
 impl Board {
     // Attack map by square
     // Piece Values by Square
@@ -21,6 +85,7 @@ impl Board {
     // Bishop pair
     // Pawn on same color as bishop
     // Trapped bishop
+    // Symmetric move generation and evaluation
 
     pub fn eval_space(&self, us: u8, attacked_by: &mut BitBoard) -> u32 {
         let opp = flip(us);
@@ -51,6 +116,7 @@ impl Board {
         let occ = allies | enemies;
 
         let mut eval = 0;
+        let mut piece_sq = 0;
 
         for_all(bb[QUEEN | us], &mut |from| {
             let att = queen_moves(from, occ);
@@ -58,6 +124,7 @@ impl Board {
                     count(att & enemies) * 15 +
                     count(att & allies) * 8;
             attacked_by[QUEEN | us] |= att;
+            piece_sq += QUEEN_SQUARE[rel_loc(from, us)];
         });
 
         for_all(bb[ROOK | us], &mut |from| {
@@ -66,6 +133,7 @@ impl Board {
                     count(att & enemies) * 20 +
                     count(att & allies) * 15;
             attacked_by[ROOK | us] |= att;
+            piece_sq += ROOK_SQUARE[rel_loc(from, us)];
         });
 
         if count(bb[BISHOP | us]) == 2 { eval += 100 } // Ignore bishop promotions
@@ -76,6 +144,7 @@ impl Board {
                     count(att & enemies) * 30 +
                     count(att & allies) * 15;
             attacked_by[BISHOP | us] |= att;
+            piece_sq += BISHOP_SQUARE[rel_loc(from, us)];
         });
 
         for_all(bb[KNIGHT | us], &mut |from| {
@@ -84,6 +153,7 @@ impl Board {
                     count(att & enemies) * 35 +
                     count(att & allies) * 15;
             attacked_by[KNIGHT | us] |= att;
+            piece_sq += KNIGHT_SQUARE[rel_loc(from, us)];
         });
 
         for_all(bb[KING | us], &mut |from| {
@@ -100,7 +170,7 @@ impl Board {
                        count(bb[ROOK   | us]) * p_val(ROOK)   +
                        count(bb[QUEEN  | us]) * p_val(QUEEN);
 
-        (eval + material) as i32
+        (material + eval) as i32 + piece_sq
     }
 
     /// Return a static evaluation relative to the player to move in milli-pawns
