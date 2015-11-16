@@ -43,6 +43,7 @@ impl Searcher {
     }
 
     pub fn reset(&mut self, new_size: usize) {
+        self.table.units = vec![]; // Explicitly drop the previous table
         *self = Searcher::new(new_size, Timer::default(self.timer.should_stop.clone()));
     }
 
