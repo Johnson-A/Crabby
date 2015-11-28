@@ -67,7 +67,7 @@ pub struct EngineSettings {
 impl Default for EngineSettings {
     fn default() -> EngineSettings {
         EngineSettings {
-            table_size: 50_000_000
+            table_size: 10_000_000
         }
     }
 }
@@ -117,5 +117,6 @@ pub fn init() {
 pub fn uci() {
     println!("id name {}", ENGINE_NAME);
     println!("id author Alex Johnson");
+    println!("option name Hash type spin min 2 default 128");
     println!("uciok");
 }
