@@ -117,6 +117,6 @@ pub fn init() {
 pub fn uci() {
     println!("id name {}", ENGINE_NAME);
     println!("id author Alex Johnson");
-    println!("option name Hash type spin min 2 default 128");
+    println!("option name Hash type spin min 1 max {} default 128", 1024 * 1024);
     println!("uciok");
 }
