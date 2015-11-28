@@ -18,10 +18,9 @@ const ENGINE_NAME: &'static str = "Crabby";
 
 pub fn main_loop() {
     let init_proc = &mut Some(thread::spawn(init));
-    let table_size = 50_000_000;
-    let should_stop = Arc::new(AtomicBool::new(false));
+    let should_stop = Arc::new(AtomicBool::new(false)); // Should not be exposed
     let timer = Timer::default(should_stop.clone());
-    let searcher = Arc::new(Mutex::new(Searcher::new(table_size, timer)));
+    let searcher = Arc::new(Mutex::new(Searcher::new(EngineSettings::default(), timer)));
 
     let stdin = stdin();
     for line in stdin.lock().lines() {
@@ -31,9 +30,9 @@ pub fn main_loop() {
         if let Some(first_word) = params.next() {
             match first_word {
                 "uci"        => uci(),
-                "setoption"  => (),
                 "isready"    => println!("readyok"),
-                "ucinewgame" => lock!(searcher).reset(table_size),
+                "setoption"  => lock!(searcher).update_settings(&mut params),
+                "ucinewgame" => lock!(searcher).reset(),
                 "position"   => lock!(searcher).position(&mut params),
                 "stop"       => should_stop.store(true, Ordering::Relaxed),
                 "quit"       => return,
@@ -56,6 +55,19 @@ pub fn main_loop() {
                 }
                 _ => println!("Unknown command: {}", first_word)
             }
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct EngineSettings {
+    pub table_size: usize
+}
+
+impl Default for EngineSettings {
+    fn default() -> EngineSettings {
+        EngineSettings {
+            table_size: 50_000_000
         }
     }
 }

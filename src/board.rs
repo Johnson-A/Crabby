@@ -24,6 +24,53 @@ pub struct Board {
 impl Clone for Board { fn clone(&self) -> Self { *self } }
 
 impl Board {
+    pub fn start_position() -> Self {
+        let start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        Board::from_fen(&mut start_fen.split_whitespace())
+    }
+
+    pub fn from_fen(fen: &mut Params) -> Self {
+        let fen_board = fen.next().expect("Missing fen board");
+        let reversed_rows = fen_board.split('/').rev(); // fen is read from top row
+
+        let mut sqs = [EMPTY; 64];
+
+        for (r, row) in reversed_rows.enumerate() {
+            let mut offset = 0;
+            for (c, ch) in row.chars().enumerate() {
+                if !ch.is_numeric() {
+                    sqs[r*8 + c+offset] = to_piece(ch);
+                } else {
+                    offset += (ch as u8 - b'1') as usize;
+                }
+            }
+        }
+
+        let to_move = match fen.next().expect("[w, b]") {
+            "w" => WHITE,
+            _   => BLACK,
+        };
+
+        let castle_str = fen.next().expect("Castling [KQkq]");
+        let mut castling = 0;
+        if castle_str.contains('K') { castling |= WK_CASTLE };
+        if castle_str.contains('Q') { castling |= WQ_CASTLE };
+        if castle_str.contains('k') { castling |= BK_CASTLE };
+        if castle_str.contains('q') { castling |= BQ_CASTLE };
+
+        let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
+        let en_passant = match &ep_sq[..] {
+            [sc, sr] => 1 << to_pos(sc, sr),
+            _ => 0
+        };
+
+        let bitboard = BitBoard::generate_from(&sqs);
+        let hash = Hash::init(&sqs, castling, en_passant, to_move);
+
+        Board { bb: bitboard, sqs: sqs, ply: 0, to_move: to_move,
+                hash: hash, castling: castling, en_passant: en_passant }
+    }
+
     pub fn perft(&self, depth: u8, print: bool) -> usize {
         if self.player_in_check(self.prev_move()) { return 0 }
 
@@ -196,21 +243,6 @@ impl Board {
 
         clone.make_move(*mv);
         p_val(captured) as i32 - clone.see(mv.to(), self.to_move)
-    }
-
-    pub fn see_max_one(&mut self, mv: &Move) -> i32 {
-        if !mv.is_capture() { return 0 }
-        let us = self.to_move;
-
-        let src_piece = self.sqs[mv.from() as usize];
-        let dest_piece = self.sqs[mv.to() as usize];
-        let (defender, _) = self.attacker(mv.to(), us);
-
-        if defender == EMPTY {
-            p_val(dest_piece) as i32
-        } else {
-            p_val(dest_piece) as i32 - p_val(src_piece) as i32
-        }
     }
 
     /// Return the lowest valued enemy attacker of a given square and the attackers position
@@ -403,52 +435,5 @@ impl Board {
 
     pub fn prev_move(&self) -> u8 {
         flip(self.to_move)
-    }
-
-    pub fn from_fen(fen: &mut Params) -> Board {
-        let fen_board = fen.next().expect("Missing fen board");
-        let reversed_rows = fen_board.split('/').rev(); // fen is read from top row
-
-        let mut sqs = [EMPTY; 64];
-
-        for (r, row) in reversed_rows.enumerate() {
-            let mut offset = 0;
-            for (c, ch) in row.chars().enumerate() {
-                if !ch.is_numeric() {
-                    sqs[r*8 + c+offset] = to_piece(ch);
-                } else {
-                    offset += (ch as u8 - b'1') as usize;
-                }
-            }
-        }
-
-        let to_move = match fen.next().expect("[w, b]") {
-            "w" => WHITE,
-            _   => BLACK,
-        };
-
-        let castle_str = fen.next().expect("Castling [KQkq]");
-        let mut castling = 0;
-        if castle_str.contains('K') { castling |= WK_CASTLE };
-        if castle_str.contains('Q') { castling |= WQ_CASTLE };
-        if castle_str.contains('k') { castling |= BK_CASTLE };
-        if castle_str.contains('q') { castling |= BQ_CASTLE };
-
-        let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
-        let en_passant = match &ep_sq[..] {
-            [sc, sr] => 1 << to_pos(sc, sr),
-            _ => 0
-        };
-
-        let bitboard = BitBoard::generate_from(&sqs);
-        let hash = Hash::init(&sqs, castling, en_passant, to_move);
-
-        Board { bb: bitboard, sqs: sqs, ply: 0, to_move: to_move,
-                hash: hash, castling: castling, en_passant: en_passant }
-    }
-
-    pub fn start_position() -> Board {
-        let start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        Board::from_fen(&mut start_fen.split_whitespace())
     }
 }

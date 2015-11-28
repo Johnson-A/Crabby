@@ -30,7 +30,7 @@ pub unsafe fn init() {
 pub struct Hash { pub val: u64 }
 
 impl Hash {
-    pub fn init(sqs: &Squares, castling: u8, en_passant: u64, color: u8) -> Hash {
+    pub fn init(sqs: &Squares, castling: u8, en_passant: u64, color: u8) -> Self {
         let mut hash = Hash { val: 0 };
 
         for (i, &sq) in sqs.iter().enumerate() {
@@ -121,6 +121,10 @@ impl Table {
         Table { units: vec![Unit { entries: [Entry::NULL; UNIT_SIZE] }; size / UNIT_SIZE] }
     }
 
+    pub fn empty_mb(size_mb: usize) -> Self {
+        Table::empty(size_mb * 1024 * 1024 / mem::size_of::<Entry>())
+    }
+
     pub fn entry(&self, hash: Hash) -> &Entry {
         let unit = &self.units[hash.val as usize % self.units.len()];
         &unit.entries[hash.val as usize % UNIT_SIZE]
@@ -169,7 +173,6 @@ impl Table {
         let mut pv = Vec::new();
         let mut visited = HashSet::new();
         self.pv_cycle_track(&mut board.clone(), &mut pv, &mut visited);
-
         pv
     }
 

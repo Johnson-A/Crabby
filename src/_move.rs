@@ -15,7 +15,7 @@ impl Killer {
 }
 
 impl Move {
-    pub fn new(from: u32, to: u32, flags: u32) -> Move {
+    pub fn new(from: u32, to: u32, flags: u32) -> Self {
         Move { data: from | to << 6 | flags << 12 }
     }
 

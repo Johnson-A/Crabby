@@ -5,6 +5,8 @@ use types::*;
 use _move::*;
 use board::Board;
 use table::*;
+use uci::EngineSettings;
+use util::parse;
 
 pub const INFINITY: i32 = i32::MAX;
 pub const VALUE_MATE: i32 = INFINITY / 2;
@@ -17,6 +19,7 @@ pub enum NT {
 pub struct Searcher {
     pub root: Board,
     pub timer: Timer,
+    pub settings: EngineSettings,
     table: Table,
     killers: Vec<Killer>,
     rep: Vec<Hash>,
@@ -27,13 +30,14 @@ pub struct Searcher {
 
 impl Searcher {
     /// Create a new searcher from the start position
-    pub fn new(table_size: usize, timer: Timer) -> Searcher {
+    pub fn new(settings: EngineSettings, timer: Timer) -> Self {
         let start = Board::start_position();
 
         Searcher {
-            timer: timer,
             root: start,
-            table: Table::empty(table_size),
+            timer: timer,
+            settings: settings,
+            table: Table::empty(settings.table_size),
             killers: vec![Killer(Move::NULL, Move::NULL)],
             rep: vec![start.hash],
             ply: 0,
@@ -42,9 +46,24 @@ impl Searcher {
         }
     }
 
-    pub fn reset(&mut self, new_size: usize) {
+    pub fn update_settings(&mut self, params: &mut Params) {
+        while let Some(option) = params.next() {
+            if option == "name" {
+                match &*params.next().unwrap().to_lowercase() {
+                    "hash" => {
+                        let size_mb = parse(params.nth(1));
+                        self.table = Table::empty_mb(size_mb);
+                        self.settings.table_size = self.table.num_elems();
+                    },
+                    _ => ()
+                }
+            }
+        }
+    }
+
+    pub fn reset(&mut self) {
         self.table.units = vec![]; // Explicitly drop the previous table
-        *self = Searcher::new(new_size, Timer::default(self.timer.should_stop.clone()));
+        *self = Searcher::new(self.settings, Timer::default(self.timer.should_stop.clone()));
     }
 
     pub fn extend(&mut self) {

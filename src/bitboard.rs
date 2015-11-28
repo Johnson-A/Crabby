@@ -7,7 +7,7 @@ use types::*;
 pub struct BitBoard(pub [u64; 14]);
 
 impl BitBoard {
-    pub fn generate_from(sqs: &Squares) -> BitBoard {
+    pub fn generate_from(sqs: &Squares) -> Self {
         let mut bb = BitBoard([0; 14]);
 
         for (pos, &piece) in sqs.iter().enumerate() {

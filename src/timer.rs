@@ -12,9 +12,9 @@ pub struct TimeSettings {
 }
 
 impl TimeSettings {
-    pub fn parse(mut self, params: &mut Params) -> TimeSettings {
-        while let Some(p) = params.next() {
-            match p {
+    pub fn parse(mut self, params: &mut Params) -> Self {
+        while let Some(option) = params.next() {
+            match option {
                 "wtime" => self.times_for[I_WHITE] = parse(params.next()),
                 "btime" => self.times_for[I_BLACK] = parse(params.next()),
                 "winc"  => self.inc_for[I_WHITE]   = parse(params.next()),
@@ -38,7 +38,7 @@ impl TimeSettings {
 }
 
 impl Default for TimeSettings {
-    fn default() -> TimeSettings {
+    fn default() -> Self {
         TimeSettings {
             times_for: [300000.0, 300000.0],
             inc_for: [0.0, 0.0],
@@ -60,7 +60,7 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn new(flag: Flag, settings: TimeSettings) -> Timer {
+    pub fn new(flag: Flag, settings: TimeSettings) -> Self {
         Timer {
             should_stop: flag,
             settings: settings,
@@ -72,7 +72,7 @@ impl Timer {
         }
     }
 
-    pub fn default(flag: Flag) -> Timer {
+    pub fn default(flag: Flag) -> Self {
         Timer::new(flag, TimeSettings::default())
     }
 
