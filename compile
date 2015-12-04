@@ -1,4 +1,8 @@
 cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
+
+# To run benchmarks with fully optimized code
+cargo rustc --release -- --test -C target-feature=+popcnt -C target-cpu=native && ./target/release/crabby --bench
+
 # RUST_BACKTRACE=1 ./crabby
 # use target-cpu=help to find more info
 # -g flag for debug info

@@ -98,10 +98,9 @@ impl Board {
                        count(bb[KNIGHT | us]) * p_val(KNIGHT) +
                        count(bb[BISHOP | us]) * p_val(BISHOP) +
                        count(bb[ROOK   | us]) * p_val(ROOK)   +
-                       count(bb[QUEEN  | us]) * p_val(QUEEN)  +
-                       count(bb[KING   | us]) * p_val(KING);
+                       count(bb[QUEEN  | us]) * p_val(QUEEN);
 
-        (material + eval) as i32
+        (eval + material) as i32
     }
 
     /// Return a static evaluation relative to the player to move in milli-pawns

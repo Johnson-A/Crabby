@@ -336,6 +336,7 @@ impl Board {
             left_attacks = (pawns >> -left) & (enemies | self.en_passant) & !r_file;
             right_attacks = (pawns >> -right) & (enemies | self.en_passant) & !l_file;
         }
+
         let l_en_passant = left_attacks & self.en_passant;
         let r_en_passant = right_attacks & self.en_passant;
         let prom_pushes = pushes & row_8;
