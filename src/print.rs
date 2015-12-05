@@ -39,6 +39,10 @@ impl Display for Board {
 
 impl Display for Move {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        if *self == Move::NULL {
+            return write!(f, "0000")
+        }
+
         let (sc, sr) = from_pos(self.from());
         let (dc, dr) = from_pos(self.to());
         let mut chars = vec![sc, sr, dc, dr];

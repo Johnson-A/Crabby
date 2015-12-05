@@ -9,15 +9,29 @@ pub static SAFE_MASK: [u64; 2] = [
 (FILE_C | FILE_D | FILE_E | FILE_F) & (ROW_2 | ROW_3 | ROW_4)
 ];
 
+pub static SQUARE_MAP: [usize; 64] =
+[56, 57, 58, 59, 60, 61, 62, 63,
+48, 49, 50, 51, 52, 53, 54, 55,
+40, 41, 42, 43, 44, 45, 46, 47,
+32, 33, 34, 35, 36, 37, 38, 39,
+24, 25, 26, 27, 28, 29, 30, 31,
+16, 17, 18, 19, 20, 21, 22, 23,
+8, 9, 10, 11, 12, 13, 14, 15,
+0, 1, 2, 3, 4, 5, 6, 7];
+
 /// Piece Square boards are relative to black
 fn flip_vertical(square: u32) -> u32 {
     lsb((1u64 << square).swap_bytes())
 }
 
 fn rel_loc(square: u32, color: u8) -> usize {
-    if color == WHITE { flip_vertical(square) as usize } else { square as usize }
+    let s = square as usize;
+    if color == BLACK { s } else { SQUARE_MAP[s] }
 }
 
+// These piece square tables are taken from https://chessprogramming.wikispaces.com/Simplified+evaluation+function
+// The sole reason is to avoid writing them out myself! I will be changing them soon, after which
+// I will remove this comment
 pub static PAWN_SQUARE: [i32; 64] = [
 0,  0,  0,  0,  0,  0,  0,  0,
 50, 50, 50, 50, 50, 50, 50, 50,

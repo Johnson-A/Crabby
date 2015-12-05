@@ -38,7 +38,7 @@ impl Searcher {
             timer: timer,
             settings: settings,
             table: Table::empty(settings.table_size),
-            killers: vec![Killer(Move::NULL, Move::NULL)],
+            killers: vec![Killer::EMPTY],
             rep: vec![start.hash],
             ply: 0,
             node_count: 0,
@@ -67,7 +67,7 @@ impl Searcher {
     }
 
     pub fn extend(&mut self) {
-        self.killers.push(Killer(Move::NULL, Move::NULL));
+        self.killers.push(Killer::EMPTY);
         self.rep.push(Hash { val: 0 });
     }
 
@@ -77,16 +77,12 @@ impl Searcher {
             _fen       => Board::from_fen(params)
         };
 
-        // Remove half move, full move, and other words until there are moves
-        while let Some(val) = params.next() {
-            if val == "moves" { break }
-        }
-
-        self.rep = vec![self.root.hash];
-        self.killers = vec![Killer(Move::NULL, Move::NULL)];
         self.node_count = 0;
+        self.rep = vec![self.root.hash];
+        self.killers = vec![];
 
-        for mv_str in params {
+        // Remove half move, full move, and other words until there are moves
+        for mv_str in params.skip_while(|&val| val != "moves").skip(1) {
             let mv = self.root.move_from_str(mv_str);
             if self.root.is_irreversible(mv) {
                 self.irreversible = self.root.ply + 1;
@@ -97,6 +93,7 @@ impl Searcher {
     }
 
     pub fn go(&mut self) {
+        assert!(self.ply == 0, "Search must start at ply 0");
         println!("Searching\n{}", self.root);
         self.timer.start(self.root.to_move);
         let mut depth = 1;
@@ -108,10 +105,11 @@ impl Searcher {
 
             self.timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
+            let pv_str: Vec<String> = pv.iter().map(|mv| format!("{}", mv)).collect();
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
-                depth, score / 10, (self.timer.elapsed() * 1000.0) as u32, self.node_count,
-                pv.iter().map(|mv| format!("{}", mv)).collect::<Vec<_>>().join(" "));
+                depth, score / 10, (self.timer.elapsed() * 1000.0) as u32,
+                self.node_count, pv_str.join(" "));
 
             depth += 1;
         }
@@ -119,7 +117,7 @@ impl Searcher {
         println!("occ {} of {}", self.table.set_ancient(), self.table.num_elems());
 
         let best = self.table.best_move(self.root.hash);
-        println!("bestmove {}", best.expect("Error: No move found"));
+        println!("bestmove {}", best.unwrap_or(Move::NULL));
     }
 
     pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32, nt: NT) -> i32 {

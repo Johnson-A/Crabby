@@ -8,6 +8,8 @@ pub struct Move { data: u32 }
 pub struct Killer(pub Move, pub Move);
 
 impl Killer {
+    pub const EMPTY: Killer = Killer(Move::NULL, Move::NULL);
+
     pub fn substitute(&mut self, mv: Move) {
         self.1 = self.0;
         self.0 = mv;
