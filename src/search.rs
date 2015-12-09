@@ -241,7 +241,6 @@ impl Searcher {
         false
     }
 
-    // TODO: remove depth so all takes are searched
     pub fn q_search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32) -> i32 {
         self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }

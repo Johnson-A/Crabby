@@ -14,11 +14,12 @@ use table;
 use search::Searcher;
 use timer::Timer;
 
-const ENGINE_NAME: &'static str = "Crabby";
+const ENGINE_NAME: &'static str = "Crabby 2.0.0";
 
 pub fn main_loop() {
-    let init_proc = &mut Some(thread::spawn(init));
-    let should_stop = Arc::new(AtomicBool::new(false)); // Should not be exposed
+    init();
+
+    let should_stop = Arc::new(AtomicBool::new(false));
     let timer = Timer::default(should_stop.clone());
     let searcher = Arc::new(Mutex::new(Searcher::new(EngineSettings::default(), timer)));
 
@@ -36,23 +37,16 @@ pub fn main_loop() {
                 "position"   => lock!(searcher).position(&mut params),
                 "stop"       => should_stop.store(true, Ordering::Relaxed),
                 "quit"       => return,
-                "print"      => (),
-                "go" | "perft" | "test" => {
-                    finish(init_proc);
+                "perft"      => perft(&lock!(searcher).root, &mut params),
+                "test"       => run(&mut lock!(searcher), params.next()),
+                "go"         => {
+                    lock!(searcher).timer.replace(&mut params);
 
-                    match first_word {
-                        "go" => {
-                            lock!(searcher).timer.replace(&mut params);
-
-                            let searcher = searcher.clone();
-                            thread::spawn(move || {
-                                lock!(searcher).go();
-                            });
-                        },
-                        "perft" => perft(&lock!(searcher).root, &mut params),
-                        _test   => run(&mut lock!(searcher), params.next())
-                    }
-                }
+                    let searcher = searcher.clone();
+                    thread::spawn(move || {
+                        lock!(searcher).go();
+                    });
+                },
                 _ => println!("Unknown command: {}", first_word)
             }
         }

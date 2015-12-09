@@ -4,8 +4,9 @@ version = "2.0.0"
 authors = ["Alex Johnson"]
 
 [dependencies]
-time = "*"
+itertools = "*"
 rand = "*"
+time = "*"
 
 [profile.release]
 opt-level = 3

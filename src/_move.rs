@@ -4,18 +4,6 @@ use util::*;
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move { data: u32 }
 
-#[derive(Copy, Clone)]
-pub struct Killer(pub Move, pub Move);
-
-impl Killer {
-    pub const EMPTY: Killer = Killer(Move::NULL, Move::NULL);
-
-    pub fn substitute(&mut self, mv: Move) {
-        self.1 = self.0;
-        self.0 = mv;
-    }
-}
-
 impl Move {
     pub fn new(from: u32, to: u32, flags: u32) -> Self {
         Move { data: from | to << 6 | flags << 12 }
@@ -33,6 +21,18 @@ impl Move {
     pub fn is_capture(&self)     -> bool { self.flags() & IS_CAPTURE       != 0 }
     pub fn is_double_push(&self) -> bool { self.flags() & DOUBLE_PAWN_PUSH != 0 }
     pub fn is_en_passant(&self)  -> bool { self.flags() & EN_PASSANT       != 0 }
+}
+
+#[derive(Copy, Clone)]
+pub struct Killer(pub Move, pub Move);
+
+impl Killer {
+    pub const EMPTY: Killer = Killer(Move::NULL, Move::NULL);
+
+    pub fn substitute(&mut self, new_killer: Move) {
+        self.1 = self.0;
+        self.0 = new_killer; // self.0 is now the preferred killer move
+    }
 }
 
 pub fn add_moves(moves: &mut Vec<Move>, mut targets: u64, diff: i32, flags: u32) {

@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::thread::JoinHandle;
 
 pub const ROW_1: u64 = 0xFF;
 pub const ROW_2: u64 = ROW_1 << 8;
@@ -106,13 +105,6 @@ pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
 
 macro_rules! lock {
     ($e:expr) => ($e.lock().unwrap());
-}
-
-pub fn finish<T>(task: &mut Option<JoinHandle<T>>) -> bool {
-    match task.take() {
-        Some(unfinished) => unfinished.join().is_ok(),
-        None => false
-    }
 }
 
 pub fn parse<T: FromStr>(p: Option<&str>) -> T {

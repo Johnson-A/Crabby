@@ -1,7 +1,8 @@
 #![feature(slice_patterns, test, associated_consts)]
-extern crate test;
-extern crate time;
+extern crate itertools;
 extern crate rand;
+extern crate time;
+extern crate test;
 
 #[macro_use]
 pub mod util;

@@ -1,5 +1,6 @@
 use std::cmp::Ordering::{Less, Greater};
 use std::cmp::max;
+use itertools::Itertools;
 use types::*;
 use util::*;
 use _move::*;
@@ -381,37 +382,26 @@ impl Board {
 
     /// Move better SEE to the front to improve move ordering in alpha-beta search
     pub fn qsort(&self, moves: &[Move]) -> Vec<(i32, Move)> {
-        let mut temp: Vec<(i32, Move)> = moves.iter().map(
-            |mv| (self.see_move(mv), *mv)).filter(|e| e.0 > 0).collect();
-
-        temp.sort_by(|a,b|
-            if a.0 > b.0 { Less } else { Greater }
-        );
-        temp
+        moves.iter().map(
+            |mv| (self.see_move(mv), *mv))
+            .filter(|e| e.0 > 0)
+            .sorted_by(|a,b| if a.0 > b.0 { Less } else { Greater })
     }
 
     pub fn sort_with(&self, moves: &mut Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
-        let mut temp: Vec<(i32, Move)> = moves.iter().map(
-            |mv| (self.see_move(mv), *mv)).collect();
+        moves.iter().map(
+            |&mv| {
+                // Give the largest value to the best move to place it at the front
+                // Give killer moves values just above zero to put them ahead of
+                // all non-captures and behind all positive see moves
+                let see = if mv == best     { 10_000_000 }
+                     else if mv == killer.0 { 2 }
+                     else if mv == killer.1 { 1 }
+                     else { self.see_move(&mv) };
 
-        // Give the largest value to best to move it to the front
-        // Give killer moves values just above zero to put them ahead of
-        // all non-captures and behind all positive see moves
-        for &mut (ref mut see, mv) in &mut temp {
-            if mv == best {
-                *see = 10000000;
-            } else if mv == killer.0 {
-                *see = 2;
-            } else if mv == killer.1 {
-                *see = 1;
-            }
-        }
-
-        temp.sort_by(|a,b|
-            if a.0 > b.0 { Less } else { Greater }
-        );
-
-        temp
+                (see, mv)
+            })
+            .sorted_by(|a,b| if a.0 > b.0 { Less } else { Greater })
     }
 
     pub fn player_in_check(&self, us: u8) -> bool {
