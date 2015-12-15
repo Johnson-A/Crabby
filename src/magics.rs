@@ -90,6 +90,7 @@ impl SMagic {
 
 pub unsafe fn get_piece_map(piece: u8, piece_map: &mut [SMagic; 64],
                             mut offset: usize, from_scratch: bool) -> usize {
+
     let mut rng = thread_rng();
 
     for (pos, entry) in piece_map.iter_mut().enumerate() {
@@ -135,6 +136,8 @@ pub unsafe fn get_piece_map(piece: u8, piece_map: &mut [SMagic; 64],
                 let attack = &mut attacks[index as usize];
 
                 if *attack != 0 && *attack != reference[i] {
+                    assert!(from_scratch, "Error: Precalculated magic is incorrect. Square {}, for {} magic",
+                                           pos, if piece == BISHOP { "bishop" } else { "rook" } );
                     continue 'outer
                 }
 

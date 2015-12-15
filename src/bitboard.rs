@@ -21,10 +21,10 @@ impl BitBoard {
     /// Populate the bitboard entries for occupancy
     pub fn set_all(&mut self) {
         self[ALL | WHITE] = self[PAWN | WHITE] | self[KNIGHT | WHITE] | self[BISHOP | WHITE] |
-                            self[ROOK | WHITE] | self[QUEEN | WHITE]  | self[KING | WHITE];
+                            self[ROOK | WHITE] | self[QUEEN  | WHITE] | self[KING   | WHITE];
 
         self[ALL | BLACK] = self[PAWN | BLACK] | self[KNIGHT | BLACK] | self[BISHOP | BLACK] |
-                            self[ROOK | BLACK] | self[QUEEN | BLACK]  | self[KING | BLACK];
+                            self[ROOK | BLACK] | self[QUEEN  | BLACK] | self[KING   | BLACK];
     }
 }
 

@@ -81,6 +81,8 @@ pub struct Entry {
 }
 
 impl Entry {
+    const NULL: Entry = Entry { score: !0, best_move: Move::NULL, info: !0 };
+
     pub fn is_empty(&self) -> bool {
         *self == Entry::NULL
     }
@@ -100,8 +102,6 @@ impl Entry {
     pub fn compare(&self, hash: &Hash) -> bool {
         (self.info >> 16) as u16 == hash.sub()
     }
-
-    const NULL: Entry = Entry { score: !0, best_move: Move::NULL, info: !0 };
 }
 
 pub struct Table {

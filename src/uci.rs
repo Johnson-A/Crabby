@@ -59,7 +59,7 @@ pub struct EngineSettings {
 }
 
 impl Default for EngineSettings {
-    fn default() -> EngineSettings {
+    fn default() -> Self {
         EngineSettings {
             table_size: 10_000_000
         }
@@ -72,14 +72,14 @@ pub fn run(searcher: &mut Searcher, test: Option<&str>) {
                 searcher, &mut |s| s.go()),
         Some("move") => positions("testing/positions/perftsuite.epd",
                 searcher, &mut |s| println!("{}", s.root.perft(6, true))),
-        _ => println!("Valid options are `perf` or `move`")
+        _ => println!("Error: Valid options are `perf` or `move`")
     };
 }
 
 pub fn perft(board: &Board, params: &mut Params) {
-    let d = parse_or(params.next(), 5);
+    let depth = parse_or(params.next(), 5);
 
-    println!("total = {}\n", board.perft(d, true));
+    println!("total = {}\n", board.perft(depth, true));
 }
 
 pub fn positions(path: &str, searcher: &mut Searcher, do_work: &mut FnMut(&mut Searcher)) {
