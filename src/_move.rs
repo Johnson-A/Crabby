@@ -29,9 +29,10 @@ pub struct Killer(pub Move, pub Move);
 impl Killer {
     pub const EMPTY: Killer = Killer(Move::NULL, Move::NULL);
 
+    /// Push the new preferred killer move to the front
     pub fn substitute(&mut self, new_killer: Move) {
         self.1 = self.0;
-        self.0 = new_killer; // self.0 is now the preferred killer move
+        self.0 = new_killer;
     }
 }
 
