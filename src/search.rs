@@ -132,7 +132,7 @@ impl Searcher {
 
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
-            self.table.record(board, score, Move::NULL, depth, NodeBound::Exact);
+            self.table.record(board, score, Move::NULL, depth, Bound::Exact);
             return score
         }
 
@@ -252,8 +252,10 @@ impl Searcher {
             new_board.make_move(mv);
             let score = -self.q_search(&new_board, depth - 1, -beta, -alpha);
 
-            if score >= beta { return score }
-            if score > alpha { alpha = score; }
+            if score > alpha {
+                if score >= beta { return score }
+                alpha = score;
+            }
         }
         alpha
     }

@@ -71,7 +71,7 @@ impl Hash {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum NodeBound { Exact = 0, Alpha = 1, Beta = 2 }
+pub enum Bound { Exact = 0, Lower = 1, Upper = 2 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Entry {
@@ -95,7 +95,7 @@ impl Entry {
         self.info & (1 << 8) != 0
     }
 
-    pub fn bound(&self) -> NodeBound {
+    pub fn bound(&self) -> Bound {
         unsafe { mem::transmute(((self.info >> 9) & 0b11) as u8) }
     }
 
@@ -142,9 +142,9 @@ impl Table {
         if !entry.is_empty() && entry.compare(&hash) {
             if  entry.depth() > depth &&
                 match entry.bound() {
-                    NodeBound::Alpha => alpha >= entry.score,
-                    NodeBound::Beta  => beta  <= entry.score,
-                    NodeBound::Exact => true }
+                    Bound::Lower => alpha >= entry.score,
+                    Bound::Upper => beta  <= entry.score,
+                    Bound::Exact => true }
                 { return (Some(entry.score), Move::NULL) }
 
             return (None, entry.best_move)
@@ -161,7 +161,7 @@ impl Table {
         None
     }
 
-    pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: NodeBound) {
+    pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: Bound) {
         let entry = self.mut_entry(board.hash);
         let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
         if entry.is_empty() || entry.depth() <= depth || entry.ancient() {
