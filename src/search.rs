@@ -203,7 +203,7 @@ impl Searcher {
 
             if score >= beta {
                 if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                self.table.record(board, score, mv, depth, NodeBound::Beta);
+                self.table.record(board, score, mv, depth, Bound::Upper);
                 return score
             }
             if score > alpha {
@@ -220,7 +220,7 @@ impl Searcher {
             }
         }
 
-        self.table.record(board, alpha, best_move, depth, NodeBound::Alpha);
+        self.table.record(board, alpha, best_move, depth, Bound::Lower);
         alpha
     }
 
