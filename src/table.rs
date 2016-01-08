@@ -140,7 +140,7 @@ impl Table {
         let entry = self.entry(hash);
 
         if !entry.is_empty() && entry.compare(&hash) {
-            if  entry.depth() > depth &&
+            if  entry.depth() >= depth &&
                 match entry.bound() {
                     Bound::Lower => alpha >= entry.score,
                     Bound::Upper => beta  <= entry.score,

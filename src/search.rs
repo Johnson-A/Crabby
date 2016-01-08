@@ -62,8 +62,9 @@ impl Searcher {
     }
 
     pub fn reset(&mut self) {
-        self.table.units = vec![]; // Explicitly drop the previous table
-        *self = Searcher::new(self.settings, Timer::default(self.timer.should_stop.clone()));
+        self.table.units = vec![]; // Explicitly drop the previous table before allocating new table
+        let def_timer = Timer::default(self.timer.should_stop.clone());
+        *self = Searcher::new(self.settings, def_timer);
     }
 
     pub fn extend(&mut self) {
@@ -130,13 +131,15 @@ impl Searcher {
             return s
         }
 
+        let old_alpha = alpha;
+        let mut best_value = -INFINITY;
+        let is_pv = nt == NT::Root || nt == NT::PV;
+
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
             self.table.record(board, score, Move::NULL, depth, Bound::Exact);
             return score
         }
-
-        let is_pv = nt == NT::Root || nt == NT::PV;
 
         if    !is_pv
            && depth >= 2
@@ -176,24 +179,24 @@ impl Searcher {
             } else if moves_searched == 0 {
                 -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
             } else {
-                let mut s = alpha + 1;
-
-                if    depth >= 3
+                let d =
+                   if depth >= 3
                    && !mv.is_capture()
                    && mv.promotion() == 0
                    && mv != self.killers[self.ply].0
                    && mv != self.killers[self.ply].1
                    && !new_board.is_in_check()
                 {
-                    let d = depth - depth / 5 - 2;
-                    s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
-                }
+                    depth - depth / 5 - 2
+                } else {
+                    depth - 1
+                };
 
-                if s > alpha {
-                    s = -self.search(&new_board, depth - 1, -(alpha+1), -alpha, NT::NonPV);
-                    if s > alpha && s < beta {
-                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV)
-                    }
+
+                let mut s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
+
+                if s > alpha && s < beta {
+                    s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
                 }
                 s
             };
@@ -201,14 +204,16 @@ impl Searcher {
 
             if score != -INFINITY { moves_searched += 1 } else { continue }
 
-            if score >= beta {
-                if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                self.table.record(board, score, mv, depth, Bound::Upper);
-                return score
-            }
-            if score > alpha {
+            if score > best_value {
+                best_value = score;
                 best_move = mv;
-                alpha = score;
+
+                if score >= beta {
+                    if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
+                    self.table.record(board, score, mv, depth, Bound::Upper);
+                    return score
+                }
+                alpha = max(alpha, score);
             }
         }
 
@@ -220,8 +225,9 @@ impl Searcher {
             }
         }
 
-        self.table.record(board, alpha, best_move, depth, Bound::Lower);
-        alpha
+        // let bound = if best_value >= old_alpha { Bound::Exact } else { Bound::Upper };
+        self.table.record(board, best_value, best_move, depth, Bound::Lower);
+        best_value
     }
 
     // TODO: update irreversible, full three move and fifty move repition
