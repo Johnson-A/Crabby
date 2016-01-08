@@ -388,7 +388,7 @@ impl Board {
             .sorted_by(|a,b| if a.0 > b.0 { Less } else { Greater })
     }
 
-    pub fn sort_with(&self, moves: &mut Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
+    pub fn sort_with(&self, moves: Vec<Move>, best: Move, killer: &Killer) -> Vec<(i32, Move)> {
         moves.iter().map(
             |&mv| {
                 // Give the largest value to the best move to place it at the front
