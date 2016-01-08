@@ -161,8 +161,7 @@ impl Searcher {
             }
         }
 
-        let moves = board.sort_with(&mut board.get_moves(), best_move,
-                                    &self.killers[self.ply]);
+        let moves = board.sort_with(board.get_moves(), best_move, &self.killers[self.ply]);
 
         let mut moves_searched = 0;
 
