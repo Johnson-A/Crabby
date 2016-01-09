@@ -196,7 +196,7 @@ impl Searcher {
                 let mut s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
 
                 if s > alpha && s < beta {
-                    s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
+                    s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV)
                 }
                 s
             };
@@ -210,7 +210,7 @@ impl Searcher {
 
                 if score >= beta {
                     if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                    self.table.record(board, score, mv, depth, Bound::Upper);
+                    self.table.record(board, score, mv, depth, Bound::Lower);
                     return score
                 }
                 alpha = max(alpha, score);
@@ -225,8 +225,8 @@ impl Searcher {
             }
         }
 
-        // let bound = if best_value >= old_alpha { Bound::Exact } else { Bound::Upper };
-        self.table.record(board, best_value, best_move, depth, Bound::Lower);
+        // let bound = if is_pv && best_value >= old_alpha { Bound::Exact } else { Bound::Upper };
+        self.table.record(board, best_value, best_move, depth, Bound::Upper);
         best_value
     }
 
