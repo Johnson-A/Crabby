@@ -77,30 +77,28 @@ pub enum Bound { Exact = 0, Lower = 1, Upper = 2 }
 pub struct Entry {
     pub score: i32,
     pub best_move: Move,
-    pub info: u32
+    pub hash16: u16,
+    pub depth: u8,
+    pub info: u8 // Upper 2 bits -> bound, lowest bit -> ancient
 }
 
 impl Entry {
-    const NULL: Entry = Entry { score: !0, best_move: Move::NULL, info: !0 };
+    const NULL: Entry = Entry { score: 0, best_move: Move::NULL, hash16: 0, depth: 0, info: 0 };
 
     pub fn is_empty(&self) -> bool {
         *self == Entry::NULL
     }
 
-    pub fn depth(&self) -> u8 {
-        self.info as u8
-    }
-
     pub fn ancient(&self) -> bool {
-        self.info & (1 << 8) != 0
+        self.info & 0b1 != 0
     }
 
     pub fn bound(&self) -> Bound {
-        unsafe { mem::transmute(((self.info >> 9) & 0b11) as u8) }
+        unsafe { mem::transmute((self.info >> 6) & 0b11) }
     }
 
     pub fn compare(&self, hash: &Hash) -> bool {
-        (self.info >> 16) as u16 == hash.sub()
+        self.hash16 == hash.sub()
     }
 }
 
@@ -124,7 +122,7 @@ impl Table {
             // if entry.depth() == depth {
             //     println!("{} {:?} d = {} a = {} b = {}", entry.score, entry.bound(), depth, alpha, beta);
             // }
-            if  entry.depth() >= depth &&
+            if  entry.depth >= depth &&
                 match entry.bound() {
                     Bound::Lower => entry.score >= beta,
                     Bound::Upper => entry.score <= alpha,
@@ -149,9 +147,10 @@ impl Table {
         let size = self.size();
         let entry = &mut self.entries[board.hash.val as usize % size];
 
-        if entry.is_empty() || entry.depth() <= depth || entry.ancient() {
-            let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
-            *entry = Entry { score: score, best_move: best_move, info: info };
+        if entry.is_empty() || entry.depth <= depth || entry.ancient() {
+            let info = (bound as u8) << 6;
+            *entry = Entry { score: score, best_move: best_move, hash16: board.hash.sub(),
+                depth: depth, info: info };
         }
     }
 
@@ -187,7 +186,7 @@ impl Table {
         for entry in self.entries.iter_mut() {
             if !entry.is_empty() {
                 num += 1;
-                entry.info |= 1 << 8;
+                entry.info |= 0b1;
             }
         }
         num
