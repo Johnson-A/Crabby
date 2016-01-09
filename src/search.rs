@@ -53,7 +53,7 @@ impl Searcher {
                     "hash" => {
                         let size_mb = parse(params.nth(1));
                         self.table = Table::empty_mb(size_mb);
-                        self.settings.table_size = self.table.num_elems();
+                        self.settings.table_size = self.table.size();
                     },
                     _ => ()
                 }
@@ -62,7 +62,7 @@ impl Searcher {
     }
 
     pub fn reset(&mut self) {
-        self.table.units = vec![]; // Explicitly drop the previous table
+        self.table.entries = vec![]; // Explicitly drop the previous table
         *self = Searcher::new(self.settings, Timer::default(self.timer.should_stop.clone()));
     }
 
@@ -114,7 +114,7 @@ impl Searcher {
             depth += 1;
         }
 
-        println!("occ {} of {}", self.table.set_ancient(), self.table.num_elems());
+        println!("occ {} of {}", self.table.set_ancient(), self.table.size());
 
         let best = self.table.best_move(self.root.hash);
         println!("bestmove {}", best.unwrap_or(Move::NULL));

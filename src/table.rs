@@ -105,39 +105,20 @@ impl Entry {
 }
 
 pub struct Table {
-    pub units: Vec<Unit>
+    pub entries: Vec<Entry>
 }
-
-pub struct Unit {
-    entries: [Entry; UNIT_SIZE]
-}
-
-impl Clone for Unit { fn clone(&self) -> Self { Unit { entries: self.entries } } }
-
-pub const UNIT_SIZE: usize = 0xFFFF + 1;
 
 impl Table {
     pub fn empty(size: usize) -> Self {
-        Table { units: vec![Unit { entries: [Entry::NULL; UNIT_SIZE] }; size / UNIT_SIZE] }
+        Table { entries: vec![Entry::NULL; size] }
     }
 
     pub fn empty_mb(size_mb: usize) -> Self {
         Table::empty(size_mb * 1024 * 1024 / mem::size_of::<Entry>())
     }
 
-    pub fn entry(&self, hash: Hash) -> &Entry {
-        let unit = &self.units[hash.val as usize % self.units.len()];
-        &unit.entries[(hash.val as usize / self.units.len()) % UNIT_SIZE]
-    }
-
-    pub fn mut_entry(&mut self, hash: Hash) -> &mut Entry {
-        let num_units = self.units.len();
-        let unit = &mut self.units[hash.val as usize % num_units];
-        &mut unit.entries[(hash.val as usize / num_units) % UNIT_SIZE]
-    }
-
     pub fn probe(&self, hash: Hash, depth: u8, alpha: i32, beta: i32) -> (Option<i32>, Move) {
-        let entry = self.entry(hash);
+        let entry = &self.entries[hash.val as usize % self.size()];
 
         if !entry.is_empty() && entry.compare(&hash) {
             // if entry.depth() == depth {
@@ -156,7 +137,7 @@ impl Table {
     }
 
     pub fn best_move(&self, hash: Hash) -> Option<Move> {
-        let entry = self.entry(hash);
+        let entry = &self.entries[hash.val as usize % self.size()];
 
         if !entry.is_empty() && entry.compare(&hash) && entry.best_move != Move::NULL {
             return Some(entry.best_move)
@@ -165,9 +146,11 @@ impl Table {
     }
 
     pub fn record(&mut self, board: &Board, score: i32, best_move: Move, depth: u8, bound: Bound) {
-        let entry = self.mut_entry(board.hash);
-        let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
+        let size = self.size();
+        let entry = &mut self.entries[board.hash.val as usize % size];
+
         if entry.is_empty() || entry.depth() <= depth || entry.ancient() {
+            let info = depth as u32 | (bound as u32) << 9 | (board.hash.sub() as u32) << 16;
             *entry = Entry { score: score, best_move: best_move, info: info };
         }
     }
@@ -195,18 +178,16 @@ impl Table {
         }
     }
 
-    pub fn num_elems(&self) -> usize {
-        self.units.len() * UNIT_SIZE
+    pub fn size(&self) -> usize {
+        self.entries.len()
     }
 
     pub fn set_ancient(&mut self) -> usize {
         let mut num = 0;
-        for unit in &mut self.units {
-            for entry in unit.entries.iter_mut() {
-                if !entry.is_empty() {
-                    num += 1;
-                    entry.info |= 1 << 8;
-                }
+        for entry in self.entries.iter_mut() {
+            if !entry.is_empty() {
+                num += 1;
+                entry.info |= 1 << 8;
             }
         }
         num
