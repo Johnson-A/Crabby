@@ -136,6 +136,7 @@ impl Searcher {
             return score
         }
 
+        let mut best_value = -INFINITY;
         let is_pv = nt == NT::Root || nt == NT::PV;
 
         if    !is_pv
@@ -192,7 +193,7 @@ impl Searcher {
                 if s > alpha {
                     s = -self.search(&new_board, depth - 1, -(alpha+1), -alpha, NT::NonPV);
                     if s > alpha && s < beta {
-                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV)
+                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV);
                     }
                 }
                 s
@@ -201,14 +202,15 @@ impl Searcher {
 
             if score != -INFINITY { moves_searched += 1 } else { continue }
 
-            if score >= beta {
-                if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                self.table.record(board, score, mv, depth, Bound::Upper);
-                return score
-            }
-            if score > alpha {
+            if score > best_value {
                 best_move = mv;
-                alpha = score;
+                best_value = score;
+                if score >= beta {
+                    if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
+                    self.table.record(board, score, mv, depth, Bound::Lower);
+                    return score
+                }
+                alpha = max(alpha, score);
             }
         }
 
@@ -220,8 +222,8 @@ impl Searcher {
             }
         }
 
-        self.table.record(board, alpha, best_move, depth, Bound::Lower);
-        alpha
+        self.table.record(board, best_value, best_move, depth, Bound::Upper);
+        best_value
     }
 
     // TODO: update irreversible, full three move and fifty move repition

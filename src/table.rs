@@ -142,8 +142,8 @@ impl Table {
         if !entry.is_empty() && entry.compare(&hash) {
             if  entry.depth() > depth &&
                 match entry.bound() {
-                    Bound::Lower => alpha >= entry.score,
-                    Bound::Upper => beta  <= entry.score,
+                    Bound::Lower => entry.score >= beta,
+                    Bound::Upper => entry.score <= alpha,
                     Bound::Exact => true }
                 { return (Some(entry.score), Move::NULL) }
 
