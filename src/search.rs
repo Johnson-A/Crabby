@@ -132,10 +132,11 @@ impl Searcher {
 
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
-            self.table.record(board, score, Move::NULL, depth, Bound::Exact);
+            // self.table.record(board, score, Move::NULL, depth, Bound::Exact);
             return score
         }
 
+        let old_alpha = alpha;
         let mut best_value = -INFINITY;
         let is_pv = nt == NT::Root || nt == NT::PV;
 
@@ -222,6 +223,7 @@ impl Searcher {
             }
         }
 
+        // let bound = if best_value >= old_alpha { Bound::Exact } else { Bound::Upper };
         self.table.record(board, best_value, best_move, depth, Bound::Upper);
         best_value
     }

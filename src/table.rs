@@ -70,7 +70,7 @@ impl Hash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Bound { Exact = 0, Lower = 1, Upper = 2 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -127,20 +127,23 @@ impl Table {
 
     pub fn entry(&self, hash: Hash) -> &Entry {
         let unit = &self.units[hash.val as usize % self.units.len()];
-        &unit.entries[hash.val as usize % UNIT_SIZE]
+        &unit.entries[(hash.val as usize / self.units.len()) % UNIT_SIZE]
     }
 
     pub fn mut_entry(&mut self, hash: Hash) -> &mut Entry {
         let num_units = self.units.len();
         let unit = &mut self.units[hash.val as usize % num_units];
-        &mut unit.entries[hash.val as usize % UNIT_SIZE]
+        &mut unit.entries[(hash.val as usize / num_units) % UNIT_SIZE]
     }
 
     pub fn probe(&self, hash: Hash, depth: u8, alpha: i32, beta: i32) -> (Option<i32>, Move) {
         let entry = self.entry(hash);
 
         if !entry.is_empty() && entry.compare(&hash) {
-            if  entry.depth() > depth &&
+            // if entry.depth() == depth {
+            //     println!("{} {:?} d = {} a = {} b = {}", entry.score, entry.bound(), depth, alpha, beta);
+            // }
+            if  entry.depth() >= depth &&
                 match entry.bound() {
                     Bound::Lower => entry.score >= beta,
                     Bound::Upper => entry.score <= alpha,
