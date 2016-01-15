@@ -19,11 +19,6 @@ pub static SQUARE_MAP: [usize; 64] =
 8, 9, 10, 11, 12, 13, 14, 15,
 0, 1, 2, 3, 4, 5, 6, 7];
 
-/// Piece Square boards are relative to black
-fn flip_vertical(square: u32) -> u32 {
-    lsb((1u64 << square).swap_bytes())
-}
-
 fn rel_loc(square: u32, color: u8) -> usize {
     let s = square as usize;
     if color == BLACK { s } else { SQUARE_MAP[s] }
