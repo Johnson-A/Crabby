@@ -94,7 +94,7 @@ impl Entry {
     }
 
     pub fn bound(&self) -> Bound {
-        unsafe { mem::transmute((self.info >> 6) & 0b11) }
+        unsafe { mem::transmute(self.info >> 6) }
     }
 
     pub fn compare(&self, hash: &Hash) -> bool {
