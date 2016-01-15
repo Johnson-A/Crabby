@@ -63,7 +63,8 @@ impl Searcher {
 
     pub fn reset(&mut self) {
         self.table.entries = vec![]; // Explicitly drop the previous table
-        *self = Searcher::new(self.settings, Timer::default(self.timer.should_stop.clone()));
+        let def_timer = Timer::default(self.timer.should_stop.clone());
+        *self = Searcher::new(self.settings, def_timer);
     }
 
     pub fn extend(&mut self) {

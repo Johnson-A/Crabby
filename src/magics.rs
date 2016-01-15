@@ -37,7 +37,7 @@ pub unsafe fn init() {
 
     let size  = get_piece_map(BISHOP, &mut BISHOP_MAP, 0, false);
     let total = get_piece_map(ROOK, &mut ROOK_MAP, size, false);
-    assert!(total == MAP_SIZE)
+    assert!(total == MAP_SIZE);
 }
 
 pub unsafe fn knight_map_init() {
