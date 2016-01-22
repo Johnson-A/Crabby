@@ -96,6 +96,8 @@ impl Board {
     // Trapped bishop
     // Symmetric move generation and evaluation
 
+    /// This evaluation idea is taken directly from Stockfish. I might modify this in the future
+    /// when I focus more on evaluation.
     pub fn eval_space(&self, us: u8, attacked_by: &mut BitBoard) -> u32 {
         let opp = flip(us);
 
