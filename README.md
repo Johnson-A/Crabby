@@ -13,7 +13,7 @@ cd Crabby
 cargo build --release
 ./target/release/crabby
 ```
-Alternatively, as specified in the file [compile](compile), to make use of certain CPU features
+To make use of native CPU features, as specified in [compile](compile), 
 
 ```sh
 cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
