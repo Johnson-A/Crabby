@@ -28,26 +28,30 @@ cargo rustc --release -- -C target-feature=+popcnt -C target-cpu=native
 * Late Move Reduction
 * Killer move heuristic
 * Static exchange evaluation
-* Partitioned Transposition Table with Zobrist hashing
+* Transposition Table with Zobrist hashing
 * Bitboard based representation
 * Magic move generation
 
 # Planned
 * Aspiration window
 * Time manager -> improvements
-* PVS/Negascout or MTD(f) -> improvements
+* PVS or MTD(f) -> improvements
 * Piece-square evaluation
 * Evaluation -> improvements
 * 50 move rule
 * Multi-threaded search
 * Parameter Optimization
 * UCI option parsing and implementation
-* Parameter Optimization
 
 # Extended UCI Commands
-* perft x - run perft to a depth x
+* perft x - Run perft to a depth x
 * test move - Run perft on many positions to validate move generation
 * test perf - Search to a given depth in many positions to test performance
+
+# Thanks
+I'd like to thank the [chess programming wiki](https://chessprogramming.wikispaces.com),
+the [talk chess forums](http://www.talkchess.com/forum/index.php), and the open source
+[Stockfish engine](https://github.com/official-stockfish/Stockfish) for being great resources.
 
 # Terms
 Crabby is licensed under the **GNU General Public License** (GPLv2) as specified in the [LICENSE](LICENSE)
