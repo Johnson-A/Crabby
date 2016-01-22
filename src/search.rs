@@ -184,8 +184,8 @@ impl Searcher {
                 if    depth >= 3
                    && !mv.is_capture()
                    && mv.promotion() == 0
-                   && mv != self.killers[self.ply].0
-                   && mv != self.killers[self.ply].1
+                   && mv != self.killers[self.ply-1].0
+                   && mv != self.killers[self.ply-1].1
                    && !new_board.is_in_check()
                 {
                     let d = depth - depth / 5 - 2;
@@ -209,7 +209,7 @@ impl Searcher {
                 best_value = score;
                 if score >= beta {
                     if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                    self.table.record(board, score, mv, depth, Bound::Lower);
+                    self.table.record(&board, score, mv, depth, Bound::Lower);
                     return score
                 }
                 alpha = max(alpha, score);
@@ -224,8 +224,9 @@ impl Searcher {
             }
         }
 
-        // let bound = if best_value >= old_alpha { Bound::Exact } else { Bound::Upper };
-        self.table.record(board, best_value, best_move, depth, Bound::Upper);
+        // let bound = Bound::Upper;
+        let bound = if best_value > old_alpha { Bound::Exact } else { Bound::Upper };
+        self.table.record(&board, best_value, best_move, depth, bound);
         best_value
     }
 
