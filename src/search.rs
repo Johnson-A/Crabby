@@ -133,7 +133,9 @@ impl Searcher {
 
         if depth == 0 {
             let score = self.q_search(&board, 8, alpha, beta);
-            // self.table.record(board, score, Move::NULL, depth, Bound::Exact);
+
+            let bound = if score >= beta { Bound::Lower } else if score > alpha { Bound::Exact } else { Bound::Upper };
+            self.table.record(board, score, Move::NULL, depth, bound);
             return score
         }
 
@@ -152,14 +154,14 @@ impl Searcher {
 
             let d = if r as u8 >= depth { 0 } else { depth - r as u8 };
             self.ply += 1;
-            let s = -self.search(&new_board, d, -beta, -beta+1, NT::NonPV);
+            let s = -self.search(&new_board, d, -beta, -beta+1, NT::PV);
             self.ply -= 1;
 
             if s >= beta {
                 if s >= VALUE_MATE - 1000 { return beta }
 
                 if depth < 14 { return s }
-                let v = self.search(&board, d, beta - 1, beta, NT::NonPV);
+                let v = self.search(&board, d, beta - 1, beta, NT::PV);
                 if v >= beta { return s }
             }
         }
@@ -188,6 +190,7 @@ impl Searcher {
                    && mv != self.killers[self.ply-1].1
                    && !new_board.is_in_check()
                 {
+                    // let d = depth - depth / 10 - 2;
                     let d = depth - depth / 5 - 2;
                     s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
                 }
