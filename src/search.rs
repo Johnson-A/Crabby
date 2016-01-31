@@ -1,5 +1,6 @@
 use std::i32;
 use std::cmp::{min, max};
+use std::cmp::Ordering::{Less, Greater};
 use timer::Timer;
 use types::*;
 use _move::*;
@@ -11,7 +12,7 @@ use util::parse;
 pub const INFINITY: i32 = i32::MAX;
 pub const VALUE_MATE: i32 = INFINITY / 2;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum NT {
     Root, PV, NonPV
 }
@@ -102,7 +103,7 @@ impl Searcher {
         while self.timer.should_search(depth) {
             self.extend();
             let root = self.root; // Needed due to lexical borrowing (which will be resolved)
-            let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root);
+            let score = self.search(&root, depth as u8, -INFINITY, INFINITY, NT::Root, true);
 
             self.timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
@@ -121,7 +122,7 @@ impl Searcher {
         println!("bestmove {}", best.unwrap_or(Move::NULL));
     }
 
-    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32, nt: NT) -> i32 {
+    pub fn search(&mut self, board: &Board, depth: u8, mut alpha: i32, beta: i32, nt: NT, skip: bool) -> i32 {
         self.node_count += 1;
         if board.player_in_check(board.prev_move()) { return INFINITY }
 
@@ -144,6 +145,7 @@ impl Searcher {
         let is_pv = nt == NT::Root || nt == NT::PV;
 
         if    !is_pv
+           && !skip
            && depth >= 2
            && !board.is_in_check()
         {
@@ -154,19 +156,43 @@ impl Searcher {
 
             let d = if r as u8 >= depth { 0 } else { depth - r as u8 };
             self.ply += 1;
-            let s = -self.search(&new_board, d, -beta, -beta+1, NT::PV);
+            let s = -self.search(&new_board, d, -beta, -beta+1, NT::NonPV, true);
             self.ply -= 1;
 
             if s >= beta {
                 if s >= VALUE_MATE - 1000 { return beta }
 
                 if depth < 14 { return s }
-                let v = self.search(&board, d, beta - 1, beta, NT::PV);
+                let v = self.search(&board, d, beta - 1, beta, NT::NonPV, true);
                 if v >= beta { return s }
             }
         }
 
-        let moves = board.sort_with(board.get_moves(), best_move, &self.killers[self.ply]);
+        let moves = if best_move == Move::NULL && depth >= 5 {
+            let d = if is_pv { depth - 3 } else { depth / 2 - 1 };
+            // let moves = board.sort_with(board.get_moves(), best_move, &self.killers[self.ply]);
+            let moves = board.get_moves();
+            let mut move_scores = Vec::with_capacity(moves.len());
+
+            self.ply += 1;
+            for mv in moves {
+                let mut new_board = *board;
+                new_board.make_move(mv);
+
+                let score = -self.search(&new_board, d, -beta, -alpha, nt, true);
+                move_scores.push((score, mv));
+            }
+            self.ply -= 1;
+            move_scores.sort_by(|a,b| if a.0 > b.0 { Less } else { Greater });
+            // println!("{}", board);
+            // for e in &move_scores {
+            //     print!("{} {}, ", e.0, e.1);
+            // }
+
+            move_scores
+        } else {
+            board.sort_with(board.get_moves(), best_move, &self.killers[self.ply])
+        };
 
         let mut moves_searched = 0;
 
@@ -179,7 +205,7 @@ impl Searcher {
             let score = if self.check_repitition(new_board.hash) {
                 0
             } else if moves_searched == 0 {
-                -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV)
+                -self.search(&new_board, depth - 1, -beta, -alpha, NT::PV, true)
             } else {
                 let mut s = alpha + 1;
 
@@ -192,13 +218,13 @@ impl Searcher {
                 {
                     // let d = depth - depth / 10 - 2;
                     let d = depth - depth / 5 - 2;
-                    s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV);
+                    s = -self.search(&new_board, d, -(alpha+1), -alpha, NT::NonPV, false);
                 }
 
                 if s > alpha {
-                    s = -self.search(&new_board, depth - 1, -(alpha+1), -alpha, NT::NonPV);
+                    s = -self.search(&new_board, depth - 1, -(alpha+1), -alpha, NT::NonPV, false);
                     if s > alpha && s < beta {
-                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV);
+                        s = -self.search(&new_board, depth - 1, -beta, -alpha, NT::NonPV, false);
                     }
                 }
                 s
