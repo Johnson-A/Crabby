@@ -19,7 +19,7 @@ pub enum NT {
 pub struct Searcher {
     pub root: Board,
     pub timer: Timer,
-    pub settings: EngineSettings,
+    settings: EngineSettings,
     table: Table,
     killers: Vec<Killer>,
     rep: Vec<Hash>,

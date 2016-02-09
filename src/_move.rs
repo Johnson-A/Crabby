@@ -9,6 +9,7 @@ impl Move {
         Move { data: from | to << 6 | flags << 12 }
     }
 
+    // Note that the null move is invalid because the from and to squares are the same
     pub const NULL: Move = Move { data: 0 };
 
     pub fn from(&self)  -> u32 { self.data & 0x3F }
