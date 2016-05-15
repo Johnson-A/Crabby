@@ -1,4 +1,4 @@
-#![feature(slice_patterns, test, associated_consts)]
+#![feature(slice_patterns, test, associated_consts, custom_attribute)]
 extern crate itertools;
 extern crate rand;
 extern crate time;

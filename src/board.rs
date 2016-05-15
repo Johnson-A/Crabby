@@ -376,7 +376,7 @@ impl Board {
         {
             add_moves(&mut moves, 1 << (offset + 2), -2, CASTLES_QUEEN);
         }
-
+        // TODO: moves.shrink_to_fit()
         moves
     }
 
