@@ -39,7 +39,7 @@ impl Hash {
 
         hash.set_castling(castling);
         hash.set_ep(en_passant);
-        if color == WHITE { hash.flip_color() };
+        if color == WHITE { hash.flip_color() }
         hash
     }
 
@@ -157,23 +157,20 @@ impl Table {
     pub fn pv(&self, board: &Board) -> Vec<Move> {
         let mut pv = Vec::new();
         let mut visited = HashSet::new();
-        self.pv_cycle_track(&mut board.clone(), &mut pv, &mut visited);
+        self.pv_cycle_track(*board, &mut pv, &mut visited);
         pv
     }
 
-    pub fn pv_cycle_track(&self, board: &mut Board, pv: &mut Vec<Move>, visited: &mut HashSet<Hash>) {
+    pub fn pv_cycle_track(&self, mut board: Board, pv: &mut Vec<Move>, visited: &mut HashSet<Hash>) {
         let mv = self.best_move(board.hash);
 
-        match mv {
-            Some(m) => {
-                pv.push(m);
-                board.make_move(m);
+        if let Some(m) = mv {
+            pv.push(m);
+            board.make_move(m);
 
-                if visited.insert(board.hash) {
-                    self.pv_cycle_track(board, pv, visited);
-                }
-            },
-            None => ()
+            if visited.insert(board.hash) {
+                self.pv_cycle_track(board, pv, visited);
+            }
         }
     }
 
@@ -183,7 +180,7 @@ impl Table {
 
     pub fn set_ancient(&mut self) -> usize {
         let mut num = 0;
-        for entry in self.entries.iter_mut() {
+        for entry in &mut self.entries {
             if !entry.is_empty() {
                 num += 1;
                 entry.info |= 0b1;

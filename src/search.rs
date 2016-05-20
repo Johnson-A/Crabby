@@ -49,7 +49,8 @@ impl Searcher {
     pub fn update_settings(&mut self, params: &mut Params) {
         while let Some(option) = params.next() {
             if option == "name" {
-                match &*params.next().unwrap().to_lowercase() {
+                let arg: &str = &params.next().unwrap().to_lowercase();
+                match arg {
                     "hash" => {
                         let size_mb = parse(params.nth(1));
                         self.table = Table::empty_mb(size_mb);
@@ -132,7 +133,7 @@ impl Searcher {
         }
 
         if depth == 0 {
-            let score = self.q_search(&board, 8, alpha, beta);
+            let score = self.q_search(board, 8, alpha, beta);
 
             let bound = if score >= beta { Bound::Lower } else if score > alpha { Bound::Exact } else { Bound::Upper };
             self.table.record(board, score, Move::NULL, depth, bound);
@@ -161,7 +162,7 @@ impl Searcher {
                 if s >= VALUE_MATE - 1000 { return beta }
 
                 if depth < 14 { return s }
-                let v = self.search(&board, d, beta - 1, beta, NT::PV);
+                let v = self.search(board, d, beta - 1, beta, NT::PV);
                 if v >= beta { return s }
             }
         }
@@ -212,7 +213,7 @@ impl Searcher {
                 best_value = score;
                 if score >= beta {
                     if !mv.is_capture() { self.killers[self.ply].substitute(mv) }
-                    self.table.record(&board, score, mv, depth, Bound::Lower);
+                    self.table.record(board, score, mv, depth, Bound::Lower);
                     return score
                 }
                 alpha = max(alpha, score);
@@ -229,7 +230,7 @@ impl Searcher {
 
         // let bound = Bound::Upper;
         let bound = if best_value > old_alpha { Bound::Exact } else { Bound::Upper };
-        self.table.record(&board, best_value, best_move, depth, bound);
+        self.table.record(board, best_value, best_move, depth, bound);
         best_value
     }
 
