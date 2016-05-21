@@ -9,6 +9,7 @@ use bitboard::BitBoard;
 use print::*;
 use magics::*;
 
+pub const START_FEN: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 pub type Squares = [u8; 64];
 
 #[derive(Copy)]
@@ -26,8 +27,7 @@ impl Clone for Board { fn clone(&self) -> Self { *self } }
 
 impl Board {
     pub fn start_position() -> Self {
-        let start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        Board::from_fen(&mut start_fen.split_whitespace())
+        Board::from_fen(&mut START_FEN.split_whitespace())
     }
 
     pub fn from_fen(fen: &mut Params) -> Self {
@@ -54,10 +54,10 @@ impl Board {
 
         let castle_str = fen.next().expect("Castling [KQkq]");
         let mut castling = 0;
-        if castle_str.contains('K') { castling |= WK_CASTLE };
-        if castle_str.contains('Q') { castling |= WQ_CASTLE };
-        if castle_str.contains('k') { castling |= BK_CASTLE };
-        if castle_str.contains('q') { castling |= BQ_CASTLE };
+        if castle_str.contains('K') { castling |= WK_CASTLE }
+        if castle_str.contains('Q') { castling |= WQ_CASTLE }
+        if castle_str.contains('k') { castling |= BK_CASTLE }
+        if castle_str.contains('q') { castling |= BQ_CASTLE }
 
         let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
         let en_passant = match &ep_sq[..] {

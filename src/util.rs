@@ -60,6 +60,8 @@ pub const PAWN_INFO_BLACK: (u64, u64, u64, u64, i32, i32, i32) = (ROW_6, ROW_1, 
     val.count_ones()
 }
 
+/// Remove the least significant bit from the input and return its position
+/// Valid input must be non-zero
 #[inline] pub fn bit_pop(x: &mut u64) -> u32 {
     let lsb_pos = lsb(*x);
     *x ^= 1 << lsb_pos;
@@ -97,9 +99,7 @@ pub fn bishop_attacks(piece: u64, from: u32, occ: u64) -> u64 {
 
 pub fn for_all(mut pieces: u64, do_work: &mut FnMut(u32)) {
     while pieces != 0 {
-        let from = bit_pop(&mut pieces);
-
-        do_work(from);
+        do_work(bit_pop(&mut pieces));
     }
 }
 
@@ -108,7 +108,7 @@ macro_rules! lock {
 }
 
 pub fn parse<T: FromStr>(p: Option<&str>) -> T {
-    p.and_then(|t| t.parse().ok()).expect(&*format!("Could not parse {:?}", p))
+    p.and_then(|t| t.parse().ok()).expect(&format!("Could not parse {:?}", p))
 }
 
 pub fn parse_or<T: FromStr>(p: Option<&str>, def: T) -> T {
