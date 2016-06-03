@@ -47,17 +47,16 @@ impl Searcher {
     }
 
     pub fn update_settings(&mut self, params: &mut Params) {
-        while let Some(option) = params.next() {
-            if option == "name" {
-                let arg: &str = &params.next().unwrap().to_lowercase();
-                match arg {
-                    "hash" => {
-                        let size_mb = parse(params.nth(1));
-                        self.table = Table::empty_mb(size_mb);
-                        self.settings.table_size = self.table.size();
-                    },
-                    _ => ()
-                }
+        while let Some(_) = params.find(|&word| word == "name") {
+            let setting: &str = &params.next().unwrap().to_lowercase();
+
+            match setting {
+                "hash" => {
+                    let size_mb = parse(params.nth(1));
+                    self.table = Table::empty_mb(size_mb);
+                    self.settings.table_size = self.table.size();
+                },
+                _ => ()
             }
         }
     }
@@ -107,7 +106,7 @@ impl Searcher {
 
             self.timer.toc(self.node_count);
             let pv = self.table.pv(&self.root);
-            let pv_str: Vec<String> = pv.iter().map(|mv| format!("{}", mv)).collect();
+            let pv_str: Vec<String> = pv.iter().map(Move::to_string).collect();
 
             println!("info depth {} score cp {} time {} nodes {} pv {}",
                 depth, score / 10, (self.timer.elapsed() * 1000.0) as u32,

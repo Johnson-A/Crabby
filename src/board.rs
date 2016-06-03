@@ -10,6 +10,7 @@ use print::*;
 use magics::*;
 
 pub const START_FEN: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 pub type Squares = [u8; 64];
 
 #[derive(Copy)]
