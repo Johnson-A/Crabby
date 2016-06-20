@@ -61,9 +61,11 @@ impl Board {
         if castle_str.contains('q') { castling |= BQ_CASTLE }
 
         let ep_sq: Vec<char> = fen.next().expect("En Passant target square").chars().collect();
-        let en_passant = match &ep_sq[..] {
-            [sc, sr] => 1 << to_pos(sc, sr),
-            _ => 0
+
+        let en_passant = match ep_sq[..] {
+            ['-'] => 0,
+            [sc @ 'a'...'h', sr @ '3', '6'] => 1 << to_pos(sc, sr),
+            _ => panic!("Invalid en passant token")
         };
 
         let bitboard = BitBoard::generate_from(&sqs);
@@ -193,14 +195,14 @@ impl Board {
     pub fn move_from_str(&mut self, mv: &str) -> Move {
         let moves: Vec<char> = mv.chars().collect();
 
-        if let [sc, sr, dc, dr, promotion..] = &moves[..] {
+        if let [sc, sr, dc, dr, ref promotion..] = moves[..] {
             let (src, dest) = (to_pos(sc, sr), to_pos(dc, dr));
 
             let mut flags = match promotion {
-                ['q'] => QUEEN_PROM,
-                ['r'] => ROOK_PROM,
-                ['b'] => BISHOP_PROM,
-                ['n'] => KNIGHT_PROM,
+                &['q'] => QUEEN_PROM,
+                &['r'] => ROOK_PROM,
+                &['b'] => BISHOP_PROM,
+                &['n'] => KNIGHT_PROM,
                 _ => 0
             };
 

@@ -8,6 +8,8 @@ itertools = "*"
 rand = "*"
 time = "*"
 
+[profile]
+
 [profile.bench]
 opt-level = 3
 

@@ -5,7 +5,7 @@ This project is an experiment to learn a new language and explore chess programm
 I would greatly appreciate all feedback on my progress for both!
 
 # Building
-**Crabby currently requires a nightly version of the rust compiler**
+**Crabby currently requires a nightly version of the rust compiler. If there is a compiler error, please try the latest nightly and then finally submit an issue.**
 
 ```sh
 git clone https://github.com/Johnson-A/Crabby.git
